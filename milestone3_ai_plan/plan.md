@@ -2,6 +2,50 @@
 
 Talent Pipeline Tracker is a mobile-first recruiting app backed by the Talent Tracker API. It should let an internal team review all candidates, filter by status and stage, search by name or email without a full page reload, open a full candidate record, update hiring progress, manage internal notes after calls or interviews, create new candidate records, and correct bad source data. Design for a 375px viewport first, then adapt the interface for desktop at 768px and above.
 
+## Implementation Status (As Built)
+
+Snapshot date: 2026-05-19
+
+This milestone is implemented in `apps/talent-pipeline-tracker` with all core routes active and wired to the Talent Tracker API.
+
+### Implemented Routes
+
+- `/` Candidate list page is implemented with mobile cards and desktop table.
+- `/candidates/[id]` Candidate detail page is implemented.
+- `/candidates/[id]/edit` Candidate edit page is implemented.
+- `/candidates/new` New candidate page is implemented.
+
+### Implemented API Usage
+
+- `GET /records` is used for list loading with `search`, `status`, `stage`, `page`, and `limit`.
+- `GET /records/{id}` is used for candidate detail and edit profile loading.
+- `PATCH /records/{id}` is used for pipeline updates (`status` and `stage`).
+- `PUT /records/{id}` is used for correction updates (full base data replacement).
+- `POST /records` is used for new candidate creation.
+- `GET /records/{id}/notes` is used for notes loading.
+- `POST /records/{id}/notes` is used for note creation.
+- `DELETE /records/{id}/notes/{note_id}` is used for note removal.
+- `DELETE /records/{id}` is also implemented from the list page as an optional action.
+
+### Implemented UX Behavior
+
+- URL-driven query state is implemented via `useSearchParams` and route replacement.
+- Filtering, search, and pagination update without full page reload.
+- List page includes loading, empty, and error states.
+- New candidate form includes read-only defaults and inline field validation.
+- Referral path is supported as UI context only and is explicitly not persisted by API contract.
+
+### As-Built Differences vs Earlier Plan Notes
+
+- Add-note action from the list currently routes to candidate detail with notes opened (`/candidates/[id]?notes=open&focusNote=1`) instead of directly to edit.
+- Candidate detail page supports note creation through its notes panel.
+- Candidate deletion is implemented even though it was not part of the original required scope.
+
+### Verification Artifacts
+
+- API smoke-check report: `apps/talent-pipeline-tracker/docs/api-smoke-check.md`
+- API smoke-check script: `apps/talent-pipeline-tracker/scripts/api-smoke-check.mjs`
+
 ## App Description
 
 Talent Pipeline Tracker should be implemented as a Single Page App with route-level pages for candidate listing, candidate detail, candidate detail editing, and new candidate registration. The app should prioritize fast mobile scanning at `375px`, keep filtering and searching on the client without full page reloads, and expand the layout for desktop at `768px` and above.
@@ -80,7 +124,7 @@ Talent Pipeline Tracker should be implemented as a Single Page App with route-le
 
 ## Testing the API
 
-- Add the API URL to the root `.env` file. Example:
+- Add the API URL to the root `.env.local` file. Example:
   - `NEXT_PUBLIC_API_URL=https://playground.4geeks.com/tracker/api/v1`
 - Use the `openapi.json` schema to test every documented API path before implementation.
 - Verify that all documented paths are reachable.
