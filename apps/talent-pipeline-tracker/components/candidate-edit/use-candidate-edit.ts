@@ -45,7 +45,7 @@ export const useCandidateEdit = (id: string, notesOpenByDefault: boolean) => {
     setPosition: (value: string) => profile.setField("position", value),
     setLinkedinUrl: (value: string) => profile.setField("linkedinUrl", value),
     setCvUrl: (value: string) => profile.setField("cvUrl", value),
-    setExperienceYears: (value: number) => profile.setField("experienceYears", value),
+    setExperienceYears: (value: string) => profile.setField("experienceYears", value),
     setIsNotesOpen: notes.setIsNotesOpen,
     savePipeline: profile.savePipeline,
     saveCorrections: profile.saveCorrections,

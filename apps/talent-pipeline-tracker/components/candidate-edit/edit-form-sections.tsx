@@ -9,6 +9,8 @@ type EditFormSectionsProps = {
 };
 
 export const EditFormSections = ({ edit }: EditFormSectionsProps) => {
+  const experienceYears = Number.parseInt(edit.experienceYears, 10);
+
   return (
     <>
       <CandidateSummaryCard
@@ -20,7 +22,7 @@ export const EditFormSections = ({ edit }: EditFormSectionsProps) => {
         cvUrl={edit.cvUrl || null}
         status={edit.status}
         stage={edit.stage}
-        experienceYears={edit.experienceYears}
+        experienceYears={Number.isNaN(experienceYears) ? 0 : experienceYears}
         appliedAt={edit.appliedAt}
       />
       <PipelineForm status={edit.status} stage={edit.stage} saving={edit.saving} onStatusChange={edit.setStatus} onStageChange={edit.setStage} onSave={edit.savePipeline} />

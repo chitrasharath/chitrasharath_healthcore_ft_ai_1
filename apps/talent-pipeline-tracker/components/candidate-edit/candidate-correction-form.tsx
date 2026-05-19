@@ -8,7 +8,7 @@ type CandidateCorrectionFormProps = {
   position: string;
   linkedinUrl: string;
   cvUrl: string;
-  experienceYears: number;
+  experienceYears: string;
   saving: boolean;
   onFullNameChange: (value: string) => void;
   onEmailChange: (value: string) => void;
@@ -16,7 +16,7 @@ type CandidateCorrectionFormProps = {
   onPositionChange: (value: string) => void;
   onLinkedinUrlChange: (value: string) => void;
   onCvUrlChange: (value: string) => void;
-  onExperienceYearsChange: (value: number) => void;
+  onExperienceYearsChange: (value: string) => void;
   onSave: () => void;
 };
 
@@ -54,7 +54,7 @@ export const CandidateCorrectionForm = ({
           type="number"
           min={0}
           value={experienceYears}
-          onChange={(value) => onExperienceYearsChange(Number(value))}
+          onChange={onExperienceYearsChange}
         />
       </div>
       <button

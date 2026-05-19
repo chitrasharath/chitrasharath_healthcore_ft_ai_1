@@ -8,7 +8,7 @@ type NewCandidateFieldsProps = {
   position: string;
   linkedinUrl: string;
   cvUrl: string;
-  experienceYears: number;
+  experienceYears: string;
   errors: {
     fullName?: string;
     email?: string;
@@ -24,7 +24,7 @@ type NewCandidateFieldsProps = {
   onPositionChange: (value: string) => void;
   onLinkedinUrlChange: (value: string) => void;
   onCvUrlChange: (value: string) => void;
-  onExperienceYearsChange: (value: number) => void;
+  onExperienceYearsChange: (value: string) => void;
 };
 
 export const NewCandidateFields = ({
@@ -53,7 +53,7 @@ export const NewCandidateFields = ({
       <FormField id="position" label="Position" value={position} placeholder="Frontend Engineer" error={errors.position} onChange={onPositionChange} />
       <FormField id="linkedinUrl" label="LinkedIn URL" value={linkedinUrl} placeholder="https://linkedin.com/in/ava-chen" error={errors.linkedinUrl} onChange={onLinkedinUrlChange} />
       <FormField id="cvUrl" label="CV URL" value={cvUrl} placeholder="https://example.com/cv.pdf" error={errors.cvUrl} onChange={onCvUrlChange} />
-      <FormField id="experienceYears" label="Experience years" value={experienceYears} type="number" min={0} error={errors.experienceYears} onChange={(value) => onExperienceYearsChange(Number(value))} />
+      <FormField id="experienceYears" label="Experience years" value={experienceYears} type="number" min={0} error={errors.experienceYears} onChange={onExperienceYearsChange} />
       <FormField id="status" label="Default status" value="received" readOnly />
       <FormField id="stage" label="Default stage" value="pending" readOnly />
       <FormField id="applicationDate" label="Application date" value={new Date().toISOString().slice(0, 10)} readOnly />

@@ -20,7 +20,7 @@ export type CandidateProfile = {
   phone: string;
   linkedinUrl: string;
   cvUrl: string;
-  experienceYears: number;
+  experienceYears: string;
   appliedAt: string;
   status: CandidateStatus;
   stage: CandidateStage;
@@ -33,7 +33,7 @@ export const initialProfile: CandidateProfile = {
   phone: "",
   linkedinUrl: "",
   cvUrl: "",
-  experienceYears: 0,
+  experienceYears: "0",
   appliedAt: new Date().toISOString(),
   status: "received",
   stage: "pending",
@@ -46,7 +46,7 @@ export const mapCandidateProfile = (candidate: CandidateResponse): CandidateProf
   phone: candidate.phone,
   linkedinUrl: candidate.linkedin_url || "",
   cvUrl: candidate.cv_url || "",
-  experienceYears: candidate.experience_years,
+  experienceYears: String(candidate.experience_years),
   appliedAt: candidate.applied_at,
   status: candidate.status,
   stage: candidate.stage,

@@ -12,7 +12,7 @@ type NewCandidateForm = {
   position: string;
   linkedinUrl: string;
   cvUrl: string;
-  experienceYears: number;
+  experienceYears: string;
 };
 
 const initialForm: NewCandidateForm = {
@@ -22,7 +22,7 @@ const initialForm: NewCandidateForm = {
   position: "",
   linkedinUrl: "",
   cvUrl: "",
-  experienceYears: 0,
+  experienceYears: "0",
 };
 
 export const useNewCandidateForm = (returnTo: string) => {
@@ -50,6 +50,8 @@ export const useNewCandidateForm = (returnTo: string) => {
     setMessage("");
 
     try {
+      const experienceYears = Number.parseInt(form.experienceYears, 10);
+
       await createCandidate({
         full_name: form.fullName,
         email: form.email,
@@ -57,7 +59,7 @@ export const useNewCandidateForm = (returnTo: string) => {
         position: form.position,
         linkedin_url: form.linkedinUrl || null,
         cv_url: form.cvUrl || null,
-        experience_years: form.experienceYears,
+        experience_years: experienceYears,
       });
       setShowSuccessModal(true);
     } catch (submitError) {

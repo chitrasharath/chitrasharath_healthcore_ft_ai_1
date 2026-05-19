@@ -22,6 +22,12 @@ export const savePipelineMutation = async ({ id, profile, notify }: MutationOpti
 
 export const saveCorrectionsMutation = async ({ id, profile, notify }: MutationOptions) => {
   try {
+    const yearsText = profile.experienceYears.trim();
+    const experienceYears = Number.parseInt(yearsText, 10);
+    if (!/^\d+$/.test(yearsText) || Number.isNaN(experienceYears) || experienceYears < 0) {
+      throw new Error("Experience years must be a non-negative whole number.");
+    }
+
     await replaceCandidate(id, {
       full_name: profile.fullName.trim(),
       email: profile.email.trim(),
@@ -29,7 +35,7 @@ export const saveCorrectionsMutation = async ({ id, profile, notify }: MutationO
       position: profile.position.trim(),
       linkedin_url: profile.linkedinUrl.trim() || null,
       cv_url: profile.cvUrl.trim() || null,
-      experience_years: profile.experienceYears,
+      experience_years: experienceYears,
     });
     notify("success", "Candidate data corrected.");
   } catch (error) {
