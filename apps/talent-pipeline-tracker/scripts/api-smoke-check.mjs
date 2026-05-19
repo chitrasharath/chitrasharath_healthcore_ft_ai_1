@@ -6,7 +6,6 @@ const envPath = path.join(appRoot, ".env.local");
 const reportPath = path.join(appRoot, "docs", "api-smoke-check.md");
 
 const readEnvVar = (key) => {
-  if (process.env[key]) return process.env[key];
   if (!fs.existsSync(envPath)) return "";
 
   const line = fs
