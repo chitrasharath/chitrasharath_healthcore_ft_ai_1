@@ -19,7 +19,17 @@
 - TypeScript for all business logic utilities
 - Node.js for CLI/test execution
 - Modular code structure: models, collections, search, transformations, validations
-- Location: `apps/src/` — **not yet imported by `uis/website`** (deferred)
+- Location: `apps/src/` — CLI, tests, legacy browser page (`index.html` + compiled `dist/main.js`)
+- **Internal manual test UI:** `uis/backoffice/` — imports utils/types via `@healthcore/src/*`; registry/fixtures copied to `lib/`
+
+### Milestone 2 Backoffice (`uis/backoffice`)
+- Next.js 16.2.6 (App Router) with TypeScript and Tailwind CSS v4 via PostCSS
+- React 19 client components (≤80 lines per file)
+- Single route `/` — M2 function manual test dashboard
+- Import pattern: `@healthcore/src/*` → `../../apps/src/*` in `tsconfig.json`
+- Bundler: webpack with `extensionAlias` for `apps/src` `.js` import specifiers; `turbopack.root` set to repo root
+- Verification: `cd uis/backoffice && npm run verify`
+- Dev: `npm run dev` (webpack, port 3001)
 
 ### Milestone 3
 - Next.js 16 (App Router) with TypeScript and Tailwind CSS
@@ -53,6 +63,13 @@
 - Strong typing and validation for all business entities
 - Pure functions for all calculations and data transformations
 - Test harness and CLI for validation and verification
+- Internal Next.js manual test UI at `uis/backoffice` reuses utils without moving source
+
+### Milestone 2 Backoffice (`uis/backoffice`)
+- App Router with client `ManualTestPage` at `app/page.tsx`
+- Hook: `hooks/use-manual-test-runner.ts`; UI split under `components/manual-test/`
+- Copied layer: `lib/sample-data.ts`, `lib/operations-registry.ts`, `lib/operation-types.ts`
+- No auth in v1; internal dashboard only
 
 ### Milestone 3
 - SPA architecture with route-level pages for candidate management

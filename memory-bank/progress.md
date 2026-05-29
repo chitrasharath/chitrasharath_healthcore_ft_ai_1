@@ -4,7 +4,7 @@
 
 The project is organized into milestone-based delivery.
 Milestone 1, milestone 2, and milestone 3 establish the current implementation baseline.
-Milestone 4 public portal migration is **in progress**: the Next.js app at `uis/website` delivers `/` (landing) and `/enquiry-form` (patient enquiry). Legacy `apps/healthcore_web_portal/` remains unchanged for regression comparison. Milestone 2 utility integration is deferred.
+Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landing, `/enquiry-form` enquiry). Legacy `apps/healthcore_web_portal/` remains unchanged. Milestone 2 internal manual test UI is **delivered** at `uis/backoffice` (Next.js 16, imports from `apps/src` utils/types). Legacy `apps/src/index.html` + CLI + tests remain unchanged.
 
 ## Major Milestones
 
@@ -43,6 +43,17 @@ Milestone 4 public portal migration is **in progress**: the Next.js app at `uis/
 - **Deferred:** Import `apps/src` utilities into the enquiry form (future phase).
 - **Next:** Stakeholder sign-off per UAT checklists in `memory-bank/references/milestone4_ai_plan/m4_portal_migration_plan.md`; optional legacy retirement after cutover.
 
+### Milestone 2 Backoffice Manual Test UI (Delivered)
+
+- Goal: replace the browser workflow of the M2 manual test page with a Next.js internal app.
+- **Delivered:**
+  - `uis/backoffice` — Next.js 16, App Router, TypeScript, Tailwind v4.
+  - Single route `/` — function selector, dynamic params, run selected/all, results + history (parity with `apps/src/index.html`).
+  - Imports business logic from `apps/src/utils/*` and types from `apps/src/types/models` via `@healthcore/src/*` path alias.
+  - Registry and sample fixtures copied into `uis/backoffice/lib/` (copy-only; `apps/src/main.ts` unchanged).
+  - `npm run verify` (lint + webpack build) passes.
+- **Retained:** `apps/src/main.ts` (CLI), `apps/src/index.html` (legacy browser), `apps/src/tests/run-tests.ts`.
+
 ## Future Feature Additions
 
 - Expand reusable shared logic and typing between migrated milestone 1 and existing milestone 3 apps.
@@ -50,3 +61,4 @@ Milestone 4 public portal migration is **in progress**: the Next.js app at `uis/
 - Improve cross-app bilingual consistency and content governance.
 - Integrate `apps/src` validators into `/enquiry-form` when milestone 2 wiring is scheduled.
 - Legacy portal retirement and redirect strategy after stakeholder cutover approval.
+- Optional: extract shared operations registry from `apps/src/main.ts` and `uis/backoffice/lib/operations-registry.ts` to reduce drift.
