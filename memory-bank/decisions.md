@@ -37,13 +37,19 @@ This document records major decisions across project milestones.
 - Decision: Integrate with Talent Tracker API using async/await.
 - Why: Keep data flows explicit and resilient across loading and error states.
 
-## Milestone 4 Planned Migration
+## Milestone 4 Public Portal Migration
 
-- Decision: Migrate milestone 1 app to the same tech stack and architectural patterns used in milestone 3.
-- Why: Consolidate stack, reduce maintenance overhead, and standardize implementation patterns.
+- Decision: Build the migrated public portal at `uis/website` (Next.js 16) while retaining `apps/healthcore_web_portal/` unchanged.
+- Why: Enable side-by-side regression comparison and safe cutover per migrate-portal-page-to-next skill.
 
-- Decision: Import milestone 2 business logic functions into migrated milestone 1 app.
-- Why: Reuse validated logic and avoid duplication in form and data-processing flows.
+- Decision: Use route `/enquiry-form` for the patient enquiry page (`app/enquiry-form/page.tsx`).
+- Why: Clearer public URL than `/application`; maps from legacy `application.html`.
 
-- Decision: Enforce component constraints in migrated milestone 1 app.
-- Why: Keep components functional and maintainable, with each component 80 lines or less.
+- Decision: Port enquiry validation into `uis/website` (`lib/enquiry-validation.ts`) without `apps/src` imports in the first delivery.
+- Why: M2 utility wiring deferred to a later phase; parity with legacy `validation.js` was the priority.
+
+- Decision: Enforce component constraints (const functional components, ≤80 lines per file) in `uis/website`.
+- Why: Align with milestone 3 and agent rules.
+
+- Decision (deferred): Import milestone 2 business logic functions into `uis/website` enquiry workflow.
+- Why: Scheduled follow-up per frontend-consume-shared-utilities skill.
