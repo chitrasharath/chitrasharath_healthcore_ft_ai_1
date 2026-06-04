@@ -54,8 +54,14 @@ Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landi
   - `npm run verify` (lint + webpack build) passes.
 - **Retained:** `apps/src/main.ts` (CLI), `apps/src/index.html` (legacy browser), `apps/src/tests/run-tests.ts`.
 
+## Architecture (target state — documented)
+
+- **`docs/architecture_proposal.md`** — Approved proposal for FastAPI modular monolith at `services/api`, Supabase, domain boundaries, Auth/JWT, M2 backend exclusion. Implementation not started.
+- Planning source: `architecture_proposal_plan.md` at repo root.
+
 ## Future Feature Additions
 
+- Scaffold `services/api` per architecture proposal (phased rollout in doc §12).
 - Expand reusable shared logic and typing between migrated milestone 1 and existing milestone 3 apps.
 - Extend milestone 2 function usage in UI workflows where validated logic improves data quality.
 - Improve cross-app bilingual consistency and content governance.
