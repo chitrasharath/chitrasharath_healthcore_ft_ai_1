@@ -15,11 +15,12 @@ export const CsvUpload = ({ disabled, onFileSelected }: CsvUploadProps) => {
   };
 
   return (
-    <section className="rounded-xl border border-dashed border-slate-300 bg-white p-6">
-      <p className="text-sm text-slate-600">Upload an incidents CSV to analyze.</p>
+    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 className="text-sm font-bold text-sky-800">Upload incidents CSV</h2>
+      <p className="mt-1 text-sm text-slate-600">Upload an incidents CSV to analyze.</p>
       <label
-        className={`mt-4 flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-6 py-10 text-center ${
-          disabled ? "pointer-events-none opacity-60" : "hover:border-sky-400"
+        className={`mt-4 flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center transition ${
+          disabled ? "pointer-events-none opacity-60" : "hover:border-sky-500 hover:bg-sky-50/50"
         }`}
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
@@ -27,7 +28,7 @@ export const CsvUpload = ({ disabled, onFileSelected }: CsvUploadProps) => {
           if (!disabled) handleFile(event.dataTransfer.files[0]);
         }}
       >
-        <span className="text-sm font-medium text-slate-800">Drop CSV here or click to browse</span>
+        <span className="text-sm font-semibold text-slate-800">Drop CSV here or click to browse</span>
         <span className="text-xs text-slate-500">UTF-8 comma-separated file only</span>
         <input
           type="file"
