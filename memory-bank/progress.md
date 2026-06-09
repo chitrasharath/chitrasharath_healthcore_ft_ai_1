@@ -56,12 +56,22 @@ Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landi
 
 ## Architecture (target state — documented)
 
-- **`docs/architecture_proposal.md`** — Approved proposal for FastAPI modular monolith at `services/api`, Supabase, domain boundaries, Auth/JWT, M2 backend exclusion. Implementation not started.
+- **`docs/architecture_proposal.md`** — Approved proposal for FastAPI modular monolith at `services/api`, Supabase, domain boundaries, Auth/JWT, M2 backend exclusion. **Initial slice delivered** (incidents reporting only).
 - Planning source: `architecture_proposal_plan.md` at repo root.
+
+### Incident Analyzer (Delivered)
+
+- Goal: analyze patient incident CSV exports with HIPAA-safe aggregates for Patient Experience reporting.
+- **Delivered:**
+  - `uis/incident_analyzer/analysis_core.py` + `analyze.py` — pandas CLI; verified against `incidents-healthcore.csv` (100 rows, 94 valid, average 3.58).
+  - `services/api` — FastAPI + Pydantic v2; `POST /api/v1/incidents/analyze`, `GET /api/v1/incidents/results/export`; imports shared `analysis_core`.
+  - `uis/incident_analyzer` — Next.js 16 dashboard (port 3002): CSV upload, JSON dashboard, CSV export button.
+  - `npm run verify` passes in `uis/incident_analyzer`; `pytest` passes in `services/api`.
+- Plan: `memory-bank/references/incident_analyzer_ai_plan/incident_analyzer_plan.md`.
 
 ## Future Feature Additions
 
-- Scaffold `services/api` per architecture proposal (phased rollout in doc §12).
+- Expand `services/api` per architecture proposal (Auth, Supabase, remaining domains in doc §12).
 - Expand reusable shared logic and typing between migrated milestone 1 and existing milestone 3 apps.
 - Extend milestone 2 function usage in UI workflows where validated logic improves data quality.
 - Improve cross-app bilingual consistency and content governance.

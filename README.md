@@ -78,6 +78,57 @@ ai-engineering-company-project-template/
 
 ---
 
+## Incident Analyzer
+
+HealthCore patient incident CSV analysis with HIPAA-safe aggregate reporting. Shared logic lives in `uis/incident_analyzer/analysis_core.py`; the CLI, FastAPI backend, and Next.js dashboard all use the same calculations.
+
+### CLI script
+
+From `uis/incident_analyzer/`:
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python analyze.py incidents-healthcore.csv
+```
+
+The script prints a summary to the console and prompts `Export results to CSV? [y / n]:`. Answer `y` to write `incident-analysis-export.csv` in the current directory.
+
+### Backend (FastAPI)
+
+From `services/api/`:
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -e ".[dev]"
+.venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+API base URL: `http://localhost:8000`
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check |
+| `/docs` | GET | Swagger UI |
+| `/api/v1/incidents/analyze` | POST | Upload CSV (`multipart/form-data`, field `file`) |
+| `/api/v1/incidents/results/export` | GET | Download last analysis as CSV |
+
+### Dashboard (Next.js)
+
+From `uis/incident_analyzer/`:
+
+```bash
+cp .env.local.example .env.local
+npm install
+npm run dev
+```
+
+Open **http://localhost:3002**, upload an incidents CSV, and view the analysis dashboard. Use **Export results to CSV** to download via the API (requires the backend running on port 8000). Set `NEXT_PUBLIC_API_URL` in `.env.local` (default: `http://localhost:8000`).
+
+Test file: `uis/incident_analyzer/incidents-healthcore.csv` (100 rows; expected: 94 valid, 6 invalid, satisfaction average **3.58**).
+
+---
+
 ## Links
 
 - [4Geeks Academy — AI Engineering](https://4geeksacademy.com/es/programas-de-carrera/ingenieria-ia)

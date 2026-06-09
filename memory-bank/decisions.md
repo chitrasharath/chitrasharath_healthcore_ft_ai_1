@@ -99,3 +99,17 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 
 - Decision: Import M2 business logic via `@healthcore/src/*` path alias; use webpack build with `extensionAlias` for `.js` specifiers in `apps/src`.
 - Why: Turbopack cannot resolve `apps/src` internal `.js` imports without webpack; production verify uses `next build --webpack`.
+
+## Incident Analyzer
+
+- Decision: Single source of truth for incident validation/aggregation in `uis/incident_analyzer/analysis_core.py`; CLI (`analyze.py`) and FastAPI (`services/api`) both import it.
+- Why: Avoid duplicated rules; CLI and API/dashboard must return identical counts and percentages.
+
+- Decision: FastAPI incidents routes under `/api/v1/incidents/` with in-memory `LastAnalysisStore` for export (no DB/auth in v1).
+- Why: Internal prototype for Priya's team; matches approved architecture versioning; persistence deferred.
+
+- Decision: Standalone Next.js app at `uis/incident_analyzer` on dev port 3002 (not merged into backoffice or website).
+- Why: Isolated internal tool; avoids coupling with M2 manual test UI or public portal.
+
+- Decision: Never expose `patient_id` or row-level PHI in CLI output, API JSON, logs, or export CSV — aggregate counts only.
+- Why: HIPAA / UK GDPR compliance requirement from stakeholders (Priya Nair, James Osei).
