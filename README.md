@@ -78,6 +78,20 @@ ai-engineering-company-project-template/
 
 ---
 
+## Backoffice Functions (M2 manual test)
+
+Internal dashboard for running HealthCore Milestone 2 utility functions against sample data. Lives at `uis/backoffice/backoffice_functions/` under the `uis/backoffice/` parent folder.
+
+```bash
+cd uis/backoffice/backoffice_functions
+npm install
+npm run dev
+```
+
+Open **http://localhost:3001**. Verify: `npm run verify`
+
+---
+
 ## Incident Analyzer
 
 HealthCore patient incident CSV analysis with HIPAA-safe aggregate reporting. Shared logic lives in `uis/incident_analyzer/analysis_core.py`; the CLI, FastAPI backend, and Next.js dashboard all use the same calculations.

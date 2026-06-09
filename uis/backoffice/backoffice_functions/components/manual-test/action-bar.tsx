@@ -10,21 +10,21 @@ export function ActionBar({ onRunSelected, onRunAll, onClear }: ActionBarProps) 
       <button
         type="button"
         onClick={onRunSelected}
-        className="rounded-lg bg-indigo-700 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-600"
+        className="rounded-lg bg-sky-700 px-3 py-2 text-xs font-semibold text-white hover:bg-sky-800"
       >
         Run selected function
       </button>
       <button
         type="button"
         onClick={onRunAll}
-        className="rounded-lg bg-slate-800 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-700"
+        className="rounded-lg bg-sky-900 px-3 py-2 text-xs font-semibold text-white hover:bg-sky-800"
       >
         Run all with current defaults
       </button>
       <button
         type="button"
         onClick={onClear}
-        className="rounded-lg bg-slate-200 px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-300"
+        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50"
       >
         Clear output
       </button>

@@ -28,11 +28,11 @@ export function ManualTestPage() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl p-6 md:p-10">
+    <main className="mx-auto max-w-7xl p-6 md:p-10">
       <BackofficeHeader />
       <HowToRunPanel />
       <section className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="text-sm font-semibold text-slate-900">Run functions with parameters</h2>
+        <h2 className="text-sm font-bold text-sky-800">Run functions with parameters</h2>
         <p className="mt-2 text-sm text-slate-700">
           Select a function, choose parameter values, then run it against the sample data from the milestone context.
         </p>

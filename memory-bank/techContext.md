@@ -20,15 +20,16 @@
 - Node.js for CLI/test execution
 - Modular code structure: models, collections, search, transformations, validations
 - Location: `apps/src/` — CLI, tests, legacy browser page (`index.html` + compiled `dist/main.js`)
-- **Internal manual test UI:** `uis/backoffice/` — imports utils/types via `@healthcore/src/*`; registry/fixtures copied to `lib/`
+- **Internal manual test UI:** `uis/backoffice/backoffice_functions/` — imports utils/types via `@healthcore/src/*`; registry/fixtures copied to `lib/`
 
-### Milestone 2 Backoffice (`uis/backoffice`)
+### Milestone 2 Backoffice (`uis/backoffice/backoffice_functions`)
 - Next.js 16.2.6 (App Router) with TypeScript and Tailwind CSS v4 via PostCSS
 - React 19 client components (≤80 lines per file)
-- Single route `/` — M2 function manual test dashboard
-- Import pattern: `@healthcore/src/*` → `../../apps/src/*` in `tsconfig.json`
+- Single route `/` — M2 function manual test dashboard; sky/teal styling aligned with `uis/website`
+- Parent folder `uis/backoffice/` for additional internal apps
+- Import pattern: `@healthcore/src/*` → `../../../apps/src/*` in `tsconfig.json`
 - Bundler: webpack with `extensionAlias` for `apps/src` `.js` import specifiers; `turbopack.root` set to repo root
-- Verification: `cd uis/backoffice && npm run verify`
+- Verification: `cd uis/backoffice/backoffice_functions && npm run verify`
 - Dev: `npm run dev` (webpack, port 3001)
 
 ### Milestone 3
@@ -63,9 +64,9 @@
 - Strong typing and validation for all business entities
 - Pure functions for all calculations and data transformations
 - Test harness and CLI for validation and verification
-- Internal Next.js manual test UI at `uis/backoffice` reuses utils without moving source
+- Internal Next.js manual test UI at `uis/backoffice/backoffice_functions` reuses utils without moving source
 
-### Milestone 2 Backoffice (`uis/backoffice`)
+### Milestone 2 Backoffice (`uis/backoffice/backoffice_functions`)
 - App Router with client `ManualTestPage` at `app/page.tsx`
 - Hook: `hooks/use-manual-test-runner.ts`; UI split under `components/manual-test/`
 - Copied layer: `lib/sample-data.ts`, `lib/operations-registry.ts`, `lib/operation-types.ts`

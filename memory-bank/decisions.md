@@ -56,13 +56,13 @@ This document records major decisions across project milestones.
 
 ## Milestone 2 Backoffice Internal App
 
-- Decision: Build internal manual test UI at `uis/backoffice` (Next.js 16) while retaining `apps/src/main.ts`, `apps/src/index.html`, and `apps/src/tests/` unchanged.
-- Why: Modern internal UX without disrupting CLI, automated tests, or legacy browser workflow.
+- Decision: Build internal manual test UI at `uis/backoffice/backoffice_functions` (Next.js 16) while retaining `apps/src/main.ts`, `apps/src/index.html`, and `apps/src/tests/` unchanged. Parent folder `uis/backoffice/` holds sibling internal apps.
+- Why: Modern internal UX without disrupting CLI, automated tests, or legacy browser workflow; parent folder allows future backoffice pages.
 
-- Decision: Copy-only strategy for sample data and operations registry into `uis/backoffice/lib/` rather than extracting shared modules from `main.ts`.
+- Decision: Copy-only strategy for sample data and operations registry into `uis/backoffice/backoffice_functions/lib/` rather than extracting shared modules from `main.ts`.
 - Why: User chose minimal change to `apps/src`; registry duplication documented with cross-reference comments.
 
-### Operations registry implementation (`uis/backoffice/lib/operations-registry.ts`)
+### Operations registry implementation (`uis/backoffice/backoffice_functions/lib/operations-registry.ts`)
 
 The registry is a **transcription** of the manual-test wiring in `apps/src/main.ts`, not a reimplementation of business logic.
 
@@ -99,6 +99,14 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 
 - Decision: Import M2 business logic via `@healthcore/src/*` path alias; use webpack build with `extensionAlias` for `.js` specifiers in `apps/src`.
 - Why: Turbopack cannot resolve `apps/src` internal `.js` imports without webpack; production verify uses `next build --webpack`.
+
+## Backoffice Cleanup (M2 UI restructure)
+
+- Decision: Nest M2 manual test app at `uis/backoffice/backoffice_functions/`; keep `uis/backoffice/` as umbrella for future internal tools.
+- Why: Room for additional backoffice apps without mixing concerns in one Next.js project.
+
+- Decision: Restyle backoffice_functions with `uis/website` sky/teal palette (gradient header, sky-700 CTAs, HealthcoreLogo copy) without adding i18n or public nav.
+- Why: Internal tool should feel on-brand with the public portal per stakeholder visual consistency.
 
 ## Incident Analyzer
 

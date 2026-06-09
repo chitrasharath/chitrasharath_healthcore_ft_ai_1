@@ -4,7 +4,7 @@
 
 The project is organized into milestone-based delivery.
 Milestone 1, milestone 2, and milestone 3 establish the current implementation baseline.
-Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landing, `/enquiry-form` enquiry). Legacy `apps/healthcore_web_portal/` remains unchanged. Milestone 2 internal manual test UI is **delivered** at `uis/backoffice` (Next.js 16, imports from `apps/src` utils/types). Legacy `apps/src/index.html` + CLI + tests remain unchanged.
+Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landing, `/enquiry-form` enquiry). Legacy `apps/healthcore_web_portal/` remains unchanged. Milestone 2 internal manual test UI is **delivered** at `uis/backoffice/backoffice_functions` (Next.js 16, imports from `apps/src` utils/types). `uis/backoffice/` is the parent folder for internal ops apps. Legacy `apps/src/index.html` + CLI + tests remain unchanged.
 
 ## Major Milestones
 
@@ -47,12 +47,14 @@ Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landi
 
 - Goal: replace the browser workflow of the M2 manual test page with a Next.js internal app.
 - **Delivered:**
-  - `uis/backoffice` — Next.js 16, App Router, TypeScript, Tailwind v4.
+  - `uis/backoffice/backoffice_functions` — Next.js 16, App Router, TypeScript, Tailwind v4; sky/teal brand aligned with `uis/website`.
+  - Parent folder `uis/backoffice/` reserved for additional internal apps.
   - Single route `/` — function selector, dynamic params, run selected/all, results + history (parity with `apps/src/index.html`).
   - Imports business logic from `apps/src/utils/*` and types from `apps/src/types/models` via `@healthcore/src/*` path alias.
-  - Registry and sample fixtures copied into `uis/backoffice/lib/` (copy-only; `apps/src/main.ts` unchanged).
-  - `npm run verify` (lint + webpack build) passes.
+  - Registry and sample fixtures in `uis/backoffice/backoffice_functions/lib/` (copy-only; `apps/src/main.ts` unchanged).
+  - `npm run verify` (lint + webpack build) passes in `uis/backoffice/backoffice_functions`.
 - **Retained:** `apps/src/main.ts` (CLI), `apps/src/index.html` (legacy browser), `apps/src/tests/run-tests.ts`.
+- Plan: `memory-bank/references/backoffice_cleanup_ai-plan/backoffice_functions_cleanup_plan.md`.
 
 ## Architecture (target state — documented)
 
@@ -77,4 +79,4 @@ Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landi
 - Improve cross-app bilingual consistency and content governance.
 - Integrate `apps/src` validators into `/enquiry-form` when milestone 2 wiring is scheduled.
 - Legacy portal retirement and redirect strategy after stakeholder cutover approval.
-- Optional: extract shared operations registry from `apps/src/main.ts` and `uis/backoffice/lib/operations-registry.ts` to reduce drift.
+- Optional: extract shared operations registry from `apps/src/main.ts` and `uis/backoffice/backoffice_functions/lib/operations-registry.ts` to reduce drift.
