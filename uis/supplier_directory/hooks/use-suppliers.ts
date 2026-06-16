@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   createSupplier,
@@ -21,35 +21,32 @@ export const useSuppliers = () => {
     setLoading(true);
     setError(null);
     try {
-      setSuppliers(await listSuppliers());
+      setSuppliers(
+        await listSuppliers({
+          country: countryFilter === "all" ? undefined : countryFilter,
+          category: categoryFilter === "all" ? undefined : categoryFilter,
+        }),
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load suppliers");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [countryFilter, categoryFilter]);
 
   useEffect(() => {
-    // Initial fetch on mount — standard data-loading pattern for client dashboards.
+    // Refetch when filters change — server applies country/category query params.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
-
-  const filtered = useMemo(() => {
-    return suppliers.filter((supplier) => {
-      if (countryFilter !== "all" && supplier.country !== countryFilter) return false;
-      if (categoryFilter !== "all" && !supplier.categories.includes(categoryFilter)) return false;
-      return true;
-    });
-  }, [suppliers, countryFilter, categoryFilter]);
 
   const replaceSupplier = (updated: Supplier) => {
     setSuppliers((current) => current.map((s) => (s.id === updated.id ? updated : s)));
   };
 
   const addSupplier = async (input: SupplierCreateInput): Promise<void> => {
-    const created = await createSupplier(input);
-    setSuppliers((current) => [...current, created]);
+    await createSupplier(input);
+    await load();
   };
 
   const updateRate = async (id: number, monthlyRate: number) => {
@@ -64,7 +61,7 @@ export const useSuppliers = () => {
   };
 
   return {
-    suppliers: filtered,
+    suppliers,
     loading,
     error,
     countryFilter,

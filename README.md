@@ -113,9 +113,8 @@ The script prints a summary to the console and prompts `Export results to CSV? [
 From `services/api/`:
 
 ```bash
-python3 -m venv .venv
-.venv/bin/pip install -e ".[dev]"
-.venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uv sync --extra dev
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 API base URL: `http://localhost:8000`
@@ -156,9 +155,8 @@ Centralized supplier registry for HealthCore procurement and compliance. TinyDB-
 From `services/api/`:
 
 ```bash
-python3 -m venv .venv   # if needed
-.venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m app.seed
+uv sync --extra dev
+uv run seed
 ```
 
 Loads 15 suppliers idempotently (skips existing names). Plan: `memory-bank/references/supplier_directory_ai_plan/IMPLEMENTATION_PLAN.md`.

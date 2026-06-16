@@ -11,8 +11,18 @@ const parseError = async (response: Response): Promise<string> => {
   return payload.detail.map((item) => item.msg ?? "Validation error").join("; ");
 };
 
-export const listSuppliers = async (): Promise<Supplier[]> => {
-  const response = await fetch(`${API_URL}/api/v1/suppliers`);
+export type ListSuppliersParams = {
+  country?: "USA" | "UK";
+  category?: string;
+};
+
+export const listSuppliers = async (params?: ListSuppliersParams): Promise<Supplier[]> => {
+  const search = new URLSearchParams();
+  if (params?.country) search.set("country", params.country);
+  if (params?.category) search.set("category", params.category);
+  const query = search.toString();
+  const url = `${API_URL}/api/v1/suppliers${query ? `?${query}` : ""}`;
+  const response = await fetch(url);
   if (!response.ok) throw new Error(await parseError(response));
   return response.json() as Promise<Supplier[]>;
 };

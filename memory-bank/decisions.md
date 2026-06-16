@@ -136,7 +136,7 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision: Set `rate_updated_at` on seed, POST create, and every PATCH rate (Option A).
 - Why: Claire's audit trail requires a visible timestamp from registration onward.
 
-- Decision: Manual seed only (`python -m app.seed`); no auto-seed on API startup.
+- Decision: Manual seed only (`uv run seed`); no auto-seed on API startup.
 - Why: Explicit developer workflow per implementation plan.
 
 - Decision: CORS via settings list including `http://localhost:3003` (not wildcard `*`).
