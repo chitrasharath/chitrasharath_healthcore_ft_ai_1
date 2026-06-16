@@ -126,6 +126,10 @@ API base URL: `http://localhost:8000`
 | `/docs` | GET | Swagger UI |
 | `/api/v1/incidents/analyze` | POST | Upload CSV (`multipart/form-data`, field `file`) |
 | `/api/v1/incidents/results/export` | GET | Download last analysis as CSV |
+| `/api/v1/suppliers` | GET, POST | List or register suppliers (`?country=`, `?category=` on GET) |
+| `/api/v1/suppliers/{id}` | GET, DELETE | Supplier detail; DELETE soft-suspends |
+| `/api/v1/suppliers/{id}/rate` | PATCH | Update monthly rate |
+| `/api/v1/suppliers/{id}/status` | PATCH | Activate or suspend supplier |
 
 ### Dashboard (Next.js)
 
@@ -140,6 +144,36 @@ npm run dev
 Open **http://localhost:3002**, upload an incidents CSV, and view the analysis dashboard. Use **Export results to CSV** to download via the API (requires the backend running on port 8000). Set `NEXT_PUBLIC_API_URL` in `.env.local` (default: `http://localhost:8000`).
 
 Test file: `uis/incident_analyzer/incidents-healthcore.csv` (100 rows; expected: 94 valid, 6 invalid, satisfaction average **3.58**).
+
+---
+
+## Supplier Directory
+
+Centralized supplier registry for HealthCore procurement and compliance. TinyDB-backed API at `services/api`; standalone Next.js dashboard at `uis/supplier_directory/` (port **3003**).
+
+### Seed database
+
+From `services/api/`:
+
+```bash
+python3 -m venv .venv   # if needed
+.venv/bin/pip install -e ".[dev]"
+.venv/bin/python -m app.seed
+```
+
+Loads 15 suppliers idempotently (skips existing names). Plan: `memory-bank/references/supplier_directory_ai_plan/IMPLEMENTATION_PLAN.md`.
+
+### Dashboard (Next.js)
+
+From `uis/supplier_directory/`:
+
+```bash
+cp .env.local.example .env.local
+npm install
+npm run dev
+```
+
+Open **http://localhost:3003**. Requires the API on port 8000 with seeded data. Verify: `npm run verify`
 
 ---
 

@@ -121,3 +121,35 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 
 - Decision: Never expose `patient_id` or row-level PHI in CLI output, API JSON, logs, or export CSV — aggregate counts only.
 - Why: HIPAA / UK GDPR compliance requirement from stakeholders (Priya Nair, James Osei).
+
+## Supplier Directory (Milestone 09)
+
+- Decision: Use TinyDB JSON store at `services/api/db.json` as interim persistence (Postgres migration deferred per James Osei).
+- Why: Lightweight storage for immediate delivery; aligns with SPECS milestone 09 scope.
+
+- Decision: Follow existing `app/` modular monolith layout (`router` → `service` → `store`) under `app/domains/procurement/suppliers/`, not SPECS' flat `main.py` / `routes.py` structure.
+- Why: Consistency with delivered incident analyzer domain; register via `app/api/v1/router.py`.
+
+- Decision: Enforce unique supplier names on POST (422); idempotent seeder dedupes by name.
+- Why: Registry must not allow duplicate trade names.
+
+- Decision: Set `rate_updated_at` on seed, POST create, and every PATCH rate (Option A).
+- Why: Claire's audit trail requires a visible timestamp from registration onward.
+
+- Decision: Manual seed only (`python -m app.seed`); no auto-seed on API startup.
+- Why: Explicit developer workflow per implementation plan.
+
+- Decision: CORS via settings list including `http://localhost:3003` (not wildcard `*`).
+- Why: Match existing `app/core/config.py` pattern.
+
+- Decision: Standalone Next.js app at `uis/supplier_directory` on port 3003; styling copied from `uis/incident_analyzer`.
+- Why: Isolated internal tool; visual consistency across HealthCore Digital ops apps.
+
+- Decision: UI uses Actions column for rate edit and status toggle (PATCH only); DELETE is API-only soft suspend.
+- Why: Clear edit affordances; preserve audit history without exposing delete in UI.
+
+- Decision: Client-side list filters; API `?country=` / `?category=` still implemented and tested.
+- Why: Simple v1 UX with full fetch; API filters available for future consumers.
+
+- Decision: Add `compliance_agreement` table column; humanized category labels; auto-derived currency on add form.
+- Why: CONTEXT compliance visibility; readability; reduce form errors.

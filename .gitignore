@@ -38,5 +38,6 @@ coverage/
 
 # Misc
 *.pem
+services/api/db.json
 .pnp
 .pnp.*

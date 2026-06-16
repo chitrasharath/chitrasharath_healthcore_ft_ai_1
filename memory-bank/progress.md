@@ -71,6 +71,16 @@ Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landi
   - `npm run verify` passes in `uis/incident_analyzer`; `pytest` passes in `services/api`.
 - Plan: `memory-bank/references/incident_analyzer_ai_plan/incident_analyzer_plan.md`.
 
+### Supplier Directory (Delivered)
+
+- Goal: replace departmental supplier spreadsheets with a centralized registry API and internal directory UI.
+- **Delivered:**
+  - `services/api/app/domains/procurement/suppliers/` — TinyDB store, Pydantic schemas, CRUD + soft-delete API under `/api/v1/suppliers`.
+  - `app/seed.py` — idempotent seeder for 15 suppliers (`python -m app.seed`).
+  - `uis/supplier_directory` — Next.js 16 dashboard (port 3003): list, client-side filters, add form, Actions-column rate/status controls, compliance column.
+  - `pytest` (29 tests) passes in `services/api`; `npm run verify` passes in `uis/supplier_directory`.
+- Plan: `memory-bank/references/supplier_directory_ai_plan/IMPLEMENTATION_PLAN.md`.
+
 ## Future Feature Additions
 
 - Expand `services/api` per architecture proposal (Auth, Supabase, remaining domains in doc §12).

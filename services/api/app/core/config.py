@@ -5,7 +5,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     app_env: str = "development"
-    cors_origins: str = "http://localhost:3002"
+    cors_origins: str = "http://localhost:3002,http://localhost:3003"
     incident_analyzer_path: str = "../../uis/incident_analyzer"
 
     @property
