@@ -140,7 +140,7 @@ Average: **3.58**
 
 ## Expected Output
 
-When the student runs `python analyze.py incidents-healthcore.csv` against the provided file, the console output must show the following values:
+When the student runs `uv run analyze incidents-healthcore.csv` (from `uis/incident_analyzer/` after `uv sync`) against the provided file, the console output must show the following values:
 
 ```
 ============================================================

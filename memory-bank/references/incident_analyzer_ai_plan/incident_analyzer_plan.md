@@ -79,7 +79,8 @@ Percentages in console output use valid-record denominators (e.g. APPOINTMENT 30
 
 ```bash
 cd uis/incident_analyzer
-python analyze.py incidents-healthcore.csv
+uv sync
+uv run analyze incidents-healthcore.csv
 ```
 
 ### CLI console output (exact template)
@@ -237,7 +238,7 @@ flowchart LR
 
 **Location:** [`uis/incident_analyzer/analyze.py`](uis/incident_analyzer/analyze.py)
 
-**Dependencies:** `pandas` (add [`uis/incident_analyzer/requirements.txt`](uis/incident_analyzer/requirements.txt) or document `pip install pandas` for CLI-only use).
+**Dependencies:** `pandas` via [`uis/incident_analyzer/pyproject.toml`](uis/incident_analyzer/pyproject.toml) and committed `uv.lock`; install with `uv sync` (no `requirements.txt` or manual venv).
 
 **`analysis_core.py` responsibilities:**
 - `load_incidents(path_or_buffer) -> pd.DataFrame`
@@ -247,7 +248,7 @@ flowchart LR
 - `to_export_rows(result) -> list[dict]` — metric/value/percentage rows for CSV export
 
 **`analyze.py` responsibilities:**
-- CLI: `python analyze.py <csv_path>`
+- CLI: `uv run analyze <csv_path>`
 - Print formatted report matching CONTEXT numeric values exactly
 - Prompt `Export results to CSV? [y / n]:` → write `incident-analysis-export.csv` (or user-specified name) using `to_export_rows`
 - Exit codes: 0 on success; non-zero on file/read errors (no PHI in error messages)
@@ -255,7 +256,8 @@ flowchart LR
 **Verification:**
 ```bash
 cd uis/incident_analyzer
-python analyze.py incidents-healthcore.csv
+uv sync
+uv run analyze incidents-healthcore.csv
 ```
 Assert all counts and average `3.58` match CONTEXT expected output.
 
@@ -488,7 +490,7 @@ The dashboard mirrors every CLI section. Before upload, show only the upload zon
 |---|---|
 | `uis/incident_analyzer/analysis_core.py` | Create — shared pandas logic |
 | `uis/incident_analyzer/analyze.py` | Create — CLI entry |
-| `uis/incident_analyzer/requirements.txt` | Create — pandas |
+| `uis/incident_analyzer/pyproject.toml` + `uv.lock` | Create — pandas CLI deps (`uv sync`, `uv run analyze`) |
 | `uis/incident_analyzer/package.json` + Next scaffold | Create — Step 3 app |
 | `services/api/pyproject.toml` + `app/main.py` | Create — minimal FastAPI |
 | `services/api/app/domains/reporting/incidents/*` | Create — router, schemas, service, store |
@@ -501,8 +503,8 @@ The dashboard mirrors every CLI section. Before upload, show only the upload zon
 
 | Layer | Command / check |
 |---|---|
-| CLI | `python analyze.py incidents-healthcore.csv` — all numbers match CONTEXT |
-| API unit | `pytest` for `analysis_core` rule counts against fixture CSV |
+| CLI | `uv run analyze incidents-healthcore.csv` — all numbers match CONTEXT |
+| API unit | `cd services/api && uv run pytest` for incident/supplier tests |
 | API integration | `httpx` POST fixture → JSON counts; GET export → CSV rows with metric/value |
 | UI | Manual: upload `incidents-healthcore.csv`, verify dashboard numbers, export CSV |
 | Compliance | Grep outputs/logs for `PAT-` pattern — must be zero matches |

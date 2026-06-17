@@ -101,9 +101,8 @@ HealthCore patient incident CSV analysis with HIPAA-safe aggregate reporting. Sh
 From `uis/incident_analyzer/`:
 
 ```bash
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-.venv/bin/python analyze.py incidents-healthcore.csv
+uv sync
+uv run analyze incidents-healthcore.csv
 ```
 
 The script prints a summary to the console and prompts `Export results to CSV? [y / n]:`. Answer `y` to write `incident-analysis-export.csv` in the current directory.

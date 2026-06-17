@@ -58,7 +58,7 @@ These resolve ambiguities between SPECS, CONTEXT, and the current codebase.
 |-------|----------|
 | Backend layout | Follow existing `app/` package + layered domain (`router.py`, `schemas.py`, `service.py`, `store.py`) — not SPECS' flat `main.py` / `routes.py` layout |
 | Router registration | Mount suppliers router in `app/api/v1/router.py` (prefix `/suppliers` under `/api/v1`) |
-| Uvicorn entry | `uv run uvicorn app.main:app --reload --port 8000` (or `python -m app`) |
+| Uvicorn entry | `uv run uvicorn app.main:app --reload --port 8000` |
 | Seeding | **Manual only** — `uv run seed` before demo; no auto-seed on API startup |
 | CORS | Extend `app/core/config.py` default `cors_origins` to include `http://localhost:3003` (settings-driven, not wildcard `*`) |
 | Duplicate names on POST | **Reject with 422** — registry enforces unique supplier names |

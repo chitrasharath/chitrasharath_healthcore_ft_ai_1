@@ -113,6 +113,9 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision: Single source of truth for incident validation/aggregation in `uis/incident_analyzer/analysis_core.py`; CLI (`analyze.py`) and FastAPI (`services/api`) both import it.
 - Why: Avoid duplicated rules; CLI and API/dashboard must return identical counts and percentages.
 
+- Decision: Incident analyzer CLI dependencies managed with `uv` (`uis/incident_analyzer/pyproject.toml` + `uv.lock`); run via `uv run analyze`. No `requirements.txt` or manual venv.
+- Why: Single Python toolchain across API and CLI; avoids pip/uv drift.
+
 - Decision: FastAPI incidents routes under `/api/v1/incidents/` with in-memory `LastAnalysisStore` for export (no DB/auth in v1).
 - Why: Internal prototype for Priya's team; matches approved architecture versioning; persistence deferred.
 

@@ -99,7 +99,7 @@ def write_export_csv(result: AnalysisResult, output_path: Path) -> None:
 
 def main() -> int:
     if len(sys.argv) != 2:
-        print("Usage: python analyze.py <csv_path>", file=sys.stderr)
+        print("Usage: uv run analyze <csv_path>", file=sys.stderr)
         return 1
 
     csv_path = Path(sys.argv[1])

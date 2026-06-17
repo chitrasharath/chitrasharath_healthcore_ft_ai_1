@@ -407,13 +407,14 @@ healthcore-monorepo/
 
 | Concern | Approach |
 |---------|----------|
-| Root | `services/api/pyproject.toml` |
-| Lockfile | `services/api/uv.lock` (committed) |
+| API root | `services/api/pyproject.toml` |
+| CLI root | `uis/incident_analyzer/pyproject.toml` (incident analyzer pandas CLI) |
+| Lockfiles | `services/api/uv.lock`, `uis/incident_analyzer/uv.lock` (committed) |
 | Python | 3.12 (`.python-version` + `requires-python`) |
-| Run | `uv run uvicorn app.main:app --reload`, `uv run pytest` |
+| Run | `uv run uvicorn app.main:app --reload`, `uv run pytest`, `uv run analyze <csv>` |
 | CI | `uv sync --frozen`, `ruff check`, `ruff format --check`, `pytest` |
 
-Do not mix `pip install -r requirements.txt` with uv for this app.
+**Python toolchain:** uv only for `services/api` and `uis/incident_analyzer` CLI. Committed lockfiles, `uv sync`, and `uv run …` — no `requirements.txt` or manual venv setup.
 
 ### 7.2 Module tree (abbreviated)
 

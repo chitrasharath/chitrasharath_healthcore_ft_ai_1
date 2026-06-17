@@ -642,7 +642,7 @@ uv run ruff format --check .
 
 Optional root `Makefile` target: `make api-test` → runs the above. See **§5.1** for PEP 8, FastAPI, and Pydantic conventions.
 
-**Do not** mix `pip install -r requirements.txt` with uv for this app—one toolchain avoids drift.
+**Python toolchain:** use **uv only** for `services/api` and `uis/incident_analyzer` CLI — committed lockfiles (`services/api/uv.lock`, `uis/incident_analyzer/uv.lock`), `uv sync`, and `uv run …`. Do not add `requirements.txt` or manual `python3 -m venv` workflows.
 
 ### Pydantic & FastAPI schema layout (same app)
 

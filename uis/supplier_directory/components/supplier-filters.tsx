@@ -1,17 +1,22 @@
+import { ApiFilterToggle } from "@/components/api-filter-toggle";
 import { CATEGORY_LABELS, VALID_CATEGORIES } from "@/lib/categories";
 
 type SupplierFiltersProps = {
   countryFilter: "all" | "USA" | "UK";
   categoryFilter: string;
+  apiFiltersEnabled: boolean;
   onCountryChange: (value: "all" | "USA" | "UK") => void;
   onCategoryChange: (value: string) => void;
+  onApiFiltersToggle: () => void;
 };
 
 export const SupplierFilters = ({
   countryFilter,
   categoryFilter,
+  apiFiltersEnabled,
   onCountryChange,
   onCategoryChange,
+  onApiFiltersToggle,
 }: SupplierFiltersProps) => (
   <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
     <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
@@ -41,5 +46,6 @@ export const SupplierFilters = ({
         ))}
       </select>
     </label>
+    <ApiFilterToggle enabled={apiFiltersEnabled} onToggle={onApiFiltersToggle} />
   </div>
 );

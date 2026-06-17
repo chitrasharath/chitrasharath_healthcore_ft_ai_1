@@ -13,8 +13,10 @@ export const SupplierDirectory = () => {
     error,
     countryFilter,
     categoryFilter,
+    apiFiltersEnabled,
     setCountryFilter,
     setCategoryFilter,
+    toggleApiFilters,
     addSupplier,
     updateRate,
     toggleStatus,
@@ -27,8 +29,10 @@ export const SupplierDirectory = () => {
       <SupplierFilters
         countryFilter={countryFilter}
         categoryFilter={categoryFilter}
+        apiFiltersEnabled={apiFiltersEnabled}
         onCountryChange={setCountryFilter}
         onCategoryChange={setCategoryFilter}
+        onApiFiltersToggle={toggleApiFilters}
       />
       {loading ? <p className="text-sm font-medium text-sky-800">Loading suppliers…</p> : null}
       {error ? (

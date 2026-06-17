@@ -65,10 +65,10 @@ Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landi
 
 - Goal: analyze patient incident CSV exports with HIPAA-safe aggregates for Patient Experience reporting.
 - **Delivered:**
-  - `uis/incident_analyzer/analysis_core.py` + `analyze.py` — pandas CLI; verified against `incidents-healthcore.csv` (100 rows, 94 valid, average 3.58).
-  - `services/api` — FastAPI + Pydantic v2; `POST /api/v1/incidents/analyze`, `GET /api/v1/incidents/results/export`; imports shared `analysis_core`.
-  - `uis/incident_analyzer` — Next.js 16 dashboard (port 3002): CSV upload, JSON dashboard, CSV export button.
-  - `npm run verify` passes in `uis/incident_analyzer`; `pytest` passes in `services/api`.
+  - `uis/incident_analyzer/analysis_core.py` + `analyze.py` — pandas CLI via `uv run analyze`; verified against `incidents-healthcore.csv` (100 rows, 94 valid, average 3.58).
+  - `services/api` — FastAPI + Pydantic v2; `POST /api/v1/incidents/analyze`, `GET /api/v1/incidents/results/export`; imports shared `analysis_core`. Managed with `uv sync` / `uv run pytest`.
+  - `uis/incident_analyzer` — Next.js 16 dashboard (port 3002): CSV upload, JSON dashboard, CSV export button; CLI uses `uv.lock` + `uv sync`.
+  - `npm run verify` passes in `uis/incident_analyzer`; `uv run pytest` passes in `services/api`.
 - Plan: `memory-bank/references/incident_analyzer_ai_plan/incident_analyzer_plan.md`.
 
 ### Supplier Directory (Delivered)
