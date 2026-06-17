@@ -203,6 +203,34 @@ def test_patch_status_invalid(client: TestClient) -> None:
     assert response.status_code == 422
 
 
+def test_patch_details_updates_optional_fields(client: TestClient) -> None:
+    created = client.post("/api/v1/suppliers", json=VALID_SUPPLIER).json()
+    response = client.patch(
+        f"/api/v1/suppliers/{created['id']}/details",
+        json={
+            "compliance_agreement": "BAA",
+            "contract_renewal_date": "2026-12-31",
+            "contact_email": "ops@example.com",
+            "notes": "Added via detail update",
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["compliance_agreement"] == "BAA"
+    assert data["contract_renewal_date"] == "2026-12-31"
+    assert data["contact_email"] == "ops@example.com"
+    assert data["notes"] == "Added via detail update"
+
+
+def test_patch_details_invalid_date(client: TestClient) -> None:
+    created = client.post("/api/v1/suppliers", json=VALID_SUPPLIER).json()
+    response = client.patch(
+        f"/api/v1/suppliers/{created['id']}/details",
+        json={"contract_renewal_date": "31-12-2026"},
+    )
+    assert response.status_code == 422
+
+
 def test_delete_soft_suspends(client: TestClient) -> None:
     created = client.post("/api/v1/suppliers", json=VALID_SUPPLIER).json()
     supplier_id = created["id"]

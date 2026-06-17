@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from app.domains.procurement.suppliers import store
 from app.domains.procurement.suppliers.schemas import (
     SupplierCreate,
+    SupplierDetailsUpdate,
     SupplierRateUpdate,
     SupplierResponse,
     SupplierStatusUpdate,
@@ -66,6 +67,13 @@ def update_rate(supplier_id: int, data: SupplierRateUpdate) -> SupplierResponse:
 
 def update_status(supplier_id: int, data: SupplierStatusUpdate) -> SupplierResponse:
     doc = store.update(supplier_id, {"status": data.status})
+    if doc is None:
+        raise SupplierNotFoundError
+    return _to_response(doc)
+
+
+def update_details(supplier_id: int, data: SupplierDetailsUpdate) -> SupplierResponse:
+    doc = store.update(supplier_id, data.model_dump())
     if doc is None:
         raise SupplierNotFoundError
     return _to_response(doc)

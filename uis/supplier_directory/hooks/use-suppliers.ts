@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   createSupplier,
@@ -8,7 +9,17 @@ import {
   updateSupplierRate,
   updateSupplierStatus,
 } from "@/lib/api";
+import { readApiFilterMode, writeApiFilterMode } from "@/lib/api-filter-mode";
+import {
+  applySupplierFilters,
+  filterListQuery,
+  parseSupplierFilters,
+  supplierListPath,
+  type CountryFilter,
+} from "@/lib/supplier-filter-params";
 import type { Supplier, SupplierCreateInput } from "@/lib/types";
+
+let clientSuppliersCache: Supplier[] | null = null;
 
 const matchesFilters = (
   supplier: Supplier,
@@ -20,71 +31,160 @@ const matchesFilters = (
   return true;
 };
 
+const syncClientCache = (suppliers: Supplier[]) => {
+  clientSuppliersCache = suppliers;
+};
+
 export const useSuppliers = () => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { countryFilter, categoryFilter } = useMemo(
+    () => parseSupplierFilters(searchParams),
+    [searchParams],
+  );
+  const listQuery = filterListQuery(searchParams);
+
+  const [clientReady, setClientReady] = useState(false);
+  const [apiFiltersEnabled, setApiFiltersEnabled] = useState(false);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [countryFilter, setCountryFilter] = useState<"all" | "USA" | "UK">("all");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [apiFiltersEnabled, setApiFiltersEnabled] = useState(false);
+  const hydratedRef = useRef(false);
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setSuppliers(await listSuppliers());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load suppliers");
-    } finally {
+  useEffect(() => {
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
+
+    let apiMode = readApiFilterMode();
+    if (searchParams.get("api") === "1") {
+      apiMode = true;
+      writeApiFilterMode(true);
+      router.replace(supplierListPath(searchParams), { scroll: false });
+    }
+
+    setApiFiltersEnabled(apiMode);
+
+    if (!apiMode && clientSuppliersCache) {
+      setSuppliers(clientSuppliersCache);
       setLoading(false);
     }
+
+    setClientReady(true);
+  }, [router, searchParams]);
+
+  const updateFilters = useCallback(
+    (updates: Parameters<typeof applySupplierFilters>[1]) => {
+      const next = applySupplierFilters(searchParams, updates);
+      router.replace(supplierListPath(next), { scroll: false });
+    },
+    [router, searchParams],
+  );
+
+  const setCountryFilter = useCallback(
+    (value: CountryFilter) => updateFilters({ countryFilter: value }),
+    [updateFilters],
+  );
+
+  const setCategoryFilter = useCallback(
+    (value: string) => updateFilters({ categoryFilter: value }),
+    [updateFilters],
+  );
+
+  const toggleApiFilters = useCallback(() => {
+    setApiFiltersEnabled((current) => {
+      const next = !current;
+      writeApiFilterMode(next);
+      if (!next && clientSuppliersCache) {
+        setSuppliers(clientSuppliersCache);
+        setLoading(false);
+        setError(null);
+      }
+      return next;
+    });
   }, []);
 
-  const fetchFiltered = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setSuppliers(
-        await listSuppliers({
+  const replaceSupplier = useCallback((updated: Supplier) => {
+    setSuppliers((current) => {
+      const next = current.map((s) => (s.id === updated.id ? updated : s));
+      syncClientCache(next);
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!clientReady || apiFiltersEnabled) return;
+    if (clientSuppliersCache) return;
+
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await listSuppliers();
+        if (cancelled) return;
+        syncClientCache(data);
+        setSuppliers(data);
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Unable to load suppliers");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [clientReady, apiFiltersEnabled]);
+
+  useEffect(() => {
+    if (!clientReady || !apiFiltersEnabled) return;
+
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await listSuppliers({
           country: countryFilter === "all" ? undefined : countryFilter,
           category: categoryFilter === "all" ? undefined : categoryFilter,
-        }),
-      );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load suppliers");
-    } finally {
-      setLoading(false);
-    }
-  }, [countryFilter, categoryFilter]);
+        });
+        if (!cancelled) setSuppliers(data);
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Unable to load suppliers");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
 
-  useEffect(() => {
-    if (apiFiltersEnabled) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void fetchAll();
-  }, [apiFiltersEnabled, fetchAll]);
-
-  useEffect(() => {
-    if (!apiFiltersEnabled) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void fetchFiltered();
-  }, [apiFiltersEnabled, fetchFiltered]);
+    return () => {
+      cancelled = true;
+    };
+  }, [clientReady, apiFiltersEnabled, countryFilter, categoryFilter]);
 
   const displayed = useMemo(() => {
     if (apiFiltersEnabled) return suppliers;
     return suppliers.filter((supplier) => matchesFilters(supplier, countryFilter, categoryFilter));
   }, [suppliers, apiFiltersEnabled, countryFilter, categoryFilter]);
 
-  const replaceSupplier = (updated: Supplier) => {
-    setSuppliers((current) => current.map((s) => (s.id === updated.id ? updated : s)));
-  };
-
   const addSupplier = async (input: SupplierCreateInput): Promise<void> => {
     const created = await createSupplier(input);
     if (apiFiltersEnabled) {
-      await fetchFiltered();
+      const data = await listSuppliers({
+        country: countryFilter === "all" ? undefined : countryFilter,
+        category: categoryFilter === "all" ? undefined : categoryFilter,
+      });
+      setSuppliers(data);
       return;
     }
-    setSuppliers((current) => [...current, created]);
+    setSuppliers((current) => {
+      const next = [...current, created];
+      syncClientCache(next);
+      return next;
+    });
   };
 
   const updateRate = async (id: number, monthlyRate: number) => {
@@ -98,23 +198,52 @@ export const useSuppliers = () => {
     replaceSupplier(updated);
   };
 
-  const toggleApiFilters = () => {
-    setApiFiltersEnabled((current) => !current);
-  };
+  const reload = useCallback(async () => {
+    if (apiFiltersEnabled) {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await listSuppliers({
+          country: countryFilter === "all" ? undefined : countryFilter,
+          category: categoryFilter === "all" ? undefined : categoryFilter,
+        });
+        setSuppliers(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to load suppliers");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await listSuppliers();
+      syncClientCache(data);
+      setSuppliers(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load suppliers");
+    } finally {
+      setLoading(false);
+    }
+  }, [apiFiltersEnabled, countryFilter, categoryFilter]);
 
   return {
+    clientReady,
     suppliers: displayed,
     loading,
     error,
     countryFilter,
     categoryFilter,
     apiFiltersEnabled,
+    listQuery,
     setCountryFilter,
     setCategoryFilter,
     toggleApiFilters,
     addSupplier,
     updateRate,
     toggleStatus,
-    reload: () => (apiFiltersEnabled ? fetchFiltered() : fetchAll()),
+    reload,
   };
 };

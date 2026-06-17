@@ -118,6 +118,8 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 API base URL: `http://localhost:8000`
 
+Local dev works without a `.env` file. Uvicorn uses port **8000**; frontends run on **3002** (incident analyzer) and **3003** (supplier directory). CORS for those origins is configured by default in `app/core/config.py`.
+
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/health` | GET | Health check |
@@ -128,6 +130,7 @@ API base URL: `http://localhost:8000`
 | `/api/v1/suppliers/{id}` | GET, DELETE | Supplier detail; DELETE soft-suspends |
 | `/api/v1/suppliers/{id}/rate` | PATCH | Update monthly rate |
 | `/api/v1/suppliers/{id}/status` | PATCH | Activate or suspend supplier |
+| `/api/v1/suppliers/{id}/details` | PATCH | Update optional fields (compliance, renewal, email, notes) |
 
 ### Dashboard (Next.js)
 

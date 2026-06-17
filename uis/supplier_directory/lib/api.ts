@@ -1,4 +1,4 @@
-import type { Supplier, SupplierCreateInput } from "@/lib/types";
+import type { Supplier, SupplierCreateInput, SupplierDetailsInput } from "@/lib/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -30,6 +30,26 @@ export const listSuppliers = async (params?: ListSuppliersParams): Promise<Suppl
 export const createSupplier = async (body: SupplierCreateInput): Promise<Supplier> => {
   const response = await fetch(`${API_URL}/api/v1/suppliers`, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error(await parseError(response));
+  return response.json() as Promise<Supplier>;
+};
+
+export const getSupplier = async (id: number): Promise<Supplier> => {
+  const response = await fetch(`${API_URL}/api/v1/suppliers/${id}`);
+  if (response.status === 404) throw new Error("Supplier not found");
+  if (!response.ok) throw new Error(await parseError(response));
+  return response.json() as Promise<Supplier>;
+};
+
+export const updateSupplierDetails = async (
+  id: number,
+  body: SupplierDetailsInput,
+): Promise<Supplier> => {
+  const response = await fetch(`${API_URL}/api/v1/suppliers/${id}/details`, {
+    method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });

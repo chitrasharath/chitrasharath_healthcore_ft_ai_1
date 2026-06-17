@@ -13,6 +13,13 @@ export type Supplier = {
   notes: string | null;
 };
 
+export type SupplierDetailsInput = {
+  compliance_agreement: string | null;
+  contract_renewal_date: string | null;
+  contact_email: string | null;
+  notes: string | null;
+};
+
 export type SupplierCreateInput = {
   name: string;
   country: "USA" | "UK";
@@ -20,8 +27,4 @@ export type SupplierCreateInput = {
   monthly_rate: number;
   currency: "USD" | "GBP";
   status: "active" | "suspended";
-  compliance_agreement?: string | null;
-  contract_renewal_date?: string | null;
-  contact_email?: string | null;
-  notes?: string | null;
-};
+} & SupplierDetailsInput;

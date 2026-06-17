@@ -8,6 +8,7 @@ import { useSuppliers } from "@/hooks/use-suppliers";
 
 export const SupplierDirectory = () => {
   const {
+    clientReady,
     suppliers,
     loading,
     error,
@@ -17,15 +18,29 @@ export const SupplierDirectory = () => {
     setCountryFilter,
     setCategoryFilter,
     toggleApiFilters,
+    listQuery,
     addSupplier,
     updateRate,
     toggleStatus,
   } = useSuppliers();
 
+  if (!clientReady) {
+    return (
+      <main className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+        <SupplierHeader />
+        <p className="text-sm font-medium text-sky-800">Loading suppliers…</p>
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
       <SupplierHeader />
-      <AddSupplierForm onSubmit={addSupplier} />
+      <AddSupplierForm
+        onSubmit={async (input) => {
+          await addSupplier(input);
+        }}
+      />
       <SupplierFilters
         countryFilter={countryFilter}
         categoryFilter={categoryFilter}
@@ -39,7 +54,12 @@ export const SupplierDirectory = () => {
         <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
       ) : null}
       {!loading && !error ? (
-        <SupplierTable suppliers={suppliers} onUpdateRate={updateRate} onToggleStatus={toggleStatus} />
+        <SupplierTable
+          suppliers={suppliers}
+          listQuery={listQuery}
+          onUpdateRate={updateRate}
+          onToggleStatus={toggleStatus}
+        />
       ) : null}
     </main>
   );

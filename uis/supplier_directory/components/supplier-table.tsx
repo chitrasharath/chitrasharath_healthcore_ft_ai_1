@@ -1,4 +1,7 @@
+import Link from "next/link";
+
 import { formatCategoryLabels } from "@/lib/categories";
+import { supplierDetailPath } from "@/lib/supplier-filter-params";
 import { formatCompliance, formatRate, formatRateUpdated } from "@/lib/format";
 import type { Supplier } from "@/lib/types";
 
@@ -7,11 +10,17 @@ import { SupplierStatusBadge } from "@/components/supplier-status-badge";
 
 type SupplierTableProps = {
   suppliers: Supplier[];
+  listQuery: string;
   onUpdateRate: (id: number, rate: number) => Promise<void>;
   onToggleStatus: (supplier: Supplier) => Promise<void>;
 };
 
-export const SupplierTable = ({ suppliers, onUpdateRate, onToggleStatus }: SupplierTableProps) => (
+export const SupplierTable = ({
+  suppliers,
+  listQuery,
+  onUpdateRate,
+  onToggleStatus,
+}: SupplierTableProps) => (
   <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
     <table className="min-w-full divide-y divide-slate-200 text-sm">
       <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
@@ -32,7 +41,14 @@ export const SupplierTable = ({ suppliers, onUpdateRate, onToggleStatus }: Suppl
             key={supplier.id}
             className={supplier.status === "suspended" ? "bg-slate-50/80 text-slate-600" : undefined}
           >
-            <td className="px-4 py-3 font-medium text-slate-900">{supplier.name}</td>
+            <td className="px-4 py-3 font-medium text-slate-900">
+              <Link
+                href={supplierDetailPath(supplier.id, listQuery)}
+                className="text-sky-800 hover:underline"
+              >
+                {supplier.name}
+              </Link>
+            </td>
             <td className="px-4 py-3">{supplier.country}</td>
             <td className="px-4 py-3">{formatCategoryLabels(supplier.categories)}</td>
             <td className="px-4 py-3">{formatRate(supplier)}</td>

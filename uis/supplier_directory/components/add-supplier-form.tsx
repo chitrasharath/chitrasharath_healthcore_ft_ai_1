@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { AddSupplierOptionalSection } from "@/components/add-supplier-optional-section";
 import { CategoryPicker } from "@/components/category-picker";
 import { CompliancePrompt } from "@/components/compliance-prompt";
 import { SupplierBasicFields } from "@/components/supplier-basic-fields";
@@ -19,6 +20,9 @@ const emptyForm = (): SupplierCreateInput => ({
   currency: "USD",
   status: "active",
   compliance_agreement: null,
+  contract_renewal_date: null,
+  contact_email: null,
+  notes: null,
 });
 
 export const AddSupplierForm = ({ onSubmit }: AddSupplierFormProps) => {
@@ -52,9 +56,10 @@ export const AddSupplierForm = ({ onSubmit }: AddSupplierFormProps) => {
   return (
     <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <h2 className="text-lg font-bold text-slate-900">Register new supplier</h2>
-      <CompliancePrompt categories={form.categories} />
       <SupplierBasicFields form={form} onChange={setForm} />
       <CategoryPicker selected={form.categories} onToggle={toggleCategory} />
+      <CompliancePrompt categories={form.categories} />
+      <AddSupplierOptionalSection form={form} onChange={setForm} />
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
       <button
         type="submit"

@@ -5,6 +5,7 @@ from app.domains.procurement.suppliers.schemas import (
     VALID_CATEGORIES,
     VALID_COUNTRIES,
     SupplierCreate,
+    SupplierDetailsUpdate,
     SupplierRateUpdate,
     SupplierResponse,
     SupplierStatusUpdate,
@@ -54,6 +55,14 @@ def update_supplier_rate(supplier_id: int, body: SupplierRateUpdate) -> Supplier
 def update_supplier_status(supplier_id: int, body: SupplierStatusUpdate) -> SupplierResponse:
     try:
         return service.update_status(supplier_id, body)
+    except SupplierNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Supplier not found") from exc
+
+
+@router.patch("/{supplier_id}/details", response_model=SupplierResponse)
+def update_supplier_details(supplier_id: int, body: SupplierDetailsUpdate) -> SupplierResponse:
+    try:
+        return service.update_details(supplier_id, body)
     except SupplierNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Supplier not found") from exc
 

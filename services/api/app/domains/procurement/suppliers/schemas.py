@@ -120,6 +120,29 @@ class SupplierStatusUpdate(BaseModel):
         return value
 
 
+class SupplierDetailsUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    compliance_agreement: str | None = None
+    contract_renewal_date: str | None = None
+    contact_email: str | None = None
+    notes: str | None = None
+
+    @field_validator("compliance_agreement")
+    @classmethod
+    def validate_compliance(cls, value: str | None) -> str | None:
+        if value is not None and value not in {"BAA", "DPA", "both"}:
+            raise ValueError('compliance_agreement must be "BAA", "DPA", "both", or null')
+        return value
+
+    @field_validator("contract_renewal_date")
+    @classmethod
+    def validate_renewal_date(cls, value: str | None) -> str | None:
+        if value is not None and not DATE_PATTERN.match(value):
+            raise ValueError("contract_renewal_date must be YYYY-MM-DD")
+        return value
+
+
 class SupplierResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
