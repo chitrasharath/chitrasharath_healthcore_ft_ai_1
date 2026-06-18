@@ -1,18 +1,18 @@
 # API Smoke Check
 
-- Executed at: 2026-05-18T22:34:00.502Z
-- Base URL: https://playground.4geeks.com/tracker/api/v1
+- Executed at: 2026-06-17T00:22:09.303Z
+- Base URL: http://localhost:8000
 - Strategy: mutating endpoints tested with invalid IDs or invalid payloads to confirm reachability without updating real records.
 
 | Endpoint | Method | Status | Reachable | Note |
 |---|---|---:|---|---|
-| GET /records | GET | 200 | yes | ok |
-| GET /records/{id} | GET | 200 | yes | ok |
-| POST /records | POST | 422 | yes | non-2xx but reachable |
-| PUT /records/{id} | PUT | 422 | yes | non-2xx but reachable |
+| GET /records | GET | 404 | yes | non-2xx but reachable |
+| GET /records/{id} | GET | 404 | yes | non-2xx but reachable |
+| POST /records | POST | 404 | yes | non-2xx but reachable |
+| PUT /records/{id} | PUT | 404 | yes | non-2xx but reachable |
 | PATCH /records/{id} | PATCH | 404 | yes | non-2xx but reachable |
 | DELETE /records/{id} | DELETE | 404 | yes | non-2xx but reachable |
-| GET /records/{id}/notes | GET | 200 | yes | ok |
+| GET /records/{id}/notes | GET | 404 | yes | non-2xx but reachable |
 | POST /records/{id}/notes | POST | 404 | yes | non-2xx but reachable |
 | DELETE /records/{id}/notes/{note_id} | DELETE | 404 | yes | non-2xx but reachable |
 
