@@ -177,3 +177,9 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision: Do not protect `/suppliers` or `/incidents` in AUTH-01; document `include_router(..., dependencies=[Depends(get_current_user)])` pattern in `api/v1/router.py`.
 - Why: Incremental rollout; existing frontends continue working without tokens.
 
+- Decision: Reject inactive users in `get_current_user` (401 `Could not validate credentials`) in addition to login blocking.
+- Why: Prevent deactivated accounts from using still-valid JWTs until expiry.
+
+- Decision: Require `SECRET_KEY` and `JWT_EXPIRE_MINUTES` from environment (no in-code defaults); `.example.env` documents local values.
+- Why: Evaluation criterion — signing secret and token expiry must not be hardcoded.
+

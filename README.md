@@ -190,7 +190,7 @@ Plan: `memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN
 
 ### Environment variables
 
-Copy `services/api/.env.example` to `services/api/.env` for non-default settings:
+Copy `services/api/.example.env` to `services/api/.env` before starting the API (required):
 
 ```bash
 SECRET_KEY=change-me-before-production

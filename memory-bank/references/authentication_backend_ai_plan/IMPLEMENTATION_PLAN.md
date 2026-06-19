@@ -1,9 +1,9 @@
 ---
 name: AUTH-01 Implementation Plan
-overview: "Deliver JWT-based authentication and user CRUD for services/api per SPECS.md: extract shared TinyDB access to app/core/db.py, add auth/users domains with route protection, 18 pytest cases, and developer docs (.env.example, README, /docs checklist)."
+overview: "Deliver JWT-based authentication and user CRUD for services/api per SPECS.md: extract shared TinyDB access to app/core/db.py, add auth/users domains with route protection, pytest cases, and developer docs (.example.env, README, /docs checklist)."
 todos:
   - id: phase1-deps-config
-    content: Add python-jose + passlib to pyproject.toml; extend config.py; create .env.example; uv sync
+    content: Add python-jose + passlib to pyproject.toml; extend config.py; create .example.env; uv sync
     status: completed
   - id: phase2-core-db
     content: Create app/core/db.py; refactor suppliers/store.py to use it; verify 29 supplier tests pass
@@ -58,7 +58,7 @@ Add JWT-based auth to the existing HealthCore FastAPI monolith at [`services/api
 3. **Users domain** — full CRUD under `/api/v1/users` with selective protection (`POST` public; GET/PUT/DELETE require token).
 4. **Reusable dependency** — [`get_current_user`](../../../../services/api/app/core/dependencies.py) for current and future route groups.
 5. **Tests** — 18 cases in [`tests/test_auth.py`](../../../../services/api/tests/test_auth.py) mirroring [`tests/test_suppliers.py`](../../../../services/api/tests/test_suppliers.py) isolation pattern.
-6. **Developer docs** — `.env.example`, README auth section, `/docs` smoke-test checklist.
+6. **Developer docs** — `.example.env`, README auth section, `/docs` smoke-test checklist.
 
 Existing `/suppliers` and `/incidents` routes stay **unprotected**; router wiring includes a commented example for future protection.
 
@@ -156,7 +156,7 @@ sequenceDiagram
 ```
 services/api/
 ├── pyproject.toml                          # + python-jose, passlib
-├── .env.example                            # NEW: SECRET_KEY, JWT_EXPIRE_MINUTES
+├── .example.env                            # NEW: SECRET_KEY, JWT_EXPIRE_MINUTES
 ├── app/
 │   ├── core/
 │   │   ├── config.py                       # + secret_key, jwt_expire_minutes
@@ -196,14 +196,14 @@ services/api/
 
 Run `uv sync` from `services/api/`.
 
-**[`app/core/config.py`](../../../../services/api/app/core/config.py)** — add fields (pydantic-settings maps `SECRET_KEY` → `secret_key`, `JWT_EXPIRE_MINUTES` → `jwt_expire_minutes`):
+**[`app/core/config.py`](../../../../services/api/app/core/config.py)** — add required fields (pydantic-settings maps `SECRET_KEY` → `secret_key`, `JWT_EXPIRE_MINUTES` → `jwt_expire_minutes`; no in-code defaults):
 
 ```python
-secret_key: str = "change-me-before-production"
-jwt_expire_minutes: int = 30
+secret_key: str
+jwt_expire_minutes: int
 ```
 
-**[`.env.example`](../../../../services/api/.env.example)** (new):
+**[`.example.env`](../../../../services/api/.example.env)** (new; copy to `.env` before run):
 
 ```
 SECRET_KEY=change-me-before-production

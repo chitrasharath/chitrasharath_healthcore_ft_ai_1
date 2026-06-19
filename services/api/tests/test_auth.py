@@ -83,6 +83,14 @@ def test_login_unknown_email_returns_401(client: TestClient) -> None:
     assert response.json()["detail"] == "Invalid credentials"
 
 
+def test_login_inactive_user_returns_401(client: TestClient) -> None:
+    register_user(client)
+    users_store.update_user(1, {"is_active": False})
+    response = client.post("/api/v1/auth/login", json=VALID_USER)
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid credentials"
+
+
 def test_me_with_valid_token_returns_profile(client: TestClient) -> None:
     token_value = register_user(client).json()["access_token"]
     response = client.get("/api/v1/auth/me", headers=auth_header(token_value))
@@ -95,6 +103,26 @@ def test_me_with_valid_token_returns_profile(client: TestClient) -> None:
 def test_me_without_token_returns_401(client: TestClient) -> None:
     response = client.get("/api/v1/auth/me")
     assert response.status_code == 401
+
+
+def test_me_with_invalid_token_returns_401(client: TestClient) -> None:
+    response = client.get("/api/v1/auth/me", headers=auth_header("not-a-valid-token"))
+    assert response.status_code == 401
+
+
+def test_me_inactive_user_returns_401(client: TestClient) -> None:
+    token_value = register_user(client).json()["access_token"]
+    users_store.update_user(1, {"is_active": False})
+    response = client.get("/api/v1/auth/me", headers=auth_header(token_value))
+    assert response.status_code == 401
+
+
+def test_me_deleted_user_returns_401(client: TestClient) -> None:
+    token_value = register_user(client).json()["access_token"]
+    users_store.delete_user(1)
+    response = client.get("/api/v1/auth/me", headers=auth_header(token_value))
+    assert response.status_code == 401
+    assert response.json()["detail"] == "User not found"
 
 
 def test_create_user_valid_returns_profile(client: TestClient) -> None:
@@ -118,6 +146,12 @@ def test_list_users_with_token_returns_list(client: TestClient) -> None:
 
 def test_list_users_without_token_returns_401(client: TestClient) -> None:
     response = client.get("/api/v1/users")
+    assert response.status_code == 401
+
+
+def test_get_user_without_token_returns_401(client: TestClient) -> None:
+    register_user(client)
+    response = client.get("/api/v1/users/1")
     assert response.status_code == 401
 
 
@@ -146,6 +180,22 @@ def test_put_own_user_returns_200(client: TestClient) -> None:
     assert response.json()["email"] == "alice.updated@example.com"
 
 
+def test_put_short_password_returns_422(client: TestClient) -> None:
+    token_value = register_user(client).json()["access_token"]
+    response = client.put(
+        "/api/v1/users/1",
+        json={"password": "short"},
+        headers=auth_header(token_value),
+    )
+    assert response.status_code == 422
+
+
+def test_put_without_token_returns_401(client: TestClient) -> None:
+    register_user(client)
+    response = client.put("/api/v1/users/1", json={"email": "alice.updated@example.com"})
+    assert response.status_code == 401
+
+
 def test_put_other_user_returns_403(client: TestClient) -> None:
     register_user(client)
     other = client.post(
@@ -169,6 +219,12 @@ def test_delete_user_returns_204(client: TestClient) -> None:
     token_value = register_user(client).json()["access_token"]
     response = client.delete("/api/v1/users/1", headers=auth_header(token_value))
     assert response.status_code == 204
+
+
+def test_delete_without_token_returns_401(client: TestClient) -> None:
+    register_user(client)
+    response = client.delete("/api/v1/users/1")
+    assert response.status_code == 401
 
 
 def test_delete_unknown_user_returns_404(client: TestClient) -> None:

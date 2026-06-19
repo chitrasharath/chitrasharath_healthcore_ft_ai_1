@@ -5,6 +5,12 @@ from datetime import datetime
 from pydantic import BaseModel, EmailStr, field_validator
 
 
+def _validate_password_min_length(value: str) -> str:
+    if len(value) < 8:
+        raise ValueError("password must be at least 8 characters")
+    return value
+
+
 class User(BaseModel):
     id: int
     email: EmailStr
@@ -20,15 +26,20 @@ class UserCreate(BaseModel):
     @field_validator("password")
     @classmethod
     def password_min_length(cls, v: str) -> str:
-        if len(v) < 8:
-            raise ValueError("password must be at least 8 characters")
-        return v
+        return _validate_password_min_length(v)
 
 
 class UserUpdate(BaseModel):
     email: EmailStr | None = None
     password: str | None = None
     is_active: bool | None = None
+
+    @field_validator("password")
+    @classmethod
+    def password_min_length(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        return _validate_password_min_length(v)
 
 
 class UserLogin(BaseModel):
