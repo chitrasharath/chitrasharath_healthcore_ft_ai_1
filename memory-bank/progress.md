@@ -103,6 +103,10 @@ Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landi
 - **Delivered (Step 1):** `uis/backoffice/landing/` — Next.js 16 on port 3004; hero with Log In / Register CTAs; incident-analyzer styling.
 - **Delivered (Step 2):** `services/api` — user `name` field on register/CRUD/`/auth/me`; CORS defaults for ports 3000–3005.
 - **Delivered (Step 3):** `uis/backoffice/landing/` — `/login` page, `lib/api.ts` (`apiFetch`), reset-success banner.
+- **Delivered (Step 4):** `/register` page with client validation and auto-login on success.
+- **Delivered (Step 5):** Auth guard + `(protected)` route group; placeholder `/account/profile` and `/account/change-password`.
+- **Delivered (Step 6):** Profile page (view/edit name, logout) and change-password page.
+- **Delivered (Step 9 — landing UI):** Conditional hero, public intro when logged out, nav cards when logged in (token-appended protected links).
 - Plan: `memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN_auth_2_3.md`.
 
 ## Future Feature Additions

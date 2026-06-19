@@ -183,3 +183,8 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision: Require `SECRET_KEY` and `JWT_EXPIRE_MINUTES` from environment (no in-code defaults); `.example.env` documents local values.
 - Why: Evaluation criterion — signing secret and token expiry must not be hardcoded.
 
+## Authentication (AUTH-02 / AUTH-03)
+
+- Decision: Navigation cards on backoffice landing (`/`) are **hidden until the user is logged in**; logged-out visitors see a public staff-portal info section instead (no internal tool URLs).
+- Why: Stakeholder UX — internal app links should not be exposed to unauthenticated users; public view provides context and link to patient website only.
+

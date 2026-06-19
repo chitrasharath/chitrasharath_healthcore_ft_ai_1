@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { AuthFormCard } from "@/components/auth/auth-form-card";
+import { PasswordInput } from "@/components/auth/password-input";
 import { AUTH_INPUT_CLASS, useLoginForm } from "@/hooks/use-login-form";
 
 export const LoginForm = () => {
@@ -18,17 +19,7 @@ export const LoginForm = () => {
           <input id="email" name="email" type="email" required autoComplete="email" className={AUTH_INPUT_CLASS} />
         </div>
         <div>
-          <label htmlFor="password" className="mb-1 block text-sm font-medium text-slate-700">
-            Password
-          </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            required
-            autoComplete="current-password"
-            className={AUTH_INPUT_CLASS}
-          />
+          <PasswordInput id="password" name="password" label="Password" autoComplete="current-password" required />
           <p className="mt-2 text-sm">
             <Link href="/forgot-password" className="text-sky-700 hover:text-sky-900">
               Forgot your password?

@@ -120,7 +120,9 @@ A centered hero within the gradient header area (same styling as incident analyz
   - **"Log In"** → navigates to `/login` — white bg, dark text (`bg-white text-sky-900 hover:bg-sky-50`)
   - **"Register"** → navigates to `/register` — outlined (`border border-white text-white hover:bg-white/10`)
 
-### Navigation Links Section
+### Navigation Links Section (logged-in users only)
+
+**Visibility:** The navigation card grid is shown **only when the user is logged in** (valid token and successful `GET /api/v1/auth/me`). Do **not** show internal tool links to unauthenticated visitors.
 
 Below the hero, a card grid showing links to all internal tools. Each card has:
 - Icon (use simple SVG or emoji)
@@ -145,6 +147,18 @@ Cards:
 Each card should open protected apps in a **new tab** (`target="_blank"`). The public website link should open in the **same tab**.
 
 Cards for protected apps should show a small lock icon to indicate they require authentication.
+
+### Public View Section (logged-out users only)
+
+When the user is **not** logged in, show informational content below the hero instead of navigation cards:
+
+- **Heading:** "Internal staff portal"
+- **Body:** Short copy explaining that HealthCore Back Office is for authorized HealthCore staff and that login is required to access internal operational tools.
+- **Bullets (3):** e.g. secure access to internal dashboards; centralized hub for HealthCore Digital tools; account and credential management.
+- **Public website link:** Clearly labeled link to `http://localhost:3005` (HealthCore public patient site) — opens in same tab, no authentication.
+- **CTA reminder:** Encourage Log In or Register (hero buttons remain primary).
+
+Use a white card or muted panel consistent with incident-analyzer styling (rounded-xl, border, padding).
 
 ### Link to Public Website
 
@@ -615,9 +629,9 @@ When a user is already logged in (token exists in `localStorage` and a call to `
   - **"My Profile"** → navigates to `/account/profile`
   - **"Log Out"** → clears token from `localStorage`, reloads page
 - Show the user's name in the header area: "Welcome, {name}"
-- The navigation cards still appear with token-appended links
+- Show the **navigation card grid** with token-appended links to internal tools
 
-When not logged in: show the default hero with Log In and Register buttons. Navigation cards still appear but without token in URLs (clicking them will trigger the auth guard redirect on the destination app).
+When not logged in: show the default hero with Log In and Register buttons, and the **public view section** (staff portal info + link to public website). **Do not** show navigation cards or internal tool URLs.
 
 ---
 
@@ -751,11 +765,12 @@ Execute in this exact order. Each step should be working and testable before mov
 - Test: full flow — forgot password → get token (from email or stdout) → open reset link → set new password → verify redirect to login with success banner
 
 ### Step 9 — Navigation Cards + Conditional Landing UI
-- Add the navigation card grid to `app/(public)/page.tsx` with links to all 5 apps
+- Add the navigation card grid to `app/(public)/page.tsx` — **visible only when logged in**
+- Add **public view section** below hero when logged out (staff portal info, bullets, public website link)
 - Implement conditional hero UI (logged-in shows "Welcome, {name}" + Profile/Logout; logged-out shows Login/Register)
 - Protected app links append `?token=<jwt>` when user is logged in
-- Public website link opens in same tab, no token
-- Test: log in, verify cards show lock icons for protected apps, click a card and verify token passes through
+- Public website link (in public section and/or nav grid) opens in same tab, no token
+- Test: logged out → no nav cards, public content visible; log in → nav cards appear, public section hidden
 
 ### Step 10 — Auth Guards on All Protected Apps
 - Copy `components/auth/auth-guard.tsx` into each protected app:

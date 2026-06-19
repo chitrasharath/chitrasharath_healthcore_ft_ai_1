@@ -13,13 +13,13 @@ todos:
     status: completed
   - id: step4-register
     content: "Registration page with client-side validation"
-    status: pending
+    status: completed
   - id: step5-landing-auth-guard
     content: "Auth guard + (public)/(protected) route groups on landing app"
-    status: pending
+    status: completed
   - id: step6-account-pages
     content: "Profile and change-password pages"
-    status: pending
+    status: completed
   - id: step7-backend-reset
     content: "POST /auth/forgot-password and /auth/reset-password + email/stdout + used_reset_tokens table"
     status: pending
@@ -52,7 +52,7 @@ isProject: false
 
 **Prior milestone:** [`IMPLEMENTATION_PLAN_auth_1.md`](IMPLEMENTATION_PLAN_auth_1.md) / [`SPECS_auth_1.md`](SPECS_auth_1.md) (delivered)
 
-**Status:** In progress — Step 3 delivered (login page + apiFetch)
+**Status:** In progress — Step 4 delivered (registration page)
 
 **Agent workflow:** Per [`AGENTS.md`](../../../AGENTS.md) — bootstrap memory-bank root files (`projectbrief.md`, `techContext.md`, `progress.md`, `conventions.md`, `decisions.md`), then read applicable `.agents/rules/` and `.agents/skills/` before Step 1. Re-sync `progress.md` and `decisions.md` at each step gate.
 
@@ -283,14 +283,15 @@ Follow SPECS order exactly. **Stop after each step** for manual testing before p
 
 **Landing page additions:**
 
-- Card grid: Incident Analyzer (3002), Supplier Directory (3003), Talent Tracker (3000), Backoffice Functions (3001), Public Website (3005).
-- Protected cards: lock icon, `target="_blank"`, append `?token=<jwt>` when logged in.
-- Public website: same tab, no token, no lock.
-- Logged-in hero: "Welcome, {name}", My Profile + Log Out.
-- Logged-out hero: Log In + Register.
-- On mount when token present: `GET /auth/me` to populate name; 401 clears token.
+- **Logged out:** public view section (staff portal info, bullets, link to public website on :3005) — **no nav cards**
+- **Logged in:** navigation card grid — Incident Analyzer (3002), Supplier Directory (3003), Talent Tracker (3000), Backoffice Functions (3001), Public Website (3005)
+- Protected cards: lock icon, `target="_blank"`, append `?token=<jwt>` when logged in
+- Public website card/link: same tab, no token, no lock
+- Logged-in hero: "Welcome, {name}", My Profile + Log Out
+- Logged-out hero: Log In + Register
+- On mount when token present: `GET /auth/me` to populate name; 401 clears token
 
-**Verify:** Logged-in card click opens protected app with token in URL.
+**Verify:** Logged out → public content only, no tool URLs. Logged in → nav cards with token on protected links.
 
 ---
 
