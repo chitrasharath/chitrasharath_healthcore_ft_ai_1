@@ -61,3 +61,25 @@ class UserResponse(BaseModel):
     name: str
     is_active: bool
     created_at: datetime
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ForgotPasswordResponse(BaseModel):
+    message: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_min_length(cls, v: str) -> str:
+        return _validate_password_min_length(v)
+
+
+class ResetPasswordResponse(BaseModel):
+    message: str

@@ -22,10 +22,10 @@ todos:
     status: completed
   - id: step7-backend-reset
     content: "POST /auth/forgot-password and /auth/reset-password + email/stdout + used_reset_tokens table"
-    status: pending
+    status: completed
   - id: step8-reset-frontend
     content: "Forgot-password and reset-password pages"
-    status: pending
+    status: completed
   - id: step9-nav-cards
     content: "Navigation card grid + conditional logged-in hero UI + token-appended links"
     status: pending

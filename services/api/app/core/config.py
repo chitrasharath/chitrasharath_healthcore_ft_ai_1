@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     incident_analyzer_path: str = "../../uis/incident_analyzer"
     secret_key: str
     jwt_expire_minutes: int
+    email_api_key: str = ""
+    frontend_url: str = "http://localhost:3004"
 
     @property
     def cors_origin_list(self) -> list[str]:

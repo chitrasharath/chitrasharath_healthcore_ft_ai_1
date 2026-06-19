@@ -106,6 +106,8 @@ Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landi
 - **Delivered (Step 4):** `/register` page with client validation and auto-login on success.
 - **Delivered (Step 5):** Auth guard + `(protected)` route group; placeholder `/account/profile` and `/account/change-password`.
 - **Delivered (Step 6):** Profile page (view/edit name, logout) and change-password page.
+- **Delivered (Step 7):** Password reset API — `POST /auth/forgot-password`, `POST /auth/reset-password`; Resend + stdout fallback; `used_reset_tokens` TinyDB table.
+- **Delivered (Step 8):** `/forgot-password` and `/reset-password` pages on landing app.
 - **Delivered (Step 9 — landing UI):** Conditional hero, public intro when logged out, nav cards when logged in (token-appended protected links).
 - Plan: `memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN_auth_2_3.md`.
 

@@ -1,17 +1,23 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from jose import jwt
 
 from app.core import db as core_db
 from app.core.config import settings
-from app.domains.auth import token
+from app.domains.auth import reset_tokens, token
+from app.domains.auth.token import ALGORITHM, RESET_TOKEN_PURPOSE
 from app.domains.users import store as users_store
 from app.main import app
 
 VALID_USER = {"email": "alice@example.com", "password": "password123"}
+NEW_PASSWORD = "newpassword123"
+FORGOT_PASSWORD_MESSAGE = "If that address is registered, you will receive a reset link shortly."
+INVALID_RESET_TOKEN_MESSAGE = "Invalid or expired reset token."
 
 
 @pytest.fixture(autouse=True)
@@ -19,6 +25,7 @@ def isolated_db(tmp_path: Path) -> None:
     db_path = tmp_path / "auth_test.json"
     core_db.reset_db(db_path)
     users_store.clear_all()
+    reset_tokens.clear_all()
 
 
 @pytest.fixture
@@ -282,3 +289,109 @@ def test_expired_token_returns_401(client: TestClient) -> None:
         settings.jwt_expire_minutes = original
     response = client.get("/api/v1/auth/me", headers=auth_header(expired))
     assert response.status_code == 401
+
+
+def _create_expired_reset_token(user_id: int) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=-1)
+    payload = {"sub": str(user_id), "exp": expire, "purpose": RESET_TOKEN_PURPOSE}
+    return jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM)
+
+
+def test_forgot_password_unknown_email_returns_generic_message(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/auth/forgot-password",
+        json={"email": "nobody@example.com"},
+    )
+    assert response.status_code == 200
+    assert response.json()["message"] == FORGOT_PASSWORD_MESSAGE
+
+
+def test_forgot_password_known_email_returns_generic_message(client: TestClient, capsys) -> None:
+    register_user(client)
+    response = client.post(
+        "/api/v1/auth/forgot-password",
+        json={"email": VALID_USER["email"]},
+    )
+    assert response.status_code == 200
+    assert response.json()["message"] == FORGOT_PASSWORD_MESSAGE
+    captured = capsys.readouterr()
+    assert "Password reset link for alice@example.com:" in captured.out
+    assert "/reset-password?token=" in captured.out
+
+
+def test_reset_password_valid_token_updates_password(client: TestClient) -> None:
+    register_user(client)
+    reset_token = token.create_reset_token(1)
+    response = client.post(
+        "/api/v1/auth/reset-password",
+        json={"token": reset_token, "new_password": NEW_PASSWORD},
+    )
+    assert response.status_code == 200
+    assert response.json()["message"] == "Password has been reset successfully."
+
+    old_login = client.post("/api/v1/auth/login", json=VALID_USER)
+    assert old_login.status_code == 401
+
+    new_login = client.post(
+        "/api/v1/auth/login",
+        json={"email": VALID_USER["email"], "password": NEW_PASSWORD},
+    )
+    assert new_login.status_code == 200
+
+
+def test_reset_password_reused_token_returns_400(client: TestClient) -> None:
+    register_user(client)
+    reset_token = token.create_reset_token(1)
+    first = client.post(
+        "/api/v1/auth/reset-password",
+        json={"token": reset_token, "new_password": NEW_PASSWORD},
+    )
+    assert first.status_code == 200
+
+    second = client.post(
+        "/api/v1/auth/reset-password",
+        json={"token": reset_token, "new_password": "anotherpass1"},
+    )
+    assert second.status_code == 400
+    assert second.json()["detail"] == INVALID_RESET_TOKEN_MESSAGE
+
+
+def test_reset_password_invalid_token_returns_400(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/auth/reset-password",
+        json={"token": "not-a-valid-token", "new_password": NEW_PASSWORD},
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == INVALID_RESET_TOKEN_MESSAGE
+
+
+def test_reset_password_expired_token_returns_400(client: TestClient) -> None:
+    register_user(client)
+    expired = _create_expired_reset_token(1)
+    response = client.post(
+        "/api/v1/auth/reset-password",
+        json={"token": expired, "new_password": NEW_PASSWORD},
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == INVALID_RESET_TOKEN_MESSAGE
+
+
+def test_reset_password_access_token_wrong_purpose_returns_400(client: TestClient) -> None:
+    register_user(client)
+    access_token = token.create_access_token(1)
+    response = client.post(
+        "/api/v1/auth/reset-password",
+        json={"token": access_token, "new_password": NEW_PASSWORD},
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == INVALID_RESET_TOKEN_MESSAGE
+
+
+def test_reset_password_short_password_returns_422(client: TestClient) -> None:
+    register_user(client)
+    reset_token = token.create_reset_token(1)
+    response = client.post(
+        "/api/v1/auth/reset-password",
+        json={"token": reset_token, "new_password": "short"},
+    )
+    assert response.status_code == 422
