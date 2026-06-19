@@ -1,4 +1,4 @@
-# specs.md — AUTH-01: Authentication and Route Protection
+# SPECS_auth_1.md — AUTH-01: Authentication and Route Protection
 
 ## Overview
 
@@ -8,7 +8,7 @@ Add JWT-based authentication to the HealthCore FastAPI backend (`services/api`).
 
 ## Reference material
 
-- Requirements: `screenshot_content.md` (repo root)
+- Requirements: [`screenshot_content.md`](screenshot_content.md)
 - Existing API entry point: `services/api/app/main.py`
 - Existing router wiring: `services/api/app/api/v1/router.py`
 - Existing store pattern to follow: `services/api/app/domains/procurement/suppliers/store.py`

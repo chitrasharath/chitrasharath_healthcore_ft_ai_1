@@ -186,7 +186,7 @@ Open **http://localhost:3003**. Requires the API on port 8000 with seeded data. 
 
 JWT-based authentication and user management at `services/api`. Passwords are bcrypt-hashed; protected routes require `Authorization: Bearer <token>`.
 
-Plan: `memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN.md`.
+Plan: `memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN_auth_1.md`.
 
 ### Environment variables
 

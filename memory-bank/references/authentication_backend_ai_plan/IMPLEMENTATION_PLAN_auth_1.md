@@ -1,6 +1,6 @@
 ---
 name: AUTH-01 Implementation Plan
-overview: "Deliver JWT-based authentication and user CRUD for services/api per SPECS.md: extract shared TinyDB access to app/core/db.py, add auth/users domains with route protection, pytest cases, and developer docs (.example.env, README, /docs checklist)."
+overview: "Deliver JWT-based authentication and user CRUD for services/api per SPECS_auth_1.md: extract shared TinyDB access to app/core/db.py, add auth/users domains with route protection, pytest cases, and developer docs (.example.env, README, /docs checklist)."
 todos:
   - id: phase1-deps-config
     content: Add python-jose + passlib to pyproject.toml; extend config.py; create .example.env; uv sync
@@ -37,9 +37,9 @@ isProject: false
 
 # AUTH-01 Authentication — Implementation Plan
 
-**Plan file:** [`memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md)
+**Plan file:** [`memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN_auth_1.md`](IMPLEMENTATION_PLAN_auth_1.md)
 
-**Requirements source:** [`SPECS.md`](SPECS.md), [`screenshot_content.md`](screenshot_content.md)
+**Requirements source:** [`SPECS_auth_1.md`](SPECS_auth_1.md), [`screenshot_content.md`](screenshot_content.md)
 
 **Milestone:** AUTH-01 — JWT authentication and route protection
 

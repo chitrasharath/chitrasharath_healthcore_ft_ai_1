@@ -95,7 +95,7 @@ Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landi
   - `services/api/.example.env` — `SECRET_KEY`, `JWT_EXPIRE_MINUTES` (copy to `.env` before run).
   - `services/api/README.md` — setup, auth endpoints, example flow.
 - `/suppliers` and `/incidents` remain unprotected; commented wiring example for future milestones.
-- Plan: `memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN.md`.
+- Plan: `memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN_auth_1.md`.
 
 ## Future Feature Additions
 

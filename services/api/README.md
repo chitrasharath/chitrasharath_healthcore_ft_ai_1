@@ -30,7 +30,7 @@ uv run pytest
 
 Passwords are bcrypt-hashed. Protected routes require `Authorization: Bearer <token>`.
 
-Plan: `memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN.md`
+Plan: `memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN_auth_1.md`
 
 ### Endpoints
 
