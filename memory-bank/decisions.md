@@ -156,3 +156,24 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 
 - Decision: Add `compliance_agreement` table column; humanized category labels; auto-derived currency on add form.
 - Why: CONTEXT compliance visibility; readability; reduce form errors.
+
+## Authentication (AUTH-01)
+
+- Decision: JWT HS256 stateless tokens via `python-jose`; passwords hashed with `passlib[bcrypt]`; pin `bcrypt>=4.0.0,<4.1` for passlib compatibility.
+- Why: SPECS milestone scope; matches architecture proposal Auth/JWT slice.
+
+- Decision: Extract shared TinyDB access to `app/core/db.py`; suppliers and users tables share `services/api/db.json`.
+- Why: Avoid cross-domain imports; enables future `sessions` table without further refactor.
+
+- Decision: Protect `/users` GET/PUT/DELETE and `/auth/me`; keep `POST /users`, `POST /auth/register`, and `POST /auth/login` public.
+- Why: SPECS selective protection; admin/RBAC deferred with TODO on DELETE.
+
+- Decision: PUT `/users/{id}` owner-only (403 for other users); DELETE open to any authenticated user until RBAC.
+- Why: SPECS authorization model for AUTH-01.
+
+- Decision: Normalize emails to lowercase; block inactive users at login with generic `Invalid credentials`.
+- Why: Implementation plan locked decisions for consistent lookups and security.
+
+- Decision: Do not protect `/suppliers` or `/incidents` in AUTH-01; document `include_router(..., dependencies=[Depends(get_current_user)])` pattern in `api/v1/router.py`.
+- Why: Incremental rollout; existing frontends continue working without tokens.
+

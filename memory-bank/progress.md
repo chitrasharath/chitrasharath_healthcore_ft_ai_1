@@ -82,9 +82,23 @@ Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landi
   - `pytest` (29 tests) passes in `services/api`; `npm run verify` passes in `uis/supplier_directory`.
 - Plan: `memory-bank/references/supplier_directory_ai_plan/IMPLEMENTATION_PLAN.md`.
 
+
+### Authentication (AUTH-01) (Delivered)
+
+- Goal: add JWT-based authentication and route protection to `services/api`.
+- **Delivered:**
+  - `app/core/db.py` — shared TinyDB singleton; suppliers store refactored to use it.
+  - `app/domains/auth/` — register, login, `/auth/me`; JWT HS256 via `python-jose`; bcrypt password hashing.
+  - `app/domains/users/` — user CRUD in TinyDB `users` table; selective route protection via `get_current_user`.
+  - `app/core/dependencies.py` — reusable `OAuth2PasswordBearer` dependency.
+  - `tests/test_auth.py` — 18 SPECS test cases; full suite 49 tests passing.
+  - `services/api/.env.example` — `SECRET_KEY`, `JWT_EXPIRE_MINUTES`.
+- `/suppliers` and `/incidents` remain unprotected; commented wiring example for future milestones.
+- Plan: `memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN.md`.
+
 ## Future Feature Additions
 
-- Expand `services/api` per architecture proposal (Auth, Supabase, remaining domains in doc §12).
+- Expand `services/api` per architecture proposal (Supabase, remaining domains in doc §12); opaque session tokens for HIPAA (SPECS follow-up).
 - Expand reusable shared logic and typing between migrated milestone 1 and existing milestone 3 apps.
 - Extend milestone 2 function usage in UI workflows where validated logic improves data quality.
 - Improve cross-app bilingual consistency and content governance.

@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     app_env: str = "development"
     cors_origins: str = "http://localhost:3002,http://localhost:3003"
     incident_analyzer_path: str = "../../uis/incident_analyzer"
+    secret_key: str = "change-me-before-production"
+    jwt_expire_minutes: int = 30
 
     @property
     def cors_origin_list(self) -> list[str]:
