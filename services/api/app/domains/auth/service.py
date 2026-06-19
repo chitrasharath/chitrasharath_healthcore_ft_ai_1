@@ -25,6 +25,7 @@ def register(body: UserCreate) -> TokenResponse:
         raise DuplicateEmailError
     doc = {
         "email": body.email,
+        "name": body.name,
         "hashed_password": hash_password(body.password),
         "is_active": True,
         "created_at": _utc_now().isoformat(),

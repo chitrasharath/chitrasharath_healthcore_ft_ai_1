@@ -21,6 +21,7 @@ def _utc_now() -> datetime:
 
 def to_user_response(doc: dict) -> UserResponse:
     payload = dict(doc)
+    payload.setdefault("name", "")
     created_at = payload["created_at"]
     if isinstance(created_at, str):
         payload["created_at"] = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
@@ -32,6 +33,7 @@ def create_user(body: UserCreate) -> UserResponse:
         raise DuplicateEmailError
     doc = {
         "email": body.email,
+        "name": body.name,
         "hashed_password": hash_password(body.password),
         "is_active": True,
         "created_at": _utc_now().isoformat(),

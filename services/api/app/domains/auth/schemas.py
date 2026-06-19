@@ -15,6 +15,7 @@ class User(BaseModel):
     id: int
     email: EmailStr
     hashed_password: str
+    name: str = ""
     is_active: bool = True
     created_at: datetime
 
@@ -22,6 +23,7 @@ class User(BaseModel):
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
+    name: str = ""
 
     @field_validator("password")
     @classmethod
@@ -32,6 +34,7 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     email: EmailStr | None = None
     password: str | None = None
+    name: str | None = None
     is_active: bool | None = None
 
     @field_validator("password")
@@ -55,5 +58,6 @@ class TokenResponse(BaseModel):
 class UserResponse(BaseModel):
     id: int
     email: str
+    name: str
     is_active: bool
     created_at: datetime

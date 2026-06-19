@@ -234,6 +234,44 @@ def test_delete_unknown_user_returns_404(client: TestClient) -> None:
     assert response.json()["detail"] == "User not found"
 
 
+def test_register_with_name_returns_name_in_me(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/auth/register",
+        json={"email": "named@example.com", "password": "password123", "name": "Alice Smith"},
+    )
+    assert response.status_code == 201
+    token_value = response.json()["access_token"]
+    me = client.get("/api/v1/auth/me", headers=auth_header(token_value))
+    assert me.status_code == 200
+    assert me.json()["name"] == "Alice Smith"
+
+
+def test_legacy_user_without_name_returns_empty_string(client: TestClient) -> None:
+    users_store.insert_user(
+        {
+            "email": "legacy@example.com",
+            "hashed_password": "hashed",
+            "is_active": True,
+            "created_at": "2026-01-01T00:00:00+00:00",
+        }
+    )
+    token_value = token.create_access_token(1)
+    response = client.get("/api/v1/auth/me", headers=auth_header(token_value))
+    assert response.status_code == 200
+    assert response.json()["name"] == ""
+
+
+def test_put_user_name_returns_updated_name(client: TestClient) -> None:
+    token_value = register_user(client).json()["access_token"]
+    response = client.put(
+        "/api/v1/users/1",
+        json={"name": "Updated Name"},
+        headers=auth_header(token_value),
+    )
+    assert response.status_code == 200
+    assert response.json()["name"] == "Updated Name"
+
+
 def test_expired_token_returns_401(client: TestClient) -> None:
     register_user(client)
     original = settings.jwt_expire_minutes

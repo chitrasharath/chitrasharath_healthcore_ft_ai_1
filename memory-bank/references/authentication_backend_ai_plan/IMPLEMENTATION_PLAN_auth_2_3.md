@@ -4,13 +4,13 @@ overview: "Deliver backoffice landing app (login, register, account management, 
 todos:
   - id: step1-scaffold-landing
     content: "Scaffold uis/backoffice/landing/ (Next.js 16, port 3004) with globals, layout, hero"
-    status: pending
+    status: completed
   - id: step2-backend-name-field
     content: "Add name field to user schemas/services; expand CORS defaults in config + .example.env"
-    status: pending
+    status: completed
   - id: step3-login
     content: "Login page + lib/api.ts apiFetch wrapper"
-    status: pending
+    status: completed
   - id: step4-register
     content: "Registration page with client-side validation"
     status: pending
@@ -35,7 +35,10 @@ todos:
   - id: step11-website-port
     content: "uis/website dev script → port 3005 (no auth changes)"
     status: pending
-  - id: step12-integration
+  - id: step12-favicon
+    content: "Repository-wide HealthCore PNG favicon (icon.tsx + apple-icon.tsx + favicon.ico redirect) on all Next.js apps"
+    status: pending
+  - id: step13-integration
     content: "Full integration test pass; update memory-bank progress/decisions; README"
     status: pending
 isProject: false
@@ -49,7 +52,7 @@ isProject: false
 
 **Prior milestone:** [`IMPLEMENTATION_PLAN_auth_1.md`](IMPLEMENTATION_PLAN_auth_1.md) / [`SPECS_auth_1.md`](SPECS_auth_1.md) (delivered)
 
-**Status:** Planning — not started
+**Status:** In progress — Step 3 delivered (login page + apiFetch)
 
 **Agent workflow:** Per [`AGENTS.md`](../../../AGENTS.md) — bootstrap memory-bank root files (`projectbrief.md`, `techContext.md`, `progress.md`, `conventions.md`, `decisions.md`), then read applicable `.agents/rules/` and `.agents/skills/` before Step 1. Re-sync `progress.md` and `decisions.md` at each step gate.
 
@@ -309,7 +312,7 @@ Follow SPECS order exactly. **Stop after each step** for manual testing before p
 - Uncomment/enable `dependencies=[Depends(get_current_user)]` on `/suppliers` and `/incidents` routers in `app/api/v1/router.py`.
 - Extend pytest — unauthenticated calls to suppliers/incidents return 401.
 
-**Playwright (Step 10b or Step 12):**
+**Playwright (Step 10b or Step 13):**
 
 - Add smoke tests in `uis/backoffice/landing/` for login, register, forgot-password → reset-password redirect.
 
@@ -341,7 +344,40 @@ Root `layout.tsx` imports wrapper; keeps `metadata` export server-side.
 
 ---
 
-### Step 12 — Integration test + docs
+### Step 12 — Repository-wide favicon fix
+
+**Goal:** Every Next.js app in the monorepo shows the HealthCore logo (navy square, white cross, cyan ring) in the browser tab. SVG-only or missing favicons fail in many browsers (including embedded IDE browsers) because `/favicon.ico` is not served.
+
+**Canonical pattern** (already applied on `uis/backoffice/landing/`):
+
+| File | Purpose |
+|------|---------|
+| `app/icon.tsx` | 32×32 PNG via `next/og` `ImageResponse` |
+| `app/apple-icon.tsx` | 180×180 PNG for Apple touch |
+| `next.config.ts` | Redirect `/favicon.ico` → `/icon` |
+
+**Per app actions:**
+
+| App | Port | Current state | Action |
+|-----|------|---------------|--------|
+| `uis/backoffice/landing/` | 3004 | **Done** — `icon.tsx` + `apple-icon.tsx` | Verify only; remove any leftover `app/icon.svg` |
+| `uis/backoffice/backoffice_functions/` | 3001 | `app/icon.svg` + manual `icons` metadata | Replace with PNG pattern; remove `icon.svg`; drop `icons` from `layout.tsx` metadata |
+| `uis/incident_analyzer/` | 3002 | No favicon | Add `icon.tsx`, `apple-icon.tsx`, redirect |
+| `uis/supplier_directory/` | 3003 | No favicon | Add `icon.tsx`, `apple-icon.tsx`, redirect |
+| `uis/website/` | 3005 | `app/icon.svg` + manual `icons` metadata | Replace with PNG pattern; remove `icon.svg`; drop `icons` from metadata |
+| `apps/talent-pipeline-tracker/` | 3000 | `app/icon.svg` + manual `icons` metadata | Replace with PNG pattern; remove `icon.svg`; drop `icons` from metadata |
+
+**Implementation notes:**
+
+- Copy `app/icon.tsx` and `app/apple-icon.tsx` from `uis/backoffice/landing/` into each app (identical HealthCore logo artwork).
+- Do **not** use `metadata.icons` pointing at `/icon.svg` — let Next.js auto-inject the generated PNG routes.
+- Legacy static HTML apps (`apps/healthcore_web_portal/`, `apps/src/index.html`) are out of scope unless explicitly requested.
+
+**Verify:** For each app, run `npm run verify`, restart dev server, hard-refresh tab (**Ctrl+Shift+R**). Confirm tab shows HealthCore logo and `curl -sI http://localhost:<port>/icon` returns `200` with `content-type: image/png`.
+
+---
+
+### Step 13 — Integration test + docs
 
 **Manual checklist (from SPECS):**
 
@@ -352,6 +388,7 @@ Root `layout.tsx` imports wrapper; keeps `metadata` export server-side.
 5. Forgot password → reset → login with new password + success banner.
 6. Public website on 3005 — no auth prompts.
 7. Direct protected app access without token → login redirect.
+8. HealthCore logo favicon visible on every Next.js app tab (Step 12).
 
 **Docs updates:**
 
@@ -410,6 +447,7 @@ Each protected app:
 | CORS misconfiguration blocks browser API calls | Update defaults + `.example.env`; document in README |
 | Reset email not received in dev | Stdout fallback with full reset URL |
 | Existing AUTH-01 tests break on schema changes | Extend tests in Step 2 before frontend depends on `name` |
+| SVG favicon not visible in browser tabs | Step 12 — PNG `icon.tsx` + `favicon.ico` redirect on all Next.js apps |
 
 ---
 

@@ -97,6 +97,14 @@ Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landi
 - `/suppliers` and `/incidents` remain unprotected; commented wiring example for future milestones.
 - Plan: `memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN_auth_1.md`.
 
+### Authentication (AUTH-02 / AUTH-03) (In Progress)
+
+- Goal: backoffice landing app, auth flows, password reset, cross-app guards.
+- **Delivered (Step 1):** `uis/backoffice/landing/` — Next.js 16 on port 3004; hero with Log In / Register CTAs; incident-analyzer styling.
+- **Delivered (Step 2):** `services/api` — user `name` field on register/CRUD/`/auth/me`; CORS defaults for ports 3000–3005.
+- **Delivered (Step 3):** `uis/backoffice/landing/` — `/login` page, `lib/api.ts` (`apiFetch`), reset-success banner.
+- Plan: `memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN_auth_2_3.md`.
+
 ## Future Feature Additions
 
 - Expand `services/api` per architecture proposal (Supabase, remaining domains in doc §12); opaque session tokens for HIPAA (SPECS follow-up).

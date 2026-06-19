@@ -771,7 +771,14 @@ Execute in this exact order. Each step should be working and testable before mov
 - Update `uis/website/package.json`: change `"dev": "next dev"` to `"dev": "next dev --port 3005"`
 - Verify the website still works on port 3005 with zero auth-related changes
 
-### Step 12 — Final Integration Test (current milestone ends here)
+### Step 12 — Repository-Wide Favicon Fix
+- Apply the HealthCore logo favicon (PNG via `app/icon.tsx` + `app/apple-icon.tsx`) to every Next.js app in the monorepo
+- Add `/favicon.ico` → `/icon` redirect in each app's `next.config.ts`
+- Remove legacy `app/icon.svg` files and manual `icons` metadata from layouts
+- Apps: `uis/backoffice/landing/` (verify), `backoffice_functions`, `incident_analyzer`, `supplier_directory`, `uis/website`, `apps/talent-pipeline-tracker`
+- See [`IMPLEMENTATION_PLAN_auth_2_3.md`](IMPLEMENTATION_PLAN_auth_2_3.md) Step 12 for per-app checklist
+
+### Step 13 — Final Integration Test (current milestone ends here)
 
 ---
 
