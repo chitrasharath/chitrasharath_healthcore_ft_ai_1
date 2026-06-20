@@ -3,12 +3,11 @@
 import Link from "next/link";
 
 import { AuthFormCard } from "@/components/auth/auth-form-card";
-import { FieldError } from "@/components/auth/field-error";
 import { AUTH_INPUT_CLASS } from "@/hooks/use-login-form";
 import { FORGOT_PASSWORD_CONFIRMATION, useForgotPasswordForm } from "@/hooks/use-forgot-password-form";
 
 export const ForgotPasswordForm = () => {
-  const { submitted, submitting, error, handleSubmit } = useForgotPasswordForm();
+  const { submitted, submitting, handleSubmit } = useForgotPasswordForm();
 
   return (
     <AuthFormCard title="Forgot Password">
@@ -24,7 +23,6 @@ export const ForgotPasswordForm = () => {
             </label>
             <input id="email" name="email" type="email" required autoComplete="email" className={AUTH_INPUT_CLASS} />
           </div>
-          <FieldError message={error} />
           <button
             type="submit"
             disabled={submitting || submitted}

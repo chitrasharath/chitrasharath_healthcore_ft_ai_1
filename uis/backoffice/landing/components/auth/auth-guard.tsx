@@ -2,18 +2,43 @@
 
 import { startTransition, useEffect, useState, type ReactNode } from "react";
 
+import { fetchCurrentUser, getStoredToken } from "@/lib/api";
+
 const LOGIN_URL = "/login";
 
 export const AuthGuard = ({ children }: { children: ReactNode }) => {
   const [isAuthed, setIsAuthed] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      window.location.href = LOGIN_URL;
-      return;
-    }
-    startTransition(() => setIsAuthed(true));
+    let active = true;
+
+    const verifySession = async () => {
+      const token = getStoredToken();
+      if (!token) {
+        window.location.href = LOGIN_URL;
+        return;
+      }
+
+      try {
+        const user = await fetchCurrentUser();
+        if (!active) return;
+
+        if (!user) {
+          window.location.href = LOGIN_URL;
+          return;
+        }
+
+        startTransition(() => setIsAuthed(true));
+      } catch {
+        if (!active) return;
+        window.location.href = LOGIN_URL;
+      }
+    };
+
+    void verifySession();
+    return () => {
+      active = false;
+    };
   }, []);
 
   if (!isAuthed) {
