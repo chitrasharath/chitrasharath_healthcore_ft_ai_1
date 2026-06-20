@@ -1,10 +1,10 @@
 "use client";
 
-import { AddSupplierForm } from "@/components/add-supplier-form";
-import { SupplierHeader } from "@/components/layout/supplier-header";
-import { SupplierFilters } from "@/components/supplier-filters";
-import { SupplierTable } from "@/components/supplier-table";
-import { useSuppliers } from "@/hooks/use-suppliers";
+import { AddSupplierForm } from "@backoffice/supplier-directory/components/add-supplier-form";
+import { SupplierHeader } from "@backoffice/supplier-directory/components/layout/supplier-header";
+import { SupplierFilters } from "@backoffice/supplier-directory/components/supplier-filters";
+import { SupplierTable } from "@backoffice/supplier-directory/components/supplier-table";
+import { useSuppliers } from "@backoffice/supplier-directory/hooks/use-suppliers";
 
 export const SupplierDirectory = () => {
   const {

@@ -99,7 +99,7 @@ Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landi
 
 ### Authentication (AUTH-02 / AUTH-03) (In Progress)
 
-- Goal: backoffice landing app, auth flows, password reset, cross-app guards.
+- Goal: backoffice landing app, auth flows, password reset, same-origin internal tool routes.
 - **Delivered (Step 1):** `uis/backoffice/landing/` — Next.js 16 on port 3004; hero with Log In / Register CTAs; incident-analyzer styling.
 - **Delivered (Step 2):** `services/api` — user `name` field on register/CRUD/`/auth/me`; CORS defaults for ports 3000–3005.
 - **Delivered (Step 3):** `uis/backoffice/landing/` — `/login` page, `lib/api.ts` (`apiFetch`), reset-success banner.
@@ -108,7 +108,8 @@ Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landi
 - **Delivered (Step 6):** Profile page (view/edit name, logout) and change-password page.
 - **Delivered (Step 7):** Password reset API — `POST /auth/forgot-password`, `POST /auth/reset-password`; Resend + stdout fallback; `used_reset_tokens` TinyDB table.
 - **Delivered (Step 8):** `/forgot-password` and `/reset-password` pages on landing app.
-- **Delivered (Step 9 — landing UI):** Conditional hero, public intro when logged out, nav cards when logged in (token-appended protected links).
+- **Delivered (Step 9 — landing UI):** Conditional hero, public intro when logged out, nav cards when logged in with same-origin internal routes (no `?token=`); logout redirects to `/`.
+- **Delivered (Step 10 — tool consolidation):** All internal tools as landing routes on `:3004`; path aliases + `externalDir`; talent tracker relocated to `uis/backoffice/talent-tracker/`; shared `AuthGuard`; incident/supplier API Bearer via `@backoffice/shared/lib/healthcore-api`; `/incidents` and `/suppliers` protected on API; CORS defaults `3004`/`3005`.
 - Plan: `memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN_auth_2_3.md`.
 
 ## Future Feature Additions

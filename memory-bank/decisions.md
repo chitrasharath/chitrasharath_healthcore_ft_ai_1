@@ -188,3 +188,18 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision: Navigation cards on backoffice landing (`/`) are **hidden until the user is logged in**; logged-out visitors see a public staff-portal info section instead (no internal tool URLs).
 - Why: Stakeholder UX — internal app links should not be exposed to unauthenticated users; public view provides context and link to patient website only.
 
+- Decision: Consolidate internal tools as **same-origin routes** on landing (`3004`); deprecate standalone dev servers on 3000–3003.
+- Why: Eliminates cross-port `localStorage` / `?token=` handoff and logout chains; single `AuthGuard`.
+
+- Decision: Hybrid import model — feature UI in sibling folders (`uis/incident_analyzer`, `uis/supplier_directory`, `uis/backoffice/backoffice_functions`, `uis/backoffice/talent-tracker`); landing owns App Router routes.
+- Why: Reuse existing components without duplicating Next.js shells.
+
+- Decision: Talent tracker data from **`NEXT_PUBLIC_TRACKER_API_URL`** only; HealthCore JWT guards route access only.
+- Why: Tracker API is external; no Bearer on tracker requests.
+
+- Decision: Incident and supplier APIs protected with router-level `Depends(get_current_user)`; frontends use shared `healthcoreFetch` with Bearer from `localStorage`.
+- Why: AUTH-02 requires authenticated HealthCore API access for operational tools.
+
+- Decision: Logout clears token and redirects to **`/`** (public hub).
+- Why: Consistent post-logout UX across hub, profile, and tool toolbars.
+

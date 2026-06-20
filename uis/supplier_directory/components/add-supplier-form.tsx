@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 
-import { AddSupplierOptionalSection } from "@/components/add-supplier-optional-section";
-import { CategoryPicker } from "@/components/category-picker";
-import { CompliancePrompt } from "@/components/compliance-prompt";
-import { SupplierBasicFields } from "@/components/supplier-basic-fields";
-import type { SupplierCreateInput } from "@/lib/types";
+import { AddSupplierOptionalSection } from "@backoffice/supplier-directory/components/add-supplier-optional-section";
+import { CategoryPicker } from "@backoffice/supplier-directory/components/category-picker";
+import { CompliancePrompt } from "@backoffice/supplier-directory/components/compliance-prompt";
+import { SupplierBasicFields } from "@backoffice/supplier-directory/components/supplier-basic-fields";
+import type { SupplierCreateInput } from "@backoffice/supplier-directory/lib/types";
 
 type AddSupplierFormProps = {
   onSubmit: (input: SupplierCreateInput) => Promise<void>;

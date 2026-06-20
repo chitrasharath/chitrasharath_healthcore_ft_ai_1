@@ -2,21 +2,12 @@
 
 import { startTransition, useEffect, useState, type ReactNode } from "react";
 
-const LOGIN_URL = "http://localhost:3004/login";
+const LOGIN_URL = "/login";
 
 export const AuthGuard = ({ children }: { children: ReactNode }) => {
   const [isAuthed, setIsAuthed] = useState(false);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const urlToken = params.get("token");
-    if (urlToken) {
-      localStorage.setItem("token", urlToken);
-      params.delete("token");
-      const cleanUrl = window.location.pathname + (params.toString() ? `?${params.toString()}` : "");
-      window.history.replaceState({}, "", cleanUrl);
-    }
-
     const token = localStorage.getItem("token");
     if (!token) {
       window.location.href = LOGIN_URL;

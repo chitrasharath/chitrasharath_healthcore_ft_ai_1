@@ -1,4 +1,4 @@
-import type { SupplierDetailsInput } from "@/lib/types";
+import type { SupplierDetailsInput } from "@backoffice/supplier-directory/lib/types";
 
 type SupplierOptionalFieldsProps = {
   form: SupplierDetailsInput;

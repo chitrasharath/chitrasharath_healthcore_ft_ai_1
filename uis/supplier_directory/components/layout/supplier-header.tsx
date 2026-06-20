@@ -1,4 +1,4 @@
-import { HealthcoreLogo } from "@/components/layout/healthcore-logo";
+import { HealthcoreLogo } from "@backoffice/supplier-directory/components/layout/healthcore-logo";
 
 export const SupplierHeader = () => (
   <header className="rounded-2xl bg-gradient-to-r from-sky-900 to-teal-700 p-6 text-white shadow-xl md:p-8">

@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+@source "../../talent-tracker/**/*";
+@source "../../backoffice_functions/**/*";
+@source "../../shared/**/*";
+@source "../../../incident_analyzer/**/*";
+@source "../../../supplier_directory/**/*";
+
 :root {
   --hc-brand: #0369a1;
   --hc-brand-strong: #0c4a6e;
@@ -8,6 +14,9 @@
   --hc-border: #cbd5e1;
   --hc-text: #0f172a;
   --hc-text-muted: #475569;
+  --hc-success: #166534;
+  --hc-warning: #a16207;
+  --hc-danger: #b91c1c;
 }
 
 body {

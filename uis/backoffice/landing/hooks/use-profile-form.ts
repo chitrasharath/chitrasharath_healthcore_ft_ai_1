@@ -68,7 +68,7 @@ export const useProfileForm = () => {
 
   const logout = () => {
     localStorage.removeItem("token");
-    window.location.href = "/login";
+    window.location.href = "/";
   };
 
   return { user, name, setName, loading, saving, saved, error, handleSave, logout };

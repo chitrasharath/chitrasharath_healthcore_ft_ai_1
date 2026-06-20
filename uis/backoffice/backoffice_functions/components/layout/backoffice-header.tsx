@@ -1,4 +1,4 @@
-import { HealthcoreLogo } from "@/components/layout/healthcore-logo";
+import { HealthcoreLogo } from "@backoffice/backoffice-functions/components/layout/healthcore-logo";
 
 export function BackofficeHeader() {
   return (

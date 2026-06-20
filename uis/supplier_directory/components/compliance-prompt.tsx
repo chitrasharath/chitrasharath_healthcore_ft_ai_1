@@ -1,4 +1,4 @@
-import { COMPLIANCE_PROMPT_CATEGORIES, type Category } from "@/lib/categories";
+import { COMPLIANCE_PROMPT_CATEGORIES, type Category } from "@backoffice/supplier-directory/lib/categories";
 
 type CompliancePromptProps = {
   categories: string[];

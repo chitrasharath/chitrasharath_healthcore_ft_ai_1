@@ -1,4 +1,4 @@
-import type { OperationDefinition, RawParamValue } from "@/lib/operation-types";
+import type { OperationDefinition, RawParamValue } from "@backoffice/backoffice-functions/lib/operation-types";
 
 import { ParamField } from "./param-field";
 

@@ -9,25 +9,25 @@ export const NAV_APPS: NavApp[] = [
   {
     title: "Incident Analyzer",
     description: "Patient incident report analysis dashboard",
-    url: "http://localhost:3002",
+    url: "/incident-analyzer",
     protected: true,
   },
   {
     title: "Supplier Directory",
     description: "Manage and search healthcare suppliers",
-    url: "http://localhost:3003",
+    url: "/supplier-directory",
     protected: true,
   },
   {
     title: "Talent Pipeline Tracker",
     description: "Track recruitment and hiring pipeline",
-    url: "http://localhost:3000",
+    url: "/talent-tracker",
     protected: true,
   },
   {
     title: "Back Office Functions",
     description: "Milestone 2 utility function test dashboard",
-    url: "http://localhost:3001",
+    url: "/backoffice-functions",
     protected: true,
   },
   {

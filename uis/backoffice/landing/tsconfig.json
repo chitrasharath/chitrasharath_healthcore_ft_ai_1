@@ -15,7 +15,13 @@
     "incremental": true,
     "plugins": [{ "name": "next" }],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@backoffice/backoffice-functions/*": ["../backoffice_functions/*"],
+      "@backoffice/incident-analyzer/*": ["../../incident_analyzer/*"],
+      "@backoffice/supplier-directory/*": ["../../supplier_directory/*"],
+      "@backoffice/talent-tracker/*": ["../talent-tracker/*"],
+      "@backoffice/shared/*": ["../shared/*"],
+      "@healthcore/src/*": ["../../../apps/src/*"]
     }
   },
   "include": [

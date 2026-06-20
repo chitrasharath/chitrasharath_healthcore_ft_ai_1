@@ -1,6 +1,6 @@
 ---
 name: AUTH-02 / AUTH-03 Implementation Plan
-overview: "Deliver backoffice landing app (login, register, account management, nav hub) at uis/backoffice/landing/, password-reset API endpoints, cross-app auth guards, and CORS/port updates — building on AUTH-01 backend."
+overview: "Deliver backoffice landing app (login, register, account management, nav hub) at uis/backoffice/landing/ on port 3004; internal tools as same-origin routes (not separate ports); password-reset API; HealthCore JWT on services/api for incidents/suppliers."
 todos:
   - id: step1-scaffold-landing
     content: "Scaffold uis/backoffice/landing/ (Next.js 16, port 3004) with globals, layout, hero"
@@ -27,19 +27,34 @@ todos:
     content: "Forgot-password and reset-password pages"
     status: completed
   - id: step9-nav-cards
-    content: "Navigation card grid + conditional logged-in hero UI + token-appended links"
-    status: pending
-  - id: step10-cross-app-guards
-    content: "Copy AuthGuard into backoffice_functions, incident_analyzer, supplier_directory, talent-pipeline-tracker"
-    status: pending
+    content: "Navigation card grid + conditional logged-in hero UI + internal route links (no cross-port tokens)"
+    status: completed
+  - id: step10-0-plumbing
+    content: "Landing plumbing — aliases, AuthGuard, nav-apps routes, relocate talent-tracker, update SPECS_auth_2_3.md"
+    status: completed
+  - id: step10-1-backoffice-functions
+    content: "Migrate backoffice-functions → /backoffice-functions route under landing"
+    status: completed
+  - id: step10-2-incident-analyzer
+    content: "Migrate incident-analyzer → /incident-analyzer + apiFetch Bearer + protect /incidents API"
+    status: completed
+  - id: step10-3-supplier-directory
+    content: "Migrate supplier-directory → /supplier-directory + apiFetch Bearer + protect /suppliers API"
+    status: completed
+  - id: step10-4-talent-tracker
+    content: "Migrate talent-tracker → /talent-tracker (external tracker API; route guard only)"
+    status: completed
+  - id: step10-5-cleanup
+    content: "Deprecate standalone tool shells; interim README/CORS; remove tool icon.svg; memory-bank interim"
+    status: completed
   - id: step11-website-port
-    content: "uis/website dev script → port 3005 (no auth changes)"
-    status: pending
+    content: "CANCELLED — folded into Step 13 (website dev on port 3005)"
+    status: cancelled
   - id: step12-favicon
-    content: "Repository-wide HealthCore PNG favicon (icon.tsx + apple-icon.tsx + favicon.ico redirect) on all Next.js apps"
+    content: "HealthCore PNG favicon on landing (3004) and website (3005); verify on hub + tool route"
     status: pending
   - id: step13-integration
-    content: "Full integration test pass; update memory-bank progress/decisions; README"
+    content: "Final UAT checklist, README/API docs rewrite, pytest sign-off, milestone delivered"
     status: pending
 isProject: false
 ---
@@ -48,35 +63,37 @@ isProject: false
 
 **Plan file:** [`IMPLEMENTATION_PLAN_auth_2_3.md`](IMPLEMENTATION_PLAN_auth_2_3.md)
 
-**Requirements source:** [`SPECS_auth_2_3.md`](SPECS_auth_2_3.md)
+**Requirements source:** [`SPECS_auth_2_3.md`](SPECS_auth_2_3.md) — **SPECS will be updated** to match this plan before Step 10 build begins.
 
 **Prior milestone:** [`IMPLEMENTATION_PLAN_auth_1.md`](IMPLEMENTATION_PLAN_auth_1.md) / [`SPECS_auth_1.md`](SPECS_auth_1.md) (delivered)
 
-**Status:** In progress — Step 4 delivered (registration page)
+**Status:** In progress — Steps 1–8 delivered; Steps 9–10 revised for **single-origin route consolidation** (stakeholder decision, 2026-06).
 
-**Agent workflow:** Per [`AGENTS.md`](../../../AGENTS.md) — bootstrap memory-bank root files (`projectbrief.md`, `techContext.md`, `progress.md`, `conventions.md`, `decisions.md`), then read applicable `.agents/rules/` and `.agents/skills/` before Step 1. Re-sync `progress.md` and `decisions.md` at each step gate.
+**Agent workflow:** Per [`AGENTS.md`](../../../AGENTS.md) — bootstrap memory-bank root files, re-sync `progress.md` and `decisions.md` at each step gate. **Stop after every Step 10 sub-step** for manual UAT before continuing.
 
 ---
 
 ## Executive summary
 
-AUTH-02 adds a **central backoffice landing app** at `uis/backoffice/landing/` (port **3004**) that provides login, registration, account management, and navigation to all internal HealthCore tools. AUTH-03 adds **password reset** (backend endpoints + frontend flows).
+AUTH-02 adds a **central backoffice app** at `uis/backoffice/landing/` (port **3004**) that provides login, registration, account management, navigation, and **hosts all internal tools as same-origin routes**. AUTH-03 adds **password reset** (backend endpoints + frontend flows).
 
-This milestone extends the AUTH-01 FastAPI backend (`services/api`) with:
+### Architecture change (Step 10 — locked)
 
-1. **`name` field** on user records (schemas, register, users CRUD, `/auth/me` response).
-2. **Password reset endpoints** — `POST /auth/forgot-password`, `POST /auth/reset-password` with JWT reset tokens, used-token tracking in TinyDB, and transactional email (Resend or SendGrid) with stdout fallback for local dev.
-3. **CORS + config** — all app ports (3000–3005), `EMAIL_API_KEY`, `FRONTEND_URL`.
+Internal tools are **not** separate dev servers on ports 3000–3003. Instead:
 
-Frontend deliverables:
+- **One Next.js app** runs on **3004** (landing).
+- Tool UI code lives in **sibling feature folders** under `uis/backoffice/` (hybrid import model).
+- Landing defines App Router routes that import components from those folders.
+- **No cross-port `localStorage`**, no `?token=` handoff, no per-app AuthGuard copies, no cross-app logout chain.
 
-1. **New Next.js app** — landing, auth views, account pages, shared `lib/api.ts`.
-2. **Client-side auth guards** — copied into four protected apps; URL token passing for cross-port `localStorage` isolation.
-3. **Website port fix** — `uis/website` dev on port 3005 only (no auth logic).
+| Route | Feature module | Data API |
+|-------|----------------|----------|
+| `/incident-analyzer` | `uis/backoffice/incident-analyzer/` | `services/api` `:8000` + HealthCore JWT |
+| `/supplier-directory` | `uis/backoffice/supplier-directory/` | `services/api` `:8000` + HealthCore JWT |
+| `/talent-tracker` | `uis/backoffice/talent-tracker/` (relocated from `apps/`) | External tracker API (separate env var) |
+| `/backoffice-functions` | `uis/backoffice/backoffice-functions/` | None (`apps/src` utils) |
 
-The public website (`uis/website/`) must remain **entirely unchanged** except the dev port.
-
-HIPAA production architecture (HttpOnly cookies, opaque sessions) documented in SPECS §HIPAA is **informational only** — out of scope.
+The public website (`uis/website/`, port **3005**) remains a **separate app** with no auth.
 
 ---
 
@@ -84,28 +101,48 @@ HIPAA production architecture (HttpOnly cookies, opaque sessions) documented in 
 
 | AUTH-01 asset | AUTH-02/03 usage |
 |---------------|------------------|
-| `POST /auth/register`, `/auth/login`, `GET /auth/me` | Landing app auth flows |
+| `POST /auth/register`, `/auth/login`, `GET /auth/me` | Landing auth flows |
 | `PUT /users/{id}` with password field | Change-password page |
 | `get_current_user` + JWT HS256 | Token validation; reset tokens reuse `settings.secret_key` |
-| `app/core/db.py` TinyDB singleton | New `used_reset_tokens` table |
+| `app/core/db.py` TinyDB singleton | `used_reset_tokens` table |
 | `hash_password()` / `verify_password()` | Reset-password endpoint |
-| `UserCreate` without `name` today | Extend with `name` field |
 
-Existing `/suppliers` and `/incidents` routes gain **`get_current_user` protection** in this milestone (stakeholder decision — extends SPECS). Frontend apps must send `Authorization: Bearer <token>` on all API calls.
+`/suppliers` and `/incidents` gain **`get_current_user` protection** during Step 10.2 / 10.3. Incident and supplier frontends send `Authorization: Bearer <token>` via landing `apiFetch`.
 
 ---
 
-## Port map (locked by SPECS)
+## Port map (revised — locked)
 
-| App | Path | Port |
-|-----|------|------|
-| Talent Pipeline Tracker | `apps/talent-pipeline-tracker/` | 3000 |
-| Backoffice Functions | `uis/backoffice/backoffice_functions/` | 3001 |
-| Incident Analyzer | `uis/incident_analyzer/` | 3002 |
-| Supplier Directory | `uis/supplier_directory/` | 3003 |
-| **Backoffice Landing (new)** | `uis/backoffice/landing/` | **3004** |
-| Public Website | `uis/website/` | **3005** (dev script update) |
-| API | `services/api/` | 8000 |
+| Service | Path | Port | Notes |
+|---------|------|------|-------|
+| **Backoffice (all internal tools + auth hub)** | `uis/backoffice/landing/` | **3004** | Single dev server |
+| Public Website | `uis/website/` | **3005** | No auth; set in Step 13 |
+| HealthCore API | `services/api/` | **8000** | Auth, incidents, suppliers |
+| External Talent API | (remote) | — | `NEXT_PUBLIC_TRACKER_API_URL` |
+
+**Deprecated for local dev:** separate Next.js processes on 3000–3003. Feature folders remain as import sources, not runnable apps.
+
+---
+
+## Folder structure (target after Step 10)
+
+```text
+uis/backoffice/
+├── landing/                         ← only Next.js app (port 3004)
+│   └── app/
+│       ├── (public)/              ← hub, login, register, reset
+│       └── (protected)/
+│           ├── layout.tsx           ← AuthGuard (session check once)
+│           ├── account/...
+│           ├── incident-analyzer/   ← route + optional nested layout
+│           ├── supplier-directory/
+│           ├── talent-tracker/
+│           └── backoffice-functions/
+├── incident-analyzer/               ← components, lib, hooks (no standalone app/)
+├── supplier-directory/
+├── talent-tracker/                  ← relocated from apps/talent-pipeline-tracker/
+└── backoffice-functions/
+```
 
 ---
 
@@ -113,167 +150,34 @@ Existing `/suppliers` and `/incidents` routes gain **`get_current_user` protecti
 
 | Topic | Decision |
 |-------|----------|
-| Email provider | **Resend** (`resend` pip package); stdout fallback when `EMAIL_API_KEY` empty |
-| Reset token TTL | **30 minutes** — separate JWT with `purpose: "reset"` |
-| `LOGIN_URL` in AuthGuard | Hardcode `http://localhost:3004/login` per SPECS |
-| Talent tracker | Wire HealthCore JWT into tracker API calls where applicable (extends SPECS UI-guard-only scope) |
-| API route protection | **Protect `/suppliers` and `/incidents`** with `get_current_user` — extends SPECS; requires token headers in incident_analyzer and supplier_directory frontends |
-| Layout + metadata | Root layouts stay server components; thin client `AuthGuardLayout` wrapper |
-| Step gate | Stop after each SPECS step for manual UAT before continuing |
-| Frontend tests | **Manual step-gated UAT + Playwright smoke tests** for login/register/reset |
-| Existing users without `name` | `to_user_response()` defaults `name` to `""` |
-| Backend tests | pytest for forgot/reset, name field, and protected route regression |
+| Internal tool hosting | **Same-origin routes** on landing (`3004`); hybrid **import** from sibling folders |
+| Route paths | `/incident-analyzer`, `/supplier-directory`, `/talent-tracker`, `/backoffice-functions` |
+| Layout pattern | **Option B** — `(protected)/layout.tsx` = AuthGuard only; each tool has nested `layout.tsx` for tool chrome (header, logout) |
+| Nav cards (Step 9 update) | Internal `<Link href="...">` paths; **no** `?token=`, **no** `target="_blank"` for internal tools |
+| Cross-port auth | **Removed** — no URL token passing, no cross-app logout chain, no per-port AuthGuard |
+| Logout | `localStorage.removeItem('token')` → redirect to **`/`** (public hub with Log In / Register) |
+| `LOGIN_URL` | Relative **`/login`** (same origin) |
+| Talent tracker API | **External** — `NEXT_PUBLIC_TRACKER_API_URL`; **do not** send HealthCore JWT to tracker API |
+| Talent tracker route access | Protected by landing AuthGuard (must be logged into backoffice) |
+| HealthCore API tools | Incident + supplier use `apiFetch` + Bearer; backend protects `/incidents` and `/suppliers` |
+| Backoffice functions | No HealthCore API; imports `@healthcore/src` utils via existing alias pattern |
+| Email provider | **Resend**; stdout fallback when `EMAIL_API_KEY` empty |
+| Reset token TTL | **30 minutes** |
+| Step 11 (website port) | **Cancelled** as standalone step — website `--port 3005` in Step 13 |
+| Step gate | Stop after **each Step 10 sub-step** for manual UAT |
+| Standalone tool apps | Deprecate after migration (Step 10.5); landing routes are canonical |
 
 ---
 
 ## Implementation sequence
 
-Follow SPECS order exactly. **Stop after each step** for manual testing before proceeding.
+Follow step order. **Stop after each step** (especially 10.0–10.4) for manual testing before proceeding.
 
-### Step 1 — Scaffold landing app
+### Steps 1–8 — Delivered
 
-**Goal:** Runnable Next.js shell on port 3004 matching incident analyzer styling.
+Steps 1–8 are complete (landing scaffold through password reset UI). See git history and `memory-bank/progress.md`.
 
-**Actions:**
-
-- Create `uis/backoffice/landing/` by copying toolchain from `uis/incident_analyzer/`:
-  - `package.json` — scripts with `--port 3004` on `dev` and `start`
-  - `tsconfig.json`, `next.config.ts`, `postcss.config.mjs`, `eslint.config.mjs`, `.gitignore`
-- Copy `app/globals.css` CSS variables from incident analyzer.
-- Add components: `healthcore-logo.tsx` (copy), `landing-header.tsx`, `landing-footer.tsx`.
-- Root `app/layout.tsx` — header + footer + `{children}`.
-- Minimal `app/(public)/page.tsx` — hero only ("HealthCore Back Office" + Login/Register CTAs).
-- `.env.local.example` with `NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1`.
-
-**Verify:** `cd uis/backoffice/landing && npm install && npm run dev` → http://localhost:3004
-
----
-
-### Step 2 — Backend: `name` field + CORS
-
-**Goal:** Registration accepts name; `/auth/me` returns it; CORS covers all ports.
-
-**Backend files:**
-
-| File | Change |
-|------|--------|
-| `app/domains/auth/schemas.py` | Add `name: str = ""` to `UserCreate`; `name: str \| None = None` to `UserUpdate`; `name: str` to `UserResponse` and `User` |
-| `app/domains/auth/service.py` | Include `"name": body.name` in register `doc` |
-| `app/domains/users/service.py` | Include name in `create_user()`; `to_user_response()` → `payload.setdefault("name", "")` |
-| `app/core/config.py` | Default `cors_origins` → all six localhost ports |
-| `.example.env` | Full CORS list (prep for Step 7 email vars) |
-
-**Tests:** Extend `tests/test_auth.py` — register with name, `/auth/me` returns name, legacy user without name gets `""`.
-
-**Verify:** `uv run pytest` — full suite green.
-
----
-
-### Step 3 — Login page
-
-**Goal:** Working login with token storage and redirect.
-
-**Files:**
-
-- `lib/api.ts` — `apiFetch` per SPECS (401 → clear token, redirect `/login`).
-- `app/(public)/login/page.tsx` — email/password form, error states, links to register/forgot-password.
-- `?reset=success` green banner.
-
-**Verify:** Register user via curl/API, log in via UI, token in `localStorage` key `"token"`, redirect to `/`.
-
----
-
-### Step 4 — Registration page
-
-**Goal:** Four-field register form with client validation.
-
-**Files:**
-
-- `app/(public)/register/page.tsx` — name, email, password, confirm; field-level errors; 422 handling.
-
-**Verify:** Register new user via UI → auto-login → redirect `/`.
-
----
-
-### Step 5 — Auth guard on landing app (account routes only)
-
-**Goal:** Route groups; `/account/*` protected.
-
-**Files:**
-
-- `components/auth/auth-guard.tsx` — URL `?token=` ingestion + localStorage check + redirect to `http://localhost:3004/login`.
-- `app/(public)/layout.tsx` — passthrough.
-- `app/(protected)/layout.tsx` — wraps `<AuthGuard>`.
-- Placeholder `account/profile/page.tsx` and `account/change-password/page.tsx`.
-
-**Verify:** Visit `/account/profile` without token → redirect login.
-
----
-
-### Step 6 — Profile and change-password pages
-
-**Goal:** Account management complete.
-
-**Profile (`/account/profile`):**
-
-- `GET /auth/me` on mount; display name, email (read-only), created_at.
-- Inline name edit → `PUT /users/{id}` with `{ name }`.
-- Links: change password, logout.
-
-**Change password (`/account/change-password`):**
-
-- Verify current password via `POST /auth/login`.
-- Update via `PUT /users/{id}` with `{ password }`.
-- Client validation: min 8 chars, match, differ from current.
-
-**Verify:** Full account lifecycle (edit name, change password, logout).
-
----
-
-### Step 7 — Backend: password reset (AUTH-03)
-
-**Goal:** Forgot/reset endpoints with email or stdout fallback.
-
-**New / modified backend:**
-
-| File | Change |
-|------|--------|
-| `pyproject.toml` | Add `resend` (or `sendgrid`) |
-| `app/core/config.py` | `email_api_key: str = ""`, `frontend_url: str = "http://localhost:3004"` |
-| `.example.env` | `EMAIL_API_KEY`, `FRONTEND_URL`, full `CORS_ORIGINS` |
-| `app/domains/auth/schemas.py` | `ForgotPasswordRequest/Response`, `ResetPasswordRequest/Response` |
-| `app/domains/auth/service.py` | `create_reset_token()`, `send_reset_email()`, `is_token_used()`, `mark_token_used()`, `forgot_password()`, `reset_password()` |
-| `app/domains/auth/token.py` | `create_reset_token()` / `decode_reset_token()` with `purpose == "reset"` check |
-| `app/domains/auth/router.py` | `POST /forgot-password`, `POST /reset-password` |
-
-**Behavior highlights:**
-
-- Forgot: always 200 with generic message (no enumeration).
-- No `EMAIL_API_KEY`: log reset URL to stdout.
-- Reset: reject reused tokens via `used_reset_tokens` TinyDB table; hash new password; mark token used.
-
-**Tests:** New cases in `tests/test_auth.py`:
-
-- Forgot unknown email → 200 generic message.
-- Forgot known email → stdout log or mock send.
-- Reset valid token → password changes, login works.
-- Reset reused/invalid/expired token → 400.
-- Reset token with wrong `purpose` → 400.
-
-**Verify:** curl forgot → extract token from stdout → curl reset → login with new password.
-
----
-
-### Step 8 — Frontend: password reset pages
-
-**Goal:** Complete forgot/reset UX.
-
-**Files:**
-
-- `app/(public)/forgot-password/page.tsx` — submit once, disable button, generic confirmation.
-- `app/(public)/reset-password/page.tsx` — read `?token=`, validate passwords, redirect `/login?reset=success`.
-
-**Verify:** End-to-end reset flow through UI.
+**Note:** Step 5 AuthGuard currently protects `/account/*` only. Step 10.0 extends the same guard to all `(protected)` tool routes.
 
 ---
 
@@ -281,159 +185,289 @@ Follow SPECS order exactly. **Stop after each step** for manual testing before p
 
 **Goal:** Hub page with tool links and logged-in hero.
 
-**Landing page additions:**
+**Landing page behavior:**
 
-- **Logged out:** public view section (staff portal info, bullets, link to public website on :3005) — **no nav cards**
-- **Logged in:** navigation card grid — Incident Analyzer (3002), Supplier Directory (3003), Talent Tracker (3000), Backoffice Functions (3001), Public Website (3005)
-- Protected cards: lock icon, `target="_blank"`, append `?token=<jwt>` when logged in
-- Public website card/link: same tab, no token, no lock
+- **Logged out:** public intro section (staff portal info, bullets, link to public website on `:3005`) — **no nav cards**
+- **Logged in:** navigation card grid linking to **internal routes**:
+  - `/incident-analyzer`
+  - `/supplier-directory`
+  - `/talent-tracker`
+  - `/backoffice-functions`
+  - Public Website → `http://localhost:3005` (external, same tab, no lock)
+- Protected cards: lock icon; **same-tab** internal links (no token query param)
 - Logged-in hero: "Welcome, {name}", My Profile + Log Out
 - Logged-out hero: Log In + Register
-- On mount when token present: `GET /auth/me` to populate name; 401 clears token
+- On mount when token present: `GET /auth/me`; 401 clears token
 
-**Verify:** Logged out → public content only, no tool URLs. Logged in → nav cards with token on protected links.
+**Files:** Update `lib/nav-apps.ts`, `components/landing/nav-card.tsx`, `nav-cards.tsx` as needed.
 
----
+**Verify:** Logged out → public content only. Logged in → nav cards with **relative paths** (routes may 404 until Step 10 migrations — acceptable if documented at gate).
 
-### Step 10 — Auth guards + API token wiring on all protected apps
-
-**Goal:** Each internal tool redirects unauthenticated users to landing login; API calls include Bearer token.
-
-**Per app** (copy identical `components/auth/auth-guard.tsx` + shared `lib/api.ts` pattern):
-
-| App | Layout change | API change |
-|-----|---------------|------------|
-| `uis/backoffice/backoffice_functions/` | Client wrapper around `{children}` | N/A (no services/api calls) |
-| `uis/incident_analyzer/` | AuthGuardLayout wrapper | Replace raw `fetch` with `apiFetch` + Bearer token |
-| `uis/supplier_directory/` | AuthGuardLayout wrapper | Replace raw `fetch` with `apiFetch` + Bearer token |
-| `apps/talent-pipeline-tracker/` | AuthGuardLayout wrapper | Wire HealthCore JWT into applicable API calls |
-
-**Backend (same step or Step 10a):**
-
-- Uncomment/enable `dependencies=[Depends(get_current_user)]` on `/suppliers` and `/incidents` routers in `app/api/v1/router.py`.
-- Extend pytest — unauthenticated calls to suppliers/incidents return 401.
-
-**Playwright (Step 10b or Step 13):**
-
-- Add smoke tests in `uis/backoffice/landing/` for login, register, forgot-password → reset-password redirect.
-
-**Pattern:** Create `components/auth/auth-guard-layout.tsx`:
-
-```tsx
-"use client";
-import { AuthGuard } from "./auth-guard";
-export function AuthGuardLayout({ children }: { children: React.ReactNode }) {
-  return <AuthGuard>{children}</AuthGuard>;
-}
-```
-
-Root `layout.tsx` imports wrapper; keeps `metadata` export server-side.
-
-**Do NOT modify `uis/website/`.**
-
-**Verify:** Direct visit to each app without token → redirect 3004/login; visit via landing card with token → loads.
+**Gate:** Stop for UAT before Step 10.
 
 ---
 
-### Step 11 — Website port fix
+### Step 10 — Consolidate internal tools as landing routes + auth
 
-**Goal:** Resolve port 3000 conflict with talent tracker.
+**Goal:** All internal tools accessible only via landing on port **3004**; single AuthGuard; HealthCore Bearer on incident/supplier API calls.
 
-**Change:** `uis/website/package.json` → `"dev": "next dev --port 3005"`.
-
-**Verify:** Website on 3005, no auth code added.
+**Do NOT modify `uis/website/` auth (it stays public).**
 
 ---
 
-### Step 12 — Repository-wide favicon fix
+#### Step 10.0 — Plumbing (before first tool migration)
 
-**Goal:** Every Next.js app in the monorepo shows the HealthCore logo (navy square, white cross, cyan ring) in the browser tab. SVG-only or missing favicons fail in many browsers (including embedded IDE browsers) because `/favicon.ico` is not served.
+**Goal:** Landing can import from sibling feature folders; nav cards point at real routes; talent tracker relocated.
 
-**Canonical pattern** (already applied on `uis/backoffice/landing/`):
+**Actions:**
+
+1. **Relocate** `apps/talent-pipeline-tracker/` → `uis/backoffice/talent-tracker/` (preserve components, lib, types; Next.js `app/` shell deprecated later).
+2. **Landing `next.config.ts` + `tsconfig.json`:**
+   - `transpilePackages` or path aliases for sibling folders, e.g.:
+     - `@backoffice/incident-analyzer/*` → `../incident-analyzer/*`
+     - `@backoffice/supplier-directory/*` → `../supplier-directory/*`
+     - `@backoffice/talent-tracker/*` → `../talent-tracker/*`
+     - `@backoffice/backoffice-functions/*` → `../backoffice-functions/*`
+   - Backoffice functions: inherit `@healthcore/src` webpack/turbopack alias from existing `backoffice_functions` config.
+3. **Extend `(protected)/layout.tsx`** — single `AuthGuard` for all protected routes (account + tools). Remove `?token=` ingestion from guard (same origin).
+4. **Update `lib/nav-apps.ts`** — `url` fields become paths (`/incident-analyzer`, etc.) for internal tools.
+5. **Env vars** in landing `.env.local.example`:
+   - `NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1` (HealthCore)
+   - `NEXT_PUBLIC_TRACKER_API_URL=https://playground.4geeks.com/tracker/api/v1` (talent tracker)
+6. **Stub routes** (optional): placeholder pages at each tool path confirming auth works.
+7. **Update `SPECS_auth_2_3.md`** — align with this plan (single-origin routes, drop cross-port token passing, revised port map). Step 13 verifies alignment only; do not defer SPECS to Step 13.
+
+**Verify:**
+
+- `npm run verify` in landing passes.
+- Log in → `/account/profile` still works.
+- Direct visit to `/incident-analyzer` without token → redirect `/login`.
+
+**Gate:** Stop for UAT.
+
+---
+
+#### Step 10.1 — Backoffice Functions → `/backoffice-functions`
+
+**Goal:** M2 manual test dashboard available at `/backoffice-functions`.
+
+**Actions:**
+
+1. Add `app/(protected)/backoffice-functions/layout.tsx` — tool header + logout button.
+2. Add `app/(protected)/backoffice-functions/page.tsx` — import/render `ManualTestPage` from `@backoffice/backoffice-functions/`.
+3. Move or re-export components from `uis/backoffice/backoffice_functions/` into `uis/backoffice/backoffice-functions/` if folder rename is part of normalize (or keep folder name and alias only — pick one convention and document).
+
+**API:** None.
+
+**Verify:**
+
+- Nav card → `/backoffice-functions` loads when logged in.
+- Logged out → redirect `/login`.
+- Function runner works (same as former `:3001` app).
+
+**Gate:** Stop for UAT.
+
+---
+
+#### Step 10.2 — Incident Analyzer → `/incident-analyzer`
+
+**Goal:** CSV upload dashboard at `/incident-analyzer` with authenticated HealthCore API calls.
+
+**Actions:**
+
+1. Nested layout with `IncidentHeader` + logout.
+2. Route page imports `IncidentDashboard` from feature folder.
+3. Update feature `lib/api.ts` to use landing `apiFetch` (or shared helper) with Bearer token.
+4. **Backend:** Enable `get_current_user` on incidents router in `app/api/v1/router.py`.
+5. **Tests:** Unauthenticated `POST /api/v1/incidents/analyze` → 401.
+
+**Verify:**
+
+- Upload CSV, analysis, export — all with API on `:8000` and user logged in.
+- Without login → cannot reach route.
+
+**Gate:** Stop for UAT.
+
+---
+
+#### Step 10.3 — Supplier Directory → `/supplier-directory`
+
+**Goal:** Supplier registry at `/supplier-directory` with authenticated HealthCore API calls.
+
+**Actions:**
+
+1. Nested layout with `SupplierHeader` + logout.
+2. Route pages for list and `/supplier-directory/suppliers/[id]` (or flatten to `/supplier-directory/[id]` — match existing UX).
+3. Feature `lib/api.ts` → `apiFetch` + Bearer.
+4. **Backend:** Enable `get_current_user` on suppliers router.
+5. **Tests:** Unauthenticated supplier endpoints → 401.
+
+**Verify:** CRUD/list flows work; auth enforced on route and API.
+
+**Gate:** Stop for UAT.
+
+---
+
+#### Step 10.4 — Talent Tracker → `/talent-tracker`
+
+**Goal:** Recruiting UI at `/talent-tracker`; route protected by HealthCore session; data from **external tracker API**.
+
+**Actions:**
+
+1. Relocate complete (if not done in 10.0).
+2. Nested layout with logout bar / page header pattern.
+3. Routes: list, `/talent-tracker/candidates/new`, `/talent-tracker/candidates/[id]`, edit — preserve existing URL structure under prefix.
+4. Feature `lib/api.ts` uses **`NEXT_PUBLIC_TRACKER_API_URL` only** — no HealthCore Bearer on tracker requests.
+5. Landing AuthGuard ensures user is logged into backoffice before viewing tool.
+
+**Verify:**
+
+- Candidate list/detail/edit/new work against tracker API.
+- Logged out → redirect `/login`.
+- HealthCore API not required for tracker data calls.
+
+**Gate:** Stop for UAT.
+
+---
+
+#### Step 10.5 — Cleanup (interim)
+
+**Goal:** Remove confusion from deprecated multi-port setup. **Final doc polish and milestone sign-off happen in Step 13.**
+
+**Actions:**
+
+1. Remove or gut standalone `app/` + `next.config.ts` dev scripts from feature folders (or add `README.md` in each: "Run via landing only").
+2. Remove leftover `app/icon.svg` / favicon metadata from deprecated tool shells (Step 12 covers landing + website only).
+3. **Interim** root `README.md` update — port table (3004, 3005, 8000) and route paths; full README rewrite completed in Step 13.
+4. Update `memory-bank/progress.md` and `memory-bank/decisions.md` with Step 10 completion status.
+5. Remove obsolete cross-port auth documentation from repo (if present).
+6. CORS in `services/api`: ensure `http://localhost:3004` in defaults; remove 3000–3003 if no longer needed. Document in `services/api/README.md` (full update in Step 13).
+
+**Verify:** `npm run verify` on landing; manual smoke of all four tool routes.
+
+**Gate:** Stop for UAT before Step 12.
+
+---
+
+### Step 11 — Website port fix — **CANCELLED**
+
+**Reason:** Internal tools no longer use port 3000. The only remaining port assignment is public website on **3005**, handled in **Step 13** (one-line `package.json` change + README).
+
+---
+
+### Step 12 — Favicon (revised scope)
+
+**Goal:** HealthCore PNG favicon on the two Next.js apps that still run as separate dev servers.
+
+| App | Port | Action |
+|-----|------|--------|
+| `uis/backoffice/landing/` | 3004 | Verify existing `icon.tsx` + `apple-icon.tsx` + `/favicon.ico` redirect |
+| `uis/website/` | 3005 | Add/replace PNG favicon pattern (`icon.tsx`, `apple-icon.tsx`, redirect) |
+
+**Out of scope:** Standalone tool feature folders (former 3000–3003) — landing favicon covers all backoffice routes on `:3004`. Remove leftover `icon.svg` from deprecated tool shells in **Step 10.5**, not here.
+
+**Canonical pattern** (already on landing):
 
 | File | Purpose |
 |------|---------|
 | `app/icon.tsx` | 32×32 PNG via `next/og` `ImageResponse` |
-| `app/apple-icon.tsx` | 180×180 PNG for Apple touch |
+| `app/apple-icon.tsx` | 180×180 Apple touch icon |
 | `next.config.ts` | Redirect `/favicon.ico` → `/icon` |
 
-**Per app actions:**
+**Verify:**
 
-| App | Port | Current state | Action |
-|-----|------|---------------|--------|
-| `uis/backoffice/landing/` | 3004 | **Done** — `icon.tsx` + `apple-icon.tsx` | Verify only; remove any leftover `app/icon.svg` |
-| `uis/backoffice/backoffice_functions/` | 3001 | `app/icon.svg` + manual `icons` metadata | Replace with PNG pattern; remove `icon.svg`; drop `icons` from `layout.tsx` metadata |
-| `uis/incident_analyzer/` | 3002 | No favicon | Add `icon.tsx`, `apple-icon.tsx`, redirect |
-| `uis/supplier_directory/` | 3003 | No favicon | Add `icon.tsx`, `apple-icon.tsx`, redirect |
-| `uis/website/` | 3005 | `app/icon.svg` + manual `icons` metadata | Replace with PNG pattern; remove `icon.svg`; drop `icons` from metadata |
-| `apps/talent-pipeline-tracker/` | 3000 | `app/icon.svg` + manual `icons` metadata | Replace with PNG pattern; remove `icon.svg`; drop `icons` from metadata |
+1. Hub `/` on `:3004` — tab shows HealthCore logo after hard refresh (**Ctrl+Shift+R**).
+2. Logged-in tool route (e.g. `/incident-analyzer`) — **same** favicon (same origin).
+3. Public website on `:3005` — tab shows HealthCore logo.
+4. `curl -sI http://localhost:3004/icon` and `:3005/icon` return `200` with `content-type: image/png`.
 
-**Implementation notes:**
-
-- Copy `app/icon.tsx` and `app/apple-icon.tsx` from `uis/backoffice/landing/` into each app (identical HealthCore logo artwork).
-- Do **not** use `metadata.icons` pointing at `/icon.svg` — let Next.js auto-inject the generated PNG routes.
-- Legacy static HTML apps (`apps/healthcore_web_portal/`, `apps/src/index.html`) are out of scope unless explicitly requested.
-
-**Verify:** For each app, run `npm run verify`, restart dev server, hard-refresh tab (**Ctrl+Shift+R**). Confirm tab shows HealthCore logo and `curl -sI http://localhost:<port>/icon` returns `200` with `content-type: image/png`.
+**Gate:** Stop for UAT before Step 13.
 
 ---
 
-### Step 13 — Integration test + docs
+### Step 13 — Final integration UAT + docs
 
-**Manual checklist (from SPECS):**
+**Goal:** Milestone sign-off for AUTH-02/03. **Assumes Steps 10–12 complete.** Step 10.5 handles interim cleanup; Step 13 is the final documentation pass and full regression checklist.
 
-1. Landing → register → welcome + nav cards.
-2. Click Incident Analyzer → token accepted.
-3. Profile → edit name → save.
-4. Change password → logout.
-5. Forgot password → reset → login with new password + success banner.
-6. Public website on 3005 — no auth prompts.
-7. Direct protected app access without token → login redirect.
-8. HealthCore logo favicon visible on every Next.js app tab (Step 12).
+#### Manual checklist
 
-**Docs updates:**
+**Auth & hub**
 
-- `services/api/README.md` — reset endpoints, new env vars, link to this plan.
-- Root `README.md` — landing app section, port table.
-- `memory-bank/progress.md` — AUTH-02/03 delivered entry.
-- `memory-bank/decisions.md` — email provider, URL token passing, guard pattern.
+1. Register → welcome + nav cards on `/`.
+2. Logged out → public intro only; no internal tool URLs exposed.
+3. Each nav card → correct route (`/incident-analyzer`, `/supplier-directory`, `/talent-tracker`, `/backoffice-functions`); **no `?token=` in URL**.
+4. Direct visit to each protected route without session → `/login`.
+5. Profile → edit name → save.
+6. Change password → success.
+7. Logout from hub → `/` with Log In / Register.
+8. Logout from each tool header → `/` with Log In / Register.
+9. Forgot password → reset → login with success banner.
+
+**Tools**
+
+10. `/backoffice-functions` — function runner works.
+11. `/incident-analyzer` — CSV upload, analysis, export (API `:8000` + Bearer).
+12. `/supplier-directory` — list, add, detail route (confirm final path: `/supplier-directory/suppliers/[id]` or flattened).
+13. `/talent-tracker` — list, `/talent-tracker/candidates/new`, `/talent-tracker/candidates/[id]`, edit.
+14. Talent tracker uses **`NEXT_PUBLIC_TRACKER_API_URL` only** — no HealthCore Bearer on tracker requests.
+
+**API & security**
+
+15. Incident + supplier API calls return **401** when token cleared (browser or curl without Bearer).
+16. `uv run pytest` in `services/api/` — full suite green (includes protected route tests from Steps 10.2/10.3).
+
+**Public & polish**
+
+17. Public website on **3005** — no auth prompts.
+18. Favicon visible on `:3004` (hub + tool route) and `:3005`.
+19. `SPECS_auth_2_3.md` matches implemented behavior (updated in Step 10.0; verify only here).
+
+#### Docs updates (final pass)
+
+| File | Changes |
+|------|---------|
+| Root `README.md` | **Replace** per-app port sections (3000–3003) with single backoffice section: one `npm run dev` on landing (`3004`), **route table**, env vars (`NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_TRACKER_API_URL`), note talent tracker path `uis/backoffice/talent-tracker/` |
+| `services/api/README.md` | `/incidents` and `/suppliers` require Bearer auth; CORS defaults `http://localhost:3004` only; reset endpoints and env vars |
+| `uis/website/package.json` | `"dev": "next dev --port 3005"` if not already set |
+| `memory-bank/progress.md` | AUTH-02/03 **delivered** |
+| `memory-bank/decisions.md` | Single-origin consolidation, route paths, talent API split, logout → `/` |
+
+#### Playwright (optional)
+
+Scope to **landing only** (`uis/backoffice/landing/`): login, register, forgot-password → reset-password redirect. Tool routes covered by manual UAT above.
+
+**Gate:** Milestone complete.
+
+## Auth model (single origin)
+
+```text
+Browser @ localhost:3004
+├── (public)/          → no guard
+│   ├── /              → hub (logged-in or public intro)
+│   ├── /login
+│   └── /register, /forgot-password, /reset-password
+└── (protected)/       → AuthGuard checks localStorage "token"
+    ├── /account/*
+    ├── /incident-analyzer/*
+    ├── /supplier-directory/*
+    ├── /talent-tracker/*
+    └── /backoffice-functions/*
+```
+
+**Logout:** Clear token → `window.location.href = '/'`.
+
+**401 from apiFetch:** Clear token → redirect `/login`.
 
 ---
 
-## File tree (target)
+## API wiring summary
 
-```
-uis/backoffice/landing/
-├── .env.local.example
-├── app/
-│   ├── globals.css
-│   ├── layout.tsx
-│   ├── (public)/
-│   │   ├── layout.tsx
-│   │   ├── page.tsx
-│   │   ├── login/page.tsx
-│   │   ├── register/page.tsx
-│   │   ├── forgot-password/page.tsx
-│   │   └── reset-password/page.tsx
-│   └── (protected)/
-│       ├── layout.tsx
-│       └── account/
-│           ├── profile/page.tsx
-│           └── change-password/page.tsx
-├── components/
-│   ├── auth/auth-guard.tsx
-│   └── layout/{healthcore-logo,landing-header,landing-footer}.tsx
-└── lib/api.ts
-
-services/api/app/domains/auth/
-├── router.py          (+ forgot-password, reset-password routes)
-├── service.py         (+ reset helpers, email send)
-├── schemas.py         (+ name, forgot/reset schemas)
-└── token.py           (+ reset token encode/decode)
-
-Each protected app:
-└── components/auth/{auth-guard.tsx, auth-guard-layout.tsx}
-```
+| Tool | Route guard | HTTP client | Backend |
+|------|-------------|-------------|---------|
+| Backoffice Functions | HealthCore JWT | N/A | Local TS utils |
+| Incident Analyzer | HealthCore JWT | `apiFetch` + Bearer | `services/api` `/incidents/*` |
+| Supplier Directory | HealthCore JWT | `apiFetch` + Bearer | `services/api` `/suppliers/*` |
+| Talent Tracker | HealthCore JWT | Feature `fetch` to tracker base URL | External tracker API |
 
 ---
 
@@ -441,35 +475,38 @@ Each protected app:
 
 | Risk | Mitigation |
 |------|------------|
-| URL token passing leaks JWT to history/logs | Accepted per SPECS; documented in HIPAA section for production |
-| XSS + localStorage token theft | Accepted per SPECS; HttpOnly migration deferred |
-| Talent tracker uses external API without HealthCore JWT | Guard protects page shell only; document limitation |
-| `metadata` lost if root layout becomes `"use client"` | Use `AuthGuardLayout` client wrapper pattern |
-| CORS misconfiguration blocks browser API calls | Update defaults + `.example.env`; document in README |
-| Reset email not received in dev | Stdout fallback with full reset URL |
-| Existing AUTH-01 tests break on schema changes | Extend tests in Step 2 before frontend depends on `name` |
-| SVG favicon not visible in browser tabs | Step 12 — PNG `icon.tsx` + `favicon.ico` redirect on all Next.js apps |
+| Large refactor in Step 10 | Incremental sub-steps with UAT gates |
+| Path alias / import breaks build | Step 10.0 plumbing + verify before migrations |
+| Talent tracker relocation breaks imports | Move early in 10.0; update docs/scripts paths |
+| XSS + localStorage token theft | Accepted per SPECS; HttpOnly deferred |
+| Tracker API unrelated to HealthCore auth | Document two-layer model (route vs data API) |
+| CORS misconfiguration | Keep `3004` in API CORS defaults |
+| Step 9 nav links 404 before Step 10 | Expected; gate Step 9 after cards updated, complete routes in 10.x |
 
 ---
 
-## Clarifying questions — resolved
+## Clarifying questions — resolved (architecture pivot)
 
 | # | Question | Answer |
 |---|----------|--------|
-| 1 | Email provider | **Resend** |
-| 2 | `LOGIN_URL` | **Hardcoded** `http://localhost:3004/login` |
-| 3 | API protection | **Protect `/suppliers` and `/incidents`** + add Bearer headers in frontends |
-| 4 | Talent tracker | **Wire HealthCore JWT** into tracker API calls |
-| 5 | Frontend tests | **Manual UAT + Playwright** smoke tests |
+| 1 | Integration model | **C — Hybrid:** UI in sibling folders; landing owns routes |
+| 2 | URL paths | `/incident-analyzer`, `/supplier-directory`, `/talent-tracker`, `/backoffice-functions` |
+| 3 | Layout pattern | **Option B** — auth parent + per-tool nested layout |
+| 4 | Standalone apps | **Deprecate** after migration; landing is canonical |
+| 5 | Public website | **Separate** on port 3005 |
+| 6 | Talent tracker location | **Relocate** to `uis/backoffice/talent-tracker/` |
+| 7 | Cross-port auth | **Drop** — single origin, no token handoff |
+| 8 | Talent API | **External env var**; HealthCore JWT for route access only |
+| 9 | Step 11 | **Cancelled** — website port in Step 13 |
+| 10 | Migration pace | **Incremental** — stop after each 10.x for testing |
 
 ---
 
 ## References
 
-- [AGENTS.md](../../../AGENTS.md) — session bootstrap, `.agents/` pre-build context, pre-commit workflow
-- [SPECS_auth_2_3.md](SPECS_auth_2_3.md) — authoritative requirements for AUTH-02 and AUTH-03
-- [SPECS_auth_1.md](SPECS_auth_1.md) — AUTH-01 backend baseline
-- [IMPLEMENTATION_PLAN_auth_1.md](IMPLEMENTATION_PLAN_auth_1.md) — delivered AUTH-01 plan
-- [evaluation_criteria.md](evaluation_criteria.md) — AUTH-01 eval checklist (extend for AUTH-02/03 separately if needed)
-- Style reference: `uis/incident_analyzer/`
+- [AGENTS.md](../../../AGENTS.md)
+- [SPECS_auth_2_3.md](SPECS_auth_2_3.md) — update before Step 10 build
+- [SPECS_auth_1.md](SPECS_auth_1.md)
+- [IMPLEMENTATION_PLAN_auth_1.md](IMPLEMENTATION_PLAN_auth_1.md)
+- Style reference: `uis/incident_analyzer/` (feature module layout)
 - Existing auth backend: `services/api/app/domains/auth/`

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { LandingFooter } from "@/components/layout/landing-footer";
+import { ConditionalLandingFooter } from "@/components/layout/conditional-landing-footer";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -13,7 +13,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en" className="h-full antialiased">
       <body className="flex min-h-full flex-col bg-slate-50 text-slate-900">
         <div className="flex flex-1 flex-col">{children}</div>
-        <LandingFooter />
+        <ConditionalLandingFooter />
       </body>
     </html>
   );

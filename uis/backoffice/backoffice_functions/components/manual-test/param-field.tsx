@@ -1,4 +1,4 @@
-import type { ParameterDefinition, RawParamValue } from "@/lib/operation-types";
+import type { ParameterDefinition, RawParamValue } from "@backoffice/backoffice-functions/lib/operation-types";
 
 type ParamFieldProps = {
   operationId: string;

@@ -1,6 +1,6 @@
-import type { SupplierCreateInput } from "@/lib/types";
+import type { SupplierCreateInput } from "@backoffice/supplier-directory/lib/types";
 
-import { SupplierOptionalFields } from "@/components/supplier-optional-fields";
+import { SupplierOptionalFields } from "@backoffice/supplier-directory/components/supplier-optional-fields";
 
 type AddSupplierOptionalSectionProps = {
   form: SupplierCreateInput;

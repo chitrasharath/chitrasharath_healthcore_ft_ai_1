@@ -31,12 +31,12 @@ import {
   sampleClaims,
   sampleClinicians,
   sampleLocations,
-} from "@/lib/sample-data";
+} from "@backoffice/backoffice-functions/lib/sample-data";
 import type {
   OperationDefinition,
   ParamOption,
   RawParamValue,
-} from "@/lib/operation-types";
+} from "@backoffice/backoffice-functions/lib/operation-types";
 
 const claimStatusOptions: ParamOption[] = [
   { label: "submitted", value: "submitted" },

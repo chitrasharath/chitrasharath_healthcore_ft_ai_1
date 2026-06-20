@@ -1,4 +1,4 @@
-import { VALID_CATEGORIES, type Category } from "@/lib/categories";
+import { VALID_CATEGORIES, type Category } from "@backoffice/supplier-directory/lib/categories";
 
 export type CountryFilter = "all" | "USA" | "UK";
 
@@ -6,6 +6,8 @@ export type SupplierFilterState = {
   countryFilter: CountryFilter;
   categoryFilter: string;
 };
+
+const SUPPLIER_DIRECTORY_HOME = "/supplier-directory";
 
 const isCountryFilter = (value: string): value is "USA" | "UK" =>
   value === "USA" || value === "UK";
@@ -36,7 +38,6 @@ export const applySupplierFilters = (
   if (merged.categoryFilter === "all") next.delete("category");
   else next.set("category", merged.categoryFilter);
 
-  // API filter mode is stored in sessionStorage, not the URL.
   next.delete("api");
 
   return next;
@@ -52,18 +53,18 @@ export const filterListQuery = (searchParams: URLSearchParams): string => {
 
 export const supplierListPath = (searchParams: URLSearchParams): string => {
   const query = filterListQuery(searchParams);
-  return query ? `/?${query}` : "/";
+  return query ? `${SUPPLIER_DIRECTORY_HOME}?${query}` : SUPPLIER_DIRECTORY_HOME;
 };
 
 export const supplierDetailPath = (id: number, listQuery: string): string => {
-  if (!listQuery) return `/suppliers/${id}`;
-  return `/suppliers/${id}?return=${encodeURIComponent(listQuery)}`;
+  if (!listQuery) return `${SUPPLIER_DIRECTORY_HOME}/suppliers/${id}`;
+  return `${SUPPLIER_DIRECTORY_HOME}/suppliers/${id}?return=${encodeURIComponent(listQuery)}`;
 };
 
 export const supplierListPathFromReturn = (returnQuery: string | null): string => {
-  if (!returnQuery) return "/";
+  if (!returnQuery) return SUPPLIER_DIRECTORY_HOME;
   const params = new URLSearchParams(returnQuery);
   params.delete("api");
   const query = params.toString();
-  return query ? `/?${query}` : "/";
+  return query ? `${SUPPLIER_DIRECTORY_HOME}?${query}` : SUPPLIER_DIRECTORY_HOME;
 };

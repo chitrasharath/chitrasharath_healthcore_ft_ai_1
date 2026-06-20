@@ -5,10 +5,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     app_env: str = "development"
-    cors_origins: str = (
-        "http://localhost:3000,http://localhost:3001,http://localhost:3002,"
-        "http://localhost:3003,http://localhost:3004,http://localhost:3005"
-    )
+    cors_origins: str = "http://localhost:3004,http://localhost:3005"
     incident_analyzer_path: str = "../../uis/incident_analyzer"
     secret_key: str
     jwt_expire_minutes: int

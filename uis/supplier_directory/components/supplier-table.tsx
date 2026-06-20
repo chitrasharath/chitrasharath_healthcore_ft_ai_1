@@ -1,12 +1,12 @@
 import Link from "next/link";
 
-import { formatCategoryLabels } from "@/lib/categories";
-import { supplierDetailPath } from "@/lib/supplier-filter-params";
-import { formatCompliance, formatRate, formatRateUpdated } from "@/lib/format";
-import type { Supplier } from "@/lib/types";
+import { formatCategoryLabels } from "@backoffice/supplier-directory/lib/categories";
+import { supplierDetailPath } from "@backoffice/supplier-directory/lib/supplier-filter-params";
+import { formatCompliance, formatRate, formatRateUpdated } from "@backoffice/supplier-directory/lib/format";
+import type { Supplier } from "@backoffice/supplier-directory/lib/types";
 
-import { SupplierRowActions } from "@/components/supplier-row-actions";
-import { SupplierStatusBadge } from "@/components/supplier-status-badge";
+import { SupplierRowActions } from "@backoffice/supplier-directory/components/supplier-row-actions";
+import { SupplierStatusBadge } from "@backoffice/supplier-directory/components/supplier-status-badge";
 
 type SupplierTableProps = {
   suppliers: Supplier[];

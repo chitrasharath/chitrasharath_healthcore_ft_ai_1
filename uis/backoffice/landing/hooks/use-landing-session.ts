@@ -6,7 +6,6 @@ import { fetchCurrentUser, getStoredToken, type UserProfile } from "@/lib/api";
 
 export const useLandingSession = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -17,7 +16,6 @@ export const useLandingSession = () => {
       if (!storedToken) {
         if (active) {
           setUser(null);
-          setToken(null);
           setLoading(false);
         }
         return;
@@ -26,18 +24,9 @@ export const useLandingSession = () => {
       try {
         const profile = await fetchCurrentUser();
         if (!active) return;
-        if (profile) {
-          setUser(profile);
-          setToken(storedToken);
-        } else {
-          setUser(null);
-          setToken(null);
-        }
+        setUser(profile ?? null);
       } catch {
-        if (active) {
-          setUser(null);
-          setToken(null);
-        }
+        if (active) setUser(null);
       } finally {
         if (active) setLoading(false);
       }
@@ -51,8 +40,8 @@ export const useLandingSession = () => {
 
   const logout = () => {
     localStorage.removeItem("token");
-    window.location.reload();
+    window.location.href = "/";
   };
 
-  return { user, token, loading, logout };
+  return { user, loading, logout };
 };

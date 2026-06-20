@@ -1,9 +1,13 @@
+import Link from "next/link";
+
 import type { NavApp } from "@/lib/nav-apps";
 
 type NavCardProps = {
   app: NavApp;
-  token: string;
 };
+
+const cardClassName =
+  "group flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-sky-300 hover:shadow-md";
 
 const LockIcon = () => (
   <svg aria-hidden="true" className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -16,25 +20,31 @@ const LockIcon = () => (
   </svg>
 );
 
-export const NavCard = ({ app, token }: NavCardProps) => {
-  const href = app.protected ? `${app.url}?token=${encodeURIComponent(token)}` : app.url;
-  const linkProps = app.protected
-    ? { href, target: "_blank" as const, rel: "noopener noreferrer" }
-    : { href };
+const NavCardContent = ({ app }: NavCardProps) => (
+  <>
+    <div className="flex items-start justify-between gap-2">
+      <h3 className="font-semibold text-slate-900 group-hover:text-sky-800">{app.title}</h3>
+      {app.protected ? <LockIcon /> : null}
+    </div>
+    <p className="mt-2 flex-1 text-sm leading-6 text-slate-600">{app.description}</p>
+    {!app.protected ? (
+      <span className="mt-3 text-xs font-semibold uppercase tracking-wide text-teal-700">Public</span>
+    ) : null}
+  </>
+);
+
+export const NavCard = ({ app }: NavCardProps) => {
+  if (app.url.startsWith("/")) {
+    return (
+      <Link href={app.url} className={cardClassName}>
+        <NavCardContent app={app} />
+      </Link>
+    );
+  }
 
   return (
-    <a
-      {...linkProps}
-      className="group flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-sky-300 hover:shadow-md"
-    >
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="font-semibold text-slate-900 group-hover:text-sky-800">{app.title}</h3>
-        {app.protected ? <LockIcon /> : null}
-      </div>
-      <p className="mt-2 flex-1 text-sm leading-6 text-slate-600">{app.description}</p>
-      {!app.protected ? (
-        <span className="mt-3 text-xs font-semibold uppercase tracking-wide text-teal-700">Public</span>
-      ) : null}
+    <a href={app.url} className={cardClassName}>
+      <NavCardContent app={app} />
     </a>
   );
 };

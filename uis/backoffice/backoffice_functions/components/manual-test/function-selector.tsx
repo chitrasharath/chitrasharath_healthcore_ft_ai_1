@@ -1,4 +1,4 @@
-import type { OperationDefinition } from "@/lib/operation-types";
+import type { OperationDefinition } from "@backoffice/backoffice-functions/lib/operation-types";
 
 type FunctionSelectorProps = {
   operations: OperationDefinition[];

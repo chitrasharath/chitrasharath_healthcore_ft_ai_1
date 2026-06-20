@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import { SupplierDirectory } from "@/components/supplier-directory";
+import { SupplierDirectory } from "@backoffice/supplier-directory/components/supplier-directory";
 
 export default function Page() {
   return (

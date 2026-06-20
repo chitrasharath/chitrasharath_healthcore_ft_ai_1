@@ -1,8 +1,8 @@
-import { formatCategoryLabels } from "@/lib/categories";
-import { formatCompliance, formatRate, formatRateUpdated } from "@/lib/format";
-import type { Supplier } from "@/lib/types";
+import { formatCategoryLabels } from "@backoffice/supplier-directory/lib/categories";
+import { formatCompliance, formatRate, formatRateUpdated } from "@backoffice/supplier-directory/lib/format";
+import type { Supplier } from "@backoffice/supplier-directory/lib/types";
 
-import { SupplierStatusBadge } from "@/components/supplier-status-badge";
+import { SupplierStatusBadge } from "@backoffice/supplier-directory/components/supplier-status-badge";
 
 type SupplierDetailSummaryProps = {
   supplier: Supplier;

@@ -1,6 +1,6 @@
-import type { SupplierCreateInput } from "@/lib/types";
+import type { SupplierCreateInput } from "@backoffice/supplier-directory/lib/types";
 
-import { currencyForCountry } from "@/lib/categories";
+import { currencyForCountry } from "@backoffice/supplier-directory/lib/categories";
 
 type SupplierBasicFieldsProps = {
   form: SupplierCreateInput;

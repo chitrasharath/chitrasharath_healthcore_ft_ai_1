@@ -1,5 +1,5 @@
-import { formatJson } from "@/lib/format-json";
-import type { OperationResult } from "@/lib/operation-types";
+import { formatJson } from "@backoffice/backoffice-functions/lib/format-json";
+import type { OperationResult } from "@backoffice/backoffice-functions/lib/operation-types";
 
 type ResultPanelProps = {
   latestResult: OperationResult | null;

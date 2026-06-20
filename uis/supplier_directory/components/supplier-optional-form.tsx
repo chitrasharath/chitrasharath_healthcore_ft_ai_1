@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 
-import { CompliancePrompt } from "@/components/compliance-prompt";
-import { SupplierOptionalFields } from "@/components/supplier-optional-fields";
-import type { Supplier, SupplierDetailsInput } from "@/lib/types";
+import { CompliancePrompt } from "@backoffice/supplier-directory/components/compliance-prompt";
+import { SupplierOptionalFields } from "@backoffice/supplier-directory/components/supplier-optional-fields";
+import type { Supplier, SupplierDetailsInput } from "@backoffice/supplier-directory/lib/types";
 
 type SupplierOptionalFormProps = {
   supplier: Supplier;

@@ -2,9 +2,9 @@
 
 import { useCallback, useMemo, useState } from "react";
 
-import { formatJson } from "@/lib/format-json";
-import type { OperationDefinition, OperationResult, RawParamValue } from "@/lib/operation-types";
-import { defaultParamValues, getOperations } from "@/lib/operations-registry";
+import { formatJson } from "@backoffice/backoffice-functions/lib/format-json";
+import type { OperationDefinition, OperationResult, RawParamValue } from "@backoffice/backoffice-functions/lib/operation-types";
+import { defaultParamValues, getOperations } from "@backoffice/backoffice-functions/lib/operations-registry";
 
 function initialParamState(operation: OperationDefinition): Record<string, RawParamValue> {
   return defaultParamValues(operation);

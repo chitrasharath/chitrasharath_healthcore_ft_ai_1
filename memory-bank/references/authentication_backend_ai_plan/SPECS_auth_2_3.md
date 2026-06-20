@@ -4,7 +4,7 @@
 
 Build a **new Next.js app** at `uis/backoffice/landing/` that serves as the authenticated entry point to all HealthCore internal tools. This app provides login, registration, password reset, account management, and navigation to every protected app in the monorepo. It also includes the backend API endpoints for password reset (AUTH-03).
 
-The public website (`uis/website/`) must remain entirely unaffected — no auth checks, no redirects.
+**Status:** Revised 2026-06 for **single-origin route consolidation** (see `IMPLEMENTATION_PLAN_auth_2_3.md`). Internal tools are landing routes on port **3004**, not separate ports 3000–3003. Cross-port `?token=` handoff is **removed**.
 
 ---
 
@@ -134,17 +134,19 @@ Cards:
 
 | Title | Description | URL | Notes |
 |---|---|---|---|
-| Incident Analyzer | Patient incident report analysis dashboard | `http://localhost:3002` | Protected |
-| Supplier Directory | Manage and search healthcare suppliers | `http://localhost:3003` | Protected |
-| Talent Pipeline Tracker | Track recruitment and hiring pipeline | `http://localhost:3000` | Protected (uses external API) |
-| Back Office Functions | Milestone 2 utility function test dashboard | `http://localhost:3001` | Protected |
-| Public Website | HealthCore public-facing website | `http://localhost:3005` | Not protected — opens in same tab |
+| Incident Analyzer | Patient incident report analysis dashboard | `/incident-analyzer` | Protected (same origin) |
+| Supplier Directory | Manage and search healthcare suppliers | `/supplier-directory` | Protected |
+| Talent Pipeline Tracker | Track recruitment and hiring pipeline | `/talent-tracker` | Protected route; external tracker API |
+| Back Office Functions | Milestone 2 utility function test dashboard | `/backoffice-functions` | Protected |
+| Public Website | HealthCore public-facing website | `http://localhost:3005` | Not protected — same tab |
 
-**Port assignments:**
-- The talent tracker (`apps/talent-pipeline-tracker/`) defaults to port 3000. Keep it on 3000.
-- The website (`uis/website/`) also defaults to port 3000 since its `dev` script has no `--port` flag. **Update** `uis/website/package.json` to use `--port 3005` so it doesn't conflict with the talent tracker.
+**Port assignments (revised):**
+- **Backoffice landing:** `uis/backoffice/landing/` on port **3004** — hosts all internal tool routes above.
+- **Public website:** `uis/website/` on port **3005**.
+- **API:** `services/api/` on port **8000**.
+- Standalone tool dev servers (3000–3003) are **deprecated**.
 
-Each card should open protected apps in a **new tab** (`target="_blank"`). The public website link should open in the **same tab**.
+Internal tool links use **same-tab** relative paths. **No** `?token=` query param. Auth is via shared `localStorage` on `:3004`.
 
 Cards for protected apps should show a small lock icon to indicate they require authentication.
 

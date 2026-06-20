@@ -1,13 +1,13 @@
 "use client";
 
-import { BackofficeHeader } from "@/components/layout/backoffice-header";
-import { ActionBar } from "@/components/manual-test/action-bar";
-import { FunctionSelector } from "@/components/manual-test/function-selector";
-import { HistoryPanel } from "@/components/manual-test/history-panel";
-import { HowToRunPanel } from "@/components/manual-test/how-to-run-panel";
-import { ParamControls } from "@/components/manual-test/param-controls";
-import { ResultPanel } from "@/components/manual-test/result-panel";
-import { useManualTestRunner } from "@/hooks/use-manual-test-runner";
+import { BackofficeHeader } from "@backoffice/backoffice-functions/components/layout/backoffice-header";
+import { ActionBar } from "@backoffice/backoffice-functions/components/manual-test/action-bar";
+import { FunctionSelector } from "@backoffice/backoffice-functions/components/manual-test/function-selector";
+import { HistoryPanel } from "@backoffice/backoffice-functions/components/manual-test/history-panel";
+import { HowToRunPanel } from "@backoffice/backoffice-functions/components/manual-test/how-to-run-panel";
+import { ParamControls } from "@backoffice/backoffice-functions/components/manual-test/param-controls";
+import { ResultPanel } from "@backoffice/backoffice-functions/components/manual-test/result-panel";
+import { useManualTestRunner } from "@backoffice/backoffice-functions/hooks/use-manual-test-runner";
 
 export function ManualTestPage() {
   const {
