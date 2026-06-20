@@ -52,10 +52,10 @@ todos:
     status: cancelled
   - id: step12-favicon
     content: "HealthCore PNG favicon on landing (3004) and website (3005); verify on hub + tool route"
-    status: pending
+    status: completed
   - id: step13-integration
     content: "Final UAT checklist, README/API docs rewrite, pytest sign-off, milestone delivered"
-    status: pending
+    status: completed
 isProject: false
 ---
 
@@ -67,7 +67,7 @@ isProject: false
 
 **Prior milestone:** [`IMPLEMENTATION_PLAN_auth_1.md`](IMPLEMENTATION_PLAN_auth_1.md) / [`SPECS_auth_1.md`](SPECS_auth_1.md) (delivered)
 
-**Status:** In progress — Steps 1–8 delivered; Steps 9–10 revised for **single-origin route consolidation** (stakeholder decision, 2026-06).
+**Status:** **Delivered** — Steps 1–13 complete (2026-06-20).
 
 **Agent workflow:** Per [`AGENTS.md`](../../../AGENTS.md) — bootstrap memory-bank root files, re-sync `progress.md` and `decisions.md` at each step gate. **Stop after every Step 10 sub-step** for manual UAT before continuing.
 

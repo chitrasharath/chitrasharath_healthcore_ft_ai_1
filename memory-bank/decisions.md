@@ -203,3 +203,9 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision: Logout clears token and redirects to **`/`** (public hub).
 - Why: Consistent post-logout UX across hub, profile, and tool toolbars.
 
+- Decision: Pytest forces **`EMAIL_API_KEY=""`** in `tests/conftest.py` so password-reset tests use stdout fallback regardless of developer `.env`.
+- Why: Resend sandbox rejects non-owner recipients; tests must not depend on external email delivery.
+
+- Decision: Public website dev server runs on port **3005** (`uis/website/package.json`).
+- Why: Locked port map — backoffice landing on 3004, public site on 3005.
+

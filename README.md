@@ -103,7 +103,13 @@ Open **http://localhost:3004**. Requires API on port **8000** (and `NEXT_PUBLIC_
 
 Public website: `uis/website/` on port **3005**.
 
-Plan: `memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN_auth_2_3.md`.
+```bash
+cd uis/website
+npm install
+npm run dev
+```
+
+Open **http://localhost:3005** (no auth).
 
 ---
 
@@ -159,6 +165,8 @@ Local dev works without a `.env` file. Uvicorn uses port **8000**; backoffice la
 | `/api/v1/auth/register` | POST | Register user; returns JWT |
 | `/api/v1/auth/login` | POST | Login; returns JWT |
 | `/api/v1/auth/me` | GET | Current user (Bearer token) |
+| `/api/v1/auth/forgot-password` | POST | Request password reset link |
+| `/api/v1/auth/reset-password` | POST | Set new password with reset token |
 | `/api/v1/users` | GET, POST | List users (auth) or create user (public) |
 | `/api/v1/users/{id}` | GET, PUT, DELETE | User CRUD (auth; PUT owner-only) |
 
@@ -172,7 +180,7 @@ Standalone `uis/incident_analyzer/` on port 3002 is deprecated.
 
 ## Supplier Directory
 
-Centralized supplier registry for HealthCore procurement and compliance. TinyDB-backed API at `services/api`; standalone Next.js dashboard at `uis/supplier_directory/` (port **3003**).
+Centralized supplier registry for HealthCore procurement and compliance. TinyDB-backed API at `services/api`; UI at `/supplier-directory` on the backoffice landing app (port **3004**).
 
 ### Seed database
 
@@ -187,15 +195,17 @@ Loads 15 suppliers idempotently (skips existing names). Plan: `memory-bank/refer
 
 ### Dashboard (via landing)
 
-Use `/supplier-directory` on the backoffice landing app (port **3004**). Standalone `uis/supplier_directory/` on port 3003 is deprecated.
+Use `/supplier-directory` on the backoffice landing app (port **3004**). Standalone `uis/supplier_directory/` is deprecated.
+
+Plan: `memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN_auth_2_3.md`.
 
 ---
 
-## Authentication (AUTH-01)
+## Authentication (AUTH-01 / AUTH-02 / AUTH-03)
 
-JWT-based authentication and user management at `services/api`. Passwords are bcrypt-hashed; protected routes require `Authorization: Bearer <token>`.
+JWT-based authentication, backoffice landing, password reset, and user management at `services/api`. Passwords are bcrypt-hashed; protected routes require `Authorization: Bearer <token>`.
 
-Plan: `memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN_auth_1.md`.
+Plans: `IMPLEMENTATION_PLAN_auth_1.md`, `IMPLEMENTATION_PLAN_auth_2_3.md` under `memory-bank/references/authentication_backend_ai_plan/`.
 
 ### Environment variables
 
@@ -204,6 +214,9 @@ Copy `services/api/.example.env` to `services/api/.env` before starting the API 
 ```bash
 SECRET_KEY=change-me-before-production
 JWT_EXPIRE_MINUTES=30
+CORS_ORIGINS=http://localhost:3004,http://localhost:3005
+EMAIL_API_KEY=
+FRONTEND_URL=http://localhost:3004
 ```
 
 Override `SECRET_KEY` in any non-local environment.
@@ -224,6 +237,8 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 | `/api/v1/auth/register` | POST | No | Register; returns JWT (`201`) |
 | `/api/v1/auth/login` | POST | No | Login; returns JWT (`200`) |
 | `/api/v1/auth/me` | GET | Yes | Current user profile |
+| `/api/v1/auth/forgot-password` | POST | No | Request reset link (generic response) |
+| `/api/v1/auth/reset-password` | POST | No | Set new password with reset token |
 | `/api/v1/users` | POST | No | Create user (no token returned) |
 | `/api/v1/users` | GET | Yes | List all users |
 | `/api/v1/users/{id}` | GET | Yes | Get user by id |

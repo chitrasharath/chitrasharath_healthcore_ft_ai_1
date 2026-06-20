@@ -94,14 +94,14 @@ Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landi
   - `tests/test_auth.py` — 26 auth test cases; full suite 57 tests passing.
   - `services/api/.example.env` — `SECRET_KEY`, `JWT_EXPIRE_MINUTES` (copy to `.env` before run).
   - `services/api/README.md` — setup, auth endpoints, example flow.
-- `/suppliers` and `/incidents` remain unprotected; commented wiring example for future milestones.
+- `/suppliers` and `/incidents` protected in AUTH-02 Step 10; see router wiring in `app/api/v1/router.py`.
 - Plan: `memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN_auth_1.md`.
 
-### Authentication (AUTH-02 / AUTH-03) (In Progress)
+### Authentication (AUTH-02 / AUTH-03) (Delivered)
 
 - Goal: backoffice landing app, auth flows, password reset, same-origin internal tool routes.
 - **Delivered (Step 1):** `uis/backoffice/landing/` — Next.js 16 on port 3004; hero with Log In / Register CTAs; incident-analyzer styling.
-- **Delivered (Step 2):** `services/api` — user `name` field on register/CRUD/`/auth/me`; CORS defaults for ports 3000–3005.
+- **Delivered (Step 2):** `services/api` — user `name` field on register/CRUD/`/auth/me`; CORS defaults for ports 3004–3005.
 - **Delivered (Step 3):** `uis/backoffice/landing/` — `/login` page, `lib/api.ts` (`apiFetch`), reset-success banner.
 - **Delivered (Step 4):** `/register` page with client validation and auto-login on success.
 - **Delivered (Step 5):** Auth guard + `(protected)` route group; placeholder `/account/profile` and `/account/change-password`.
@@ -110,7 +110,8 @@ Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landi
 - **Delivered (Step 8):** `/forgot-password` and `/reset-password` pages on landing app.
 - **Delivered (Step 9 — landing UI):** Conditional hero, public intro when logged out, nav cards when logged in with same-origin internal routes (no `?token=`); logout redirects to `/`.
 - **Delivered (Step 10 — tool consolidation):** All internal tools as landing routes on `:3004`; path aliases + `externalDir`; talent tracker relocated to `uis/backoffice/talent-tracker/`; shared `AuthGuard`; incident/supplier API Bearer via `@backoffice/shared/lib/healthcore-api`; `/incidents` and `/suppliers` protected on API; CORS defaults `3004`/`3005`.
-- **Step 10.5 smoke test (2026-06-20):** `npm run verify` passes on landing (lint + build, all 16 routes). HTTP smoke: `/`, auth pages, all four tool routes, talent new-candidate, supplier detail, account pages → **200**. API smoke: `/incidents` and `/suppliers` → **401** without Bearer, **200** with token; `/auth/me` **200** with token. Landing `/icon` → **200** PNG. `uv run pytest`: **69 passed**, 1 failed (`test_forgot_password_known_email` — Resend sandbox rejects non-owner recipient when `EMAIL_API_KEY` is set in dev `.env`). **Manual browser UAT still recommended** for auth redirect, logout, CSV upload, supplier CRUD, and talent tracker (external API). **Gate cleared for Step 12.**
+- **Delivered (Step 12 — favicon):** HealthCore PNG favicon verified on landing (`:3004` hub + `/icon` 200 PNG) and website (`:3005` `/icon` 200 PNG); `/favicon.ico` redirects to `/icon` on both apps.
+- **Delivered (Step 13 — integration):** Final docs pass (root `README.md`, `services/api/README.md`, website dev port 3005); pytest suite green (`70 passed`); `tests/conftest.py` forces empty `EMAIL_API_KEY` for deterministic reset stdout tests.
 - Plan: `memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN_auth_2_3.md`.
 
 ## Future Feature Additions
