@@ -1,5 +1,5 @@
-import { ApiFilterToggle } from "@/components/api-filter-toggle";
-import { CATEGORY_LABELS, VALID_CATEGORIES } from "@/lib/categories";
+import { ApiFilterToggle } from "@backoffice/supplier-directory/components/api-filter-toggle";
+import { CATEGORY_LABELS, VALID_CATEGORIES } from "@backoffice/supplier-directory/lib/categories";
 
 type SupplierFiltersProps = {
   countryFilter: "all" | "USA" | "UK";

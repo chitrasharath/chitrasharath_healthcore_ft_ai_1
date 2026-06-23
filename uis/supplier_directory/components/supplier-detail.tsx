@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
-import { SupplierDetailSummary } from "@/components/supplier-detail-summary";
-import { SupplierOptionalForm } from "@/components/supplier-optional-form";
-import { useSupplierDetail } from "@/hooks/use-supplier-detail";
-import { supplierListPathFromReturn } from "@/lib/supplier-filter-params";
+import { SupplierDetailSummary } from "@backoffice/supplier-directory/components/supplier-detail-summary";
+import { SupplierOptionalForm } from "@backoffice/supplier-directory/components/supplier-optional-form";
+import { useSupplierDetail } from "@backoffice/supplier-directory/hooks/use-supplier-detail";
+import { supplierListPathFromReturn } from "@backoffice/supplier-directory/lib/supplier-filter-params";
 
 type SupplierDetailProps = {
   supplierId: number;

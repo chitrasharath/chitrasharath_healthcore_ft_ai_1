@@ -1,4 +1,4 @@
-import { HealthcoreLogo } from "@/components/layout/healthcore-logo";
+import { HealthcoreLogo } from "@backoffice/incident-analyzer/components/layout/healthcore-logo";
 
 type IncidentHeaderProps = {
   sourceFilename?: string;

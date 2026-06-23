@@ -9,7 +9,6 @@ export const metadata: Metadata = {
   title: "HealthCore | Outpatient Care Network",
   description:
     "HealthCore is an outpatient healthcare network with 12 clinics across the US and UK offering same-day appointments, extended hours, and bilingual care.",
-  icons: { icon: "/icon.svg", shortcut: "/icon.svg", apple: "/icon.svg" },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

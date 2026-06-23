@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { getSupplier, updateSupplierDetails } from "@/lib/api";
-import type { Supplier, SupplierDetailsInput } from "@/lib/types";
+import { getSupplier, updateSupplierDetails } from "@backoffice/supplier-directory/lib/api";
+import type { Supplier, SupplierDetailsInput } from "@backoffice/supplier-directory/lib/types";
 
 export const useSupplierDetail = (supplierId: number) => {
   const [supplier, setSupplier] = useState<Supplier | null>(null);

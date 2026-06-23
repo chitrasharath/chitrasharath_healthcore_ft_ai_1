@@ -1,4 +1,4 @@
-import type { InvalidBreakdownItem, Totals } from "@/lib/types";
+import type { InvalidBreakdownItem, Totals } from "@backoffice/incident-analyzer/lib/types";
 
 type AnalysisSummaryProps = {
   totals: Totals;

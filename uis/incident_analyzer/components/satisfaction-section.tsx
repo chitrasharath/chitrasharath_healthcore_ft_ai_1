@@ -1,4 +1,4 @@
-import type { Satisfaction } from "@/lib/types";
+import type { Satisfaction } from "@backoffice/incident-analyzer/lib/types";
 
 type SatisfactionSectionProps = {
   satisfaction: Satisfaction;

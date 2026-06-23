@@ -156,3 +156,56 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 
 - Decision: Add `compliance_agreement` table column; humanized category labels; auto-derived currency on add form.
 - Why: CONTEXT compliance visibility; readability; reduce form errors.
+
+## Authentication (AUTH-01)
+
+- Decision: JWT HS256 stateless tokens via `python-jose`; passwords hashed with `passlib[bcrypt]`; pin `bcrypt>=4.0.0,<4.1` for passlib compatibility.
+- Why: SPECS milestone scope; matches architecture proposal Auth/JWT slice.
+
+- Decision: Extract shared TinyDB access to `app/core/db.py`; suppliers and users tables share `services/api/db.json`.
+- Why: Avoid cross-domain imports; enables future `sessions` table without further refactor.
+
+- Decision: Protect `/users` GET/PUT/DELETE and `/auth/me`; keep `POST /users`, `POST /auth/register`, and `POST /auth/login` public.
+- Why: SPECS selective protection; admin/RBAC deferred with TODO on DELETE.
+
+- Decision: PUT `/users/{id}` owner-only (403 for other users); DELETE open to any authenticated user until RBAC.
+- Why: SPECS authorization model for AUTH-01.
+
+- Decision: Normalize emails to lowercase; block inactive users at login with generic `Invalid credentials`.
+- Why: Implementation plan locked decisions for consistent lookups and security.
+
+- Decision: Do not protect `/suppliers` or `/incidents` in AUTH-01; document `include_router(..., dependencies=[Depends(get_current_user)])` pattern in `api/v1/router.py`.
+- Why: Incremental rollout; existing frontends continue working without tokens.
+
+- Decision: Reject inactive users in `get_current_user` (401 `Could not validate credentials`) in addition to login blocking.
+- Why: Prevent deactivated accounts from using still-valid JWTs until expiry.
+
+- Decision: Require `SECRET_KEY` and `JWT_EXPIRE_MINUTES` from environment (no in-code defaults); `.example.env` documents local values.
+- Why: Evaluation criterion — signing secret and token expiry must not be hardcoded.
+
+## Authentication (AUTH-02 / AUTH-03)
+
+- Decision: Navigation cards on backoffice landing (`/`) are **hidden until the user is logged in**; logged-out visitors see a public staff-portal info section instead (no internal tool URLs).
+- Why: Stakeholder UX — internal app links should not be exposed to unauthenticated users; public view provides context and link to patient website only.
+
+- Decision: Consolidate internal tools as **same-origin routes** on landing (`3004`); deprecate standalone dev servers on 3000–3003.
+- Why: Eliminates cross-port `localStorage` / `?token=` handoff and logout chains; single `AuthGuard`.
+
+- Decision: Hybrid import model — feature UI in sibling folders (`uis/incident_analyzer`, `uis/supplier_directory`, `uis/backoffice/backoffice_functions`, `uis/backoffice/talent-tracker`); landing owns App Router routes.
+- Why: Reuse existing components without duplicating Next.js shells.
+
+- Decision: Talent tracker data from **`NEXT_PUBLIC_TRACKER_API_URL`** only; HealthCore JWT guards route access only.
+- Why: Tracker API is external; no Bearer on tracker requests.
+
+- Decision: Incident and supplier APIs protected with router-level `Depends(get_current_user)`; frontends use shared `healthcoreFetch` with Bearer from `localStorage`.
+- Why: AUTH-02 requires authenticated HealthCore API access for operational tools.
+
+- Decision: Logout clears token and redirects to **`/`** (public hub).
+- Why: Consistent post-logout UX across hub, profile, and tool toolbars.
+
+- Decision: Pytest forces **`EMAIL_API_KEY=""`** in `tests/conftest.py` so password-reset tests use stdout fallback regardless of developer `.env`.
+- Why: Resend sandbox rejects non-owner recipients; tests must not depend on external email delivery.
+
+- Decision: Public website dev server runs on port **3005** (`uis/website/package.json`).
+- Why: Locked port map — backoffice landing on 3004, public site on 3005.
+

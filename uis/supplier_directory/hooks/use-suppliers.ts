@@ -8,16 +8,16 @@ import {
   listSuppliers,
   updateSupplierRate,
   updateSupplierStatus,
-} from "@/lib/api";
-import { readApiFilterMode, writeApiFilterMode } from "@/lib/api-filter-mode";
+} from "@backoffice/supplier-directory/lib/api";
+import { readApiFilterMode, writeApiFilterMode } from "@backoffice/supplier-directory/lib/api-filter-mode";
 import {
   applySupplierFilters,
   filterListQuery,
   parseSupplierFilters,
   supplierListPath,
   type CountryFilter,
-} from "@/lib/supplier-filter-params";
-import type { Supplier, SupplierCreateInput } from "@/lib/types";
+} from "@backoffice/supplier-directory/lib/supplier-filter-params";
+import type { Supplier, SupplierCreateInput } from "@backoffice/supplier-directory/lib/types";
 
 let clientSuppliersCache: Supplier[] | null = null;
 

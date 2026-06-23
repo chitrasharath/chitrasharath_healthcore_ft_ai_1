@@ -1,4 +1,4 @@
-import type { Supplier } from "@/lib/types";
+import type { Supplier } from "@backoffice/supplier-directory/lib/types";
 
 const numberFormat = new Intl.NumberFormat("en-US", {
   minimumFractionDigits: 2,

@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 
-import { SupplierRateEditor } from "@/components/supplier-rate-editor";
-import type { Supplier } from "@/lib/types";
+import { SupplierRateEditor } from "@backoffice/supplier-directory/components/supplier-rate-editor";
+import type { Supplier } from "@backoffice/supplier-directory/lib/types";
 
 type SupplierRowActionsProps = {
   supplier: Supplier;

@@ -51,3 +51,12 @@ This document defines coding standards and implementation patterns for the Healt
 - Validate business logic with lightweight tests or deterministic execution checks.
 - Preserve backwards behavior unless a change is explicitly planned.
 - Prefer small, incremental changes over broad rewrites.
+
+## Agent Workflow (see also AGENTS.md)
+
+Before starting milestone implementation:
+
+1. Bootstrap from memory-bank root files (`projectbrief.md`, `techContext.md`, `progress.md`, `conventions.md`, `decisions.md`).
+2. Read the milestone SPECS and IMPLEMENTATION_PLAN under `memory-bank/references/`. Do not use `*_screenshot.md` files — requirements live in SPECS.
+3. Load applicable `.agents/rules/` and `.agents/skills/` for the paths being modified (frontend rules for Next.js apps; utility rules for `apps/src` and shared logic).
+4. Update `memory-bank/progress.md` and `memory-bank/decisions.md` when milestones complete or decisions change.

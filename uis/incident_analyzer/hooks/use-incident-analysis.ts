@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 
-import { analyzeIncidents, exportAnalysisResults } from "@/lib/api";
-import type { IncidentAnalysisResponse } from "@/lib/types";
+import { analyzeIncidents, exportAnalysisResults } from "@backoffice/incident-analyzer/lib/api";
+import type { IncidentAnalysisResponse } from "@backoffice/incident-analyzer/lib/types";
 
 export const useIncidentAnalysis = () => {
   const [loading, setLoading] = useState(false);

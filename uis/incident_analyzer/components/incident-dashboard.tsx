@@ -1,12 +1,12 @@
 "use client";
 
-import { AnalysisSummary } from "@/components/analysis-summary";
-import { BreakdownSection } from "@/components/breakdown-section";
-import { CsvUpload } from "@/components/csv-upload";
-import { ExportButton } from "@/components/export-button";
-import { IncidentHeader } from "@/components/layout/incident-header";
-import { SatisfactionSection } from "@/components/satisfaction-section";
-import { useIncidentAnalysis } from "@/hooks/use-incident-analysis";
+import { AnalysisSummary } from "@backoffice/incident-analyzer/components/analysis-summary";
+import { BreakdownSection } from "@backoffice/incident-analyzer/components/breakdown-section";
+import { CsvUpload } from "@backoffice/incident-analyzer/components/csv-upload";
+import { ExportButton } from "@backoffice/incident-analyzer/components/export-button";
+import { IncidentHeader } from "@backoffice/incident-analyzer/components/layout/incident-header";
+import { SatisfactionSection } from "@backoffice/incident-analyzer/components/satisfaction-section";
+import { useIncidentAnalysis } from "@backoffice/incident-analyzer/hooks/use-incident-analysis";
 
 export const IncidentDashboard = () => {
   const { loading, exporting, error, result, upload, exportResults } = useIncidentAnalysis();

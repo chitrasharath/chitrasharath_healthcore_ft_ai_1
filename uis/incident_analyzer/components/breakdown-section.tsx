@@ -1,4 +1,4 @@
-import type { BreakdownItem } from "@/lib/types";
+import type { BreakdownItem } from "@backoffice/incident-analyzer/lib/types";
 
 type BreakdownSectionProps = {
   title: string;

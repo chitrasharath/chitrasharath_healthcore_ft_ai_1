@@ -1,4 +1,4 @@
-import { CATEGORY_LABELS, VALID_CATEGORIES } from "@/lib/categories";
+import { CATEGORY_LABELS, VALID_CATEGORIES } from "@backoffice/supplier-directory/lib/categories";
 
 type CategoryPickerProps = {
   selected: string[];

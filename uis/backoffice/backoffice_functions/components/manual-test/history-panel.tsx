@@ -1,4 +1,4 @@
-import type { OperationResult } from "@/lib/operation-types";
+import type { OperationResult } from "@backoffice/backoffice-functions/lib/operation-types";
 
 type HistoryPanelProps = {
   history: OperationResult[];

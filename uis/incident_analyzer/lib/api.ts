@@ -1,26 +1,30 @@
-import type { IncidentAnalysisResponse } from "@/lib/types";
+import { healthcoreFetch } from "@backoffice/shared/lib/healthcore-api";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+import type { IncidentAnalysisResponse } from "@backoffice/incident-analyzer/lib/types";
+
+const parseError = async (response: Response): Promise<string> => {
+  const payload = (await response.json().catch(() => null)) as { detail?: string } | null;
+  return payload?.detail ?? "Unable to analyze incidents file.";
+};
 
 export async function analyzeIncidents(file: File): Promise<IncidentAnalysisResponse> {
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await fetch(`${API_URL}/api/v1/incidents/analyze`, {
+  const response = await healthcoreFetch("/incidents/analyze", {
     method: "POST",
     body: formData,
   });
 
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as { detail?: string } | null;
-    throw new Error(payload?.detail ?? "Unable to analyze incidents file.");
+    throw new Error(await parseError(response));
   }
 
   return response.json() as Promise<IncidentAnalysisResponse>;
 }
 
 export async function exportAnalysisResults(): Promise<Blob> {
-  const response = await fetch(`${API_URL}/api/v1/incidents/results/export`);
+  const response = await healthcoreFetch("/incidents/results/export");
 
   if (response.status === 404) {
     throw new Error("No analysis available. Upload a CSV first.");
