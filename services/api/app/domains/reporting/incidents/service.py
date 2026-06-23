@@ -33,7 +33,12 @@ def analyze_incidents_csv(content: bytes, filename: str) -> IncidentAnalysisResp
     if not filename.lower().endswith(".csv"):
         raise ValueError("Invalid file format. Upload a CSV file.")
 
-    buffer = StringIO(content.decode("utf-8"))
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError("File is not valid UTF-8 text.") from exc
+
+    buffer = StringIO(text)
     df = load_incidents(buffer)
     result = analyze(df, filename)
 

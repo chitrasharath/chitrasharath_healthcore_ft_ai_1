@@ -114,6 +114,17 @@ Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landi
 - **Delivered (Step 13 — integration):** Final docs pass (root `README.md`, `services/api/README.md`, website dev port 3005); pytest suite green (`70 passed`); `tests/conftest.py` forces empty `EMAIL_API_KEY` for deterministic reset stdout tests.
 - Plan: `memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN_auth_2_3.md`.
 
+### Critical Error Handling (Delivered)
+
+- Goal: fix the 10 CRITICAL findings from `memory-bank/references/error_handling_test/error_handling_specs.md` without adding features.
+- **Delivered on branch `feature/critical_error_handling`:**
+  - **Backend (#1–#2):** Global FastAPI exception handler in `app/main.py`; UTF-8 decode guard in incidents `service.py`; `tests/test_error_handling.py`.
+  - **Frontend (#5–#10):** Network error handling in `uis/backoffice/landing/lib/api.ts`; change-password hook try/catch/finally; talent-tracker `lib/api.ts` network guard + sanitized API errors.
+  - **Scripts (#3–#4):** `skills/data-analysis/scripts/pandas_clean.py` refactored to `main()` with validation, scoped exceptions, and `sys.exit`.
+  - **Verified:** `uv run pytest` — 72 passed; `npm run build` — landing app (includes talent-tracker via path aliases); `pandas_clean.py` smoke test — exit 1 + stderr on missing file.
+- **Deferred:** 61 non-critical findings (HIGH/MEDIUM/LOW) per `error_handling_IMPLEMENTATION_PLAN.md` follow-up section.
+- Plan: `memory-bank/references/error_handling_test/error_handling_IMPLEMENTATION_PLAN.md`.
+
 ## Future Feature Additions
 
 - Expand `services/api` per architecture proposal (Supabase, remaining domains in doc §12); opaque session tokens for HIPAA (SPECS follow-up).
