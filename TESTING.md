@@ -109,7 +109,7 @@ TOTAL: 811 statements, 27 missed, 97% line coverage
 ### Website (`uis/website`)
 
 ```
-22 passed (1 test.failing for BUG-001)
+22 passed
 All files: 87.8% stmts, 93.4% lines (lib/)
 enquiry-validation.ts: 93.97% lines
 ```
@@ -127,18 +127,15 @@ supplier-filter-params.ts: 86.84% lines
 
 ## Bugs found
 
-### BUG-001: Weekend preferred dates are not rejected
+### BUG-001: Weekend preferred dates are not rejected — **fixed**
 
 | Field | Detail |
 |-------|--------|
-| **Discovered by** | `uis/website/__tests__/enquiry-validation.test.ts` — `validatePreferredDate — weekend returns error` (marked `test.failing`) |
+| **Discovered by** | `uis/website/__tests__/enquiry-validation.test.ts` — `validatePreferredDate — weekend returns error` |
 | **File** | `uis/website/lib/enquiry-validation.ts` |
-| **Line(s)** | 89–96 |
-| **Symptom** | `validatePreferredDate("en", "2025-06-28")` returns `null` for a Saturday; SPECS expect a validation error for weekend dates |
-| **Root cause** | `validatePreferredDate` only enforces min (next business day) and max (60 days) bounds; it does not check `selected.getDay()` for Saturday/Sunday |
-| **Deferred fix** | After the max-date check in `validatePreferredDate`, reject weekends: `const day = selected.getDay(); if (day === 0 || day === 6) return err(lang, "preferred_date");` |
-| **Verify after fix** | `cd uis/website && npm test` — convert `test.failing` to `test` for the weekend case; all 22 tests should pass |
-| **Status** | `documented` — fix not applied in this milestone |
+| **Fix applied** | Reject Saturday/Sunday after min/max bounds: `const day = selected.getDay(); if (day === 0 \|\| day === 6) return err(lang, "preferred_date");` |
+| **Verify** | `cd uis/website && npm test` — 22 passed |
+| **Status** | `fixed` |
 
 **Note:** Supplier `name` has no max-length validator — extremely long names (300+ chars) are accepted (201). Not logged as a bug; schema has no length constraint today.
 
@@ -151,4 +148,4 @@ No other production bugs identified during test implementation.
 - Gap targets were taken from `memory-bank/references/unit_tests/unit_test_SPECS.md`, cross-checked against `test_coverage_pre.md` (94.1% API baseline, 0% frontend).
 - `test_put_user_not_found_returns_404` required a two-call `get_by_id` mock because the router returns 403 when `user_id` ≠ `current_user.id` before the not-found branch runs.
 - `test_analyze_no_filename_returns_400` uses a direct `analyze_incidents` call with a mock `UploadFile` because FastAPI's TestClient rejects empty filenames with 422 before the route handler runs.
-- BUG-001 (weekend preferred date) was caught when implementing the SPECS §4b Jest case — documented with deferred fix rather than changing production code.
+- BUG-001 (weekend preferred date) was caught when implementing the SPECS §4b Jest case; fixed by rejecting Saturday/Sunday in `validatePreferredDate`.

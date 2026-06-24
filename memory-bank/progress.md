@@ -122,7 +122,7 @@ Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landi
   - `services/api/tests/` — 18 new pytest cases (`test_auth.py` +8, `test_incidents.py` +5, `test_suppliers.py` +3 parametrized); **88 passed**, **97%** line coverage.
   - `uis/website` — Jest + `__tests__/enquiry-validation.test.ts` (22 cases).
   - `uis/supplier_directory` — Jest + `format.test.ts` and `supplier-filter-params.test.ts` (17 cases).
-  - BUG-001 documented: weekend preferred-date validation missing in `enquiry-validation.ts` (deferred fix in `TESTING.md`).
+  - BUG-001 fixed: weekend preferred-date validation added to `enquiry-validation.ts`.
 - Plan: `memory-bank/references/unit_tests/unit_test_IMPLEMENTATION_PLAN.md`.
 
 ## Future Feature Additions

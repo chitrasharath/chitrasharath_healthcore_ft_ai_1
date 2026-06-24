@@ -86,8 +86,7 @@ describe("enquiry-validation", () => {
     expect(validatePreferredDate("en", "2025-06-25")).toBeNull();
   });
 
-  // BUG-001: weekend rejection not implemented yet — see TESTING.md
-  test.failing("validatePreferredDate — weekend returns error", () => {
+  test("validatePreferredDate — weekend returns error", () => {
     expect(validatePreferredDate("en", "2025-06-28")).not.toBeNull();
   });
 
