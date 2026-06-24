@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+.venv/
 
 # Next.js
 .next/
@@ -35,6 +36,12 @@ Thumbs.db
 
 # Test coverage
 coverage/
+.coverage
+coverage.json
+services/api/.coverage
+services/api/coverage.json
+pytestdebug.log
+.pytest_cache/
 
 # Misc
 *.pem
