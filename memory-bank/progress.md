@@ -114,6 +114,17 @@ Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landi
 - **Delivered (Step 13 — integration):** Final docs pass (root `README.md`, `services/api/README.md`, website dev port 3005); pytest suite green (`70 passed`); `tests/conftest.py` forces empty `EMAIL_API_KEY` for deterministic reset stdout tests.
 - Plan: `memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN_auth_2_3.md`.
 
+### Unit test gap coverage (AUTH-088, API-042, FE-019) (Delivered)
+
+- Goal: close pytest and Jest gaps per `memory-bank/references/unit_tests/unit_test_SPECS.md`.
+- **Delivered:**
+  - Root `TESTING.md` — run commands, test plan, coverage results, bugs/AI log.
+  - `services/api/tests/` — 18 new pytest cases (`test_auth.py` +8, `test_incidents.py` +5, `test_suppliers.py` +3 parametrized); **88 passed**, **97%** line coverage.
+  - `uis/website` — Jest + `__tests__/enquiry-validation.test.ts` (22 cases).
+  - `uis/supplier_directory` — Jest + `format.test.ts` and `supplier-filter-params.test.ts` (17 cases).
+  - BUG-001 documented: weekend preferred-date validation missing in `enquiry-validation.ts` (deferred fix in `TESTING.md`).
+- Plan: `memory-bank/references/unit_tests/unit_test_IMPLEMENTATION_PLAN.md`.
+
 ## Future Feature Additions
 
 - Expand `services/api` per architecture proposal (Supabase, remaining domains in doc §12); opaque session tokens for HIPAA (SPECS follow-up).
