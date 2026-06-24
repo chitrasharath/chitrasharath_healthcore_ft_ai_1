@@ -14,7 +14,7 @@ import {
   validateService,
 } from "@/lib/enquiry-validation";
 
-const FROZEN_NOW = new Date("2025-06-24T12:00:00Z");
+const FROZEN_NOW = new Date("2025-06-24T12:00:00Z"); // Tuesday — anchors relative date/age assertions
 
 const formatDate = (date: Date): string => {
   const year = date.getFullYear();
@@ -87,6 +87,7 @@ describe("enquiry-validation", () => {
   });
 
   test("validatePreferredDate — weekend returns error", () => {
+    // 2025-06-28 is a Saturday; weekend slots are not bookable (BUG-001).
     expect(validatePreferredDate("en", "2025-06-28")).not.toBeNull();
   });
 
@@ -117,6 +118,7 @@ describe("enquiry-validation", () => {
   test("validateHealthConcern — too short returns error with remaining count", () => {
     const error = validateHealthConcern("en", "short", healthConcernT);
     expect(error).not.toBeNull();
+    // Minimum is 20 chars; "short" (5) leaves 15 remaining.
     expect(error).toContain("15");
   });
 

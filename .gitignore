@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+.venv/
 
 # Next.js
 .next/
@@ -39,6 +40,8 @@ coverage/
 coverage.json
 services/api/.coverage
 services/api/coverage.json
+pytestdebug.log
+.pytest_cache/
 
 # Misc
 *.pem

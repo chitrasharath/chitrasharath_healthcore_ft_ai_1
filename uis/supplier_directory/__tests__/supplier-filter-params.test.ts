@@ -47,6 +47,7 @@ describe("supplier-filter-params", () => {
   test("applySupplierFilters — strips api param", () => {
     const start = new URLSearchParams("api=true&country=USA");
     const next = applySupplierFilters(start, {});
+    // `api=true` is a dev-only flag and must not appear in shareable filter URLs.
     expect(next.has("api")).toBe(false);
   });
 

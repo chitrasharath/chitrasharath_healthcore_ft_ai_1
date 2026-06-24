@@ -58,6 +58,7 @@ def test_analyze_incidents_healthcore_csv(client: TestClient, bearer: dict[str, 
     assert len(data["by_country"]) > 0
     assert len(data["invalid_breakdown"]) > 0
     assert data["satisfaction"]["scored_cases"] > 0
+    # Aggregates must not leak patient identifiers from the source CSV.
     assert "PAT-" not in response.text
 
 
@@ -84,6 +85,7 @@ def test_export_after_analyze(client: TestClient, bearer: dict[str, str]) -> Non
 
 
 def test_analyze_no_filename_returns_400() -> None:
+    # TestClient rejects empty upload filenames with 422 before the route runs; call handler directly.
     upload = MagicMock()
     upload.filename = ""
     upload.read = AsyncMock(return_value=b"id,status\n1,open\n")
@@ -113,6 +115,7 @@ def test_analyze_unexpected_error_returns_400(
     def boom(_content: bytes, _filename: str):
         raise RuntimeError("analysis failed")
 
+    # Router must map unexpected failures to a safe client message, not the raw exception.
     monkeypatch.setattr(
         "app.domains.reporting.incidents.router.analyze_incidents_csv",
         boom,

@@ -258,6 +258,7 @@ def test_register_with_name_returns_name_in_me(client: TestClient) -> None:
 
 
 def test_legacy_user_without_name_returns_empty_string(client: TestClient) -> None:
+    # Seed a pre-migration row (no name field) instead of using register.
     users_store.insert_user(
         {
             "email": "legacy@example.com",
@@ -286,6 +287,7 @@ def test_put_user_name_returns_updated_name(client: TestClient) -> None:
 def test_expired_token_returns_401(client: TestClient) -> None:
     register_user(client)
     original = settings.jwt_expire_minutes
+    # Negative TTL mints a token that is already expired when decoded.
     settings.jwt_expire_minutes = -1
     try:
         expired = token.create_access_token(1)
@@ -407,6 +409,7 @@ def test_put_user_not_found_returns_404(client: TestClient, monkeypatch: pytest.
     assert user_doc is not None
     lookup_count = {"n": 0}
 
+    # Router checks ownership (get_by_id #1) before not-found (get_by_id #2); fail only the second lookup.
     def fake_get_by_id(user_id: int) -> dict | None:
         if user_id != 1:
             return None
@@ -457,6 +460,7 @@ def test_forgot_password_sends_email_when_api_key_set(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     register_user(client)
+    # conftest forces EMAIL_API_KEY="" for stdout fallback; override to exercise Resend path.
     monkeypatch.setattr(settings, "email_api_key", "re_test_key")
 
     with patch("app.domains.auth.reset_service.resend.Emails.send") as mock_send:
@@ -475,6 +479,7 @@ def test_forgot_password_sends_email_when_api_key_set(
 
 def test_decode_reset_token_missing_subject_returns_error() -> None:
     expire = datetime.now(timezone.utc) + timedelta(minutes=30)
+    # Valid signature and purpose, but missing sub — must not be accepted as a reset token.
     raw = jwt.encode(
         {"purpose": RESET_TOKEN_PURPOSE, "exp": expire},
         settings.secret_key,
@@ -493,6 +498,7 @@ def test_decode_access_token_missing_subject_returns_401() -> None:
 
 
 def test_to_user_response_string_created_at() -> None:
+    # TinyDB may persist created_at as an ISO string rather than a datetime object.
     result = users_service.to_user_response(
         {
             "id": 1,
@@ -512,5 +518,6 @@ def test_update_user_email_same_as_own_succeeds() -> None:
     created = users_service.create_user(
         UserCreate(email="same@example.com", password="password123")
     )
+    # Same address as current row must not trigger DuplicateEmailError.
     updated = users_service.update_user(created.id, UserUpdate(email="same@example.com"))
     assert updated.email == "same@example.com"

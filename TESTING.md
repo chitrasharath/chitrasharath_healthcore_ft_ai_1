@@ -4,6 +4,18 @@
 
 ### Backend API (pytest)
 
+From the **repository root** (or any subdirectory after one-time sync):
+
+```bash
+uv sync --group dev
+uv run pytest
+uv run pytest --cov=app --cov-report=term-missing
+```
+
+`uv run pytest` uses a workspace entry point that always collects `services/api/tests`, so it works even when your shell cwd is under `uis/` or elsewhere in the monorepo.
+
+From `services/api` (package-only workflow):
+
 ```bash
 cd services/api
 uv sync --extra dev

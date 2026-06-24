@@ -321,6 +321,7 @@ def test_supplier_schema_validation_edge_cases(
     bearer: dict[str, str],
     override: dict,
 ) -> None:
+    # Each override targets a distinct Pydantic boundary named in SPECS §3b.
     payload = {**VALID_SUPPLIER, **override}
     response = client.post("/api/v1/suppliers", json=payload, headers=bearer)
     assert response.status_code == 422
