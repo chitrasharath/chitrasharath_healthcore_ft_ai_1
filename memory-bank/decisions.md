@@ -209,3 +209,23 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision: Public website dev server runs on port **3005** (`uis/website/package.json`).
 - Why: Locked port map — backoffice landing on 3004, public site on 3005.
 
+## Milestone 5 — Inventory Backend
+
+- Decision: **Dual-database architecture** — TinyDB (`get_db`) for users/auth/suppliers; Supabase PostgreSQL (`get_supabase_db`) for inventory tables only.
+- Why: Spec requirement; no user replication in Supabase; `user_uuid` stored as plain string on orders.
+
+- Decision: Supabase project named **`milestone5_inventory`**; schema created via `SQLModel.metadata.create_all()` on startup — no SQL migrations in this milestone.
+- Why: Implementation plan; simplest first integration path per James Osei architecture proposal.
+
+- Decision: Inventory domain uses **flat router layout** (`models.py`, `schemas.py`, `router.py`, `seed.py`) — not suppliers' `service/store` layering.
+- Why: Milestone 5 spec mandates spec structure; business logic in router with `compute_stock` helper.
+
+- Decision: **Public GETs** on inventory (`/products`, `/products/{id}`, `/orders`); auth required only on POST endpoints.
+- Why: Spec §10.3 auth table; stakeholder clarification during planning.
+
+- Decision: Inventory tests use **in-memory SQLite** with `StaticPool` + `check_same_thread=False`; `conftest.py` forces `DATABASE_URL=""`.
+- Why: CI/dev pytest must not require live Supabase; avoids thread and connection isolation issues with TestClient.
+
+- Decision: Inventory seed orders inserted **only on first supply insert**; `user_uuid="1"` placeholder with no TinyDB FK.
+- Why: Idempotent seed per spec §11.4; order traceability string is operational reference only.
+

@@ -162,6 +162,12 @@ Local dev works without a `.env` file. Uvicorn uses port **8000**; backoffice la
 | `/api/v1/suppliers/{id}/rate` | PATCH | Yes | Update monthly rate |
 | `/api/v1/suppliers/{id}/status` | PATCH | Yes | Activate or suspend supplier |
 | `/api/v1/suppliers/{id}/details` | PATCH | Yes | Update optional fields |
+| `/api/v1/inventory/products` | GET | No | List supplies with computed `current_stock` |
+| `/api/v1/inventory/products` | POST | Yes | Register a new supply |
+| `/api/v1/inventory/products/{id}` | GET | No | Single supply with computed stock |
+| `/api/v1/inventory/orders/inbound` | POST | Yes | Log vendor delivery (increases stock) |
+| `/api/v1/inventory/orders/outbound` | POST | Yes | Log consumption (decreases stock) |
+| `/api/v1/inventory/orders` | GET | No | Combined delivery + consumption history |
 | `/api/v1/auth/register` | POST | Register user; returns JWT |
 | `/api/v1/auth/login` | POST | Login; returns JWT |
 | `/api/v1/auth/me` | GET | Current user (Bearer token) |
@@ -193,11 +199,51 @@ uv run seed
 
 Loads 15 suppliers idempotently (skips existing names). Plan: `memory-bank/references/supplier_directory_ai_plan/IMPLEMENTATION_PLAN.md`.
 
+When `DATABASE_URL` is set, the same command also seeds inventory data in Supabase (6 supplies, 4 deliveries, 3 consumptions). See [Inventory Management](#inventory-management-milestone-5) below.
+
 ### Dashboard (via landing)
 
 Use `/supplier-directory` on the backoffice landing app (port **3004**). Standalone `uis/supplier_directory/` is deprecated.
 
 Plan: `memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN_auth_2_3.md`.
+
+---
+
+## Inventory Management (Milestone 5)
+
+Centralised medical supply inventory API at `services/api`. Tracks supplies across HealthCore's 12 clinics with computed stock levels and order history.
+
+### Architecture
+
+- **TinyDB** — users and authentication (unchanged).
+- **Supabase (PostgreSQL)** — `MedicalSupply`, `SupplyDelivery`, `SupplyConsumption` tables in project **`milestone5_inventory`**.
+- Stock is computed on read: `SUM(deliveries) − SUM(consumptions)`; no direct stock mutation endpoint.
+
+### Environment
+
+Add to `services/api/.env` (copy exact URI from Supabase Dashboard → Database → Transaction pooler):
+
+```bash
+DATABASE_URL=postgresql://postgres.[ref]:[url-encoded-password]@aws-1-us-west-2.pooler.supabase.com:6543/postgres
+```
+
+Tables are created automatically on API startup. URL-encode special characters in the database password.
+
+### Seed and run
+
+From `services/api/`:
+
+```bash
+uv sync --extra dev
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uv run seed
+```
+
+Swagger UI: http://localhost:8000/docs → `/api/v1/inventory/` routes.
+
+POST endpoints require Bearer auth (register via `/api/v1/auth/register` first). GET product and order endpoints are public.
+
+Plan: `memory-bank/references/milestone5_ai_plan/milestone5_backend_implementation_plan.md`.
 
 ---
 
@@ -217,6 +263,7 @@ JWT_EXPIRE_MINUTES=30
 CORS_ORIGINS=http://localhost:3004,http://localhost:3005
 EMAIL_API_KEY=
 FRONTEND_URL=http://localhost:3004
+# DATABASE_URL=postgresql://...  # Supabase pooler URI for inventory (see Inventory Management section)
 ```
 
 Override `SECRET_KEY` in any non-local environment.

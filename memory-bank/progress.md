@@ -114,9 +114,21 @@ Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landi
 - **Delivered (Step 13 — integration):** Final docs pass (root `README.md`, `services/api/README.md`, website dev port 3005); pytest suite green (`70 passed`); `tests/conftest.py` forces empty `EMAIL_API_KEY` for deterministic reset stdout tests.
 - Plan: `memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN_auth_2_3.md`.
 
+### Milestone 5: Medical Supply Inventory API (Delivered)
+
+- Goal: centralised medical supply inventory REST API with computed stock levels and order history.
+- **Delivered:**
+  - `services/api/app/domains/inventory/` — SQLModel ORM (`MedicalSupply`, `SupplyDelivery`, `SupplyConsumption`) on Supabase PostgreSQL via `get_supabase_db()`; TinyDB auth unchanged.
+  - Six endpoints under `/api/v1/inventory/` — products CRUD (GET public, POST auth), inbound/outbound orders (POST auth), combined order history (GET public).
+  - Stock computed as `SUM(deliveries) − SUM(consumptions)`; negative stock rejected with HTTP 400.
+  - Idempotent inventory seed (6 supplies, 4 deliveries, 3 consumptions) wired into `uv run seed`.
+  - Supabase project **`milestone5_inventory`** (`wqvklsghwmwylucfhzax`, `us-west-2`).
+  - `tests/test_inventory.py` — 12 test cases; full suite **82 passed**.
+- Plan: `memory-bank/references/milestone5_ai_plan/milestone5_backend_implementation_plan.md`.
+
 ## Future Feature Additions
 
-- Expand `services/api` per architecture proposal (Supabase, remaining domains in doc §12); opaque session tokens for HIPAA (SPECS follow-up).
+- Expand `services/api` per architecture proposal (remaining domains in doc §12); opaque session tokens for HIPAA (SPECS follow-up).
 - Expand reusable shared logic and typing between migrated milestone 1 and existing milestone 3 apps.
 - Extend milestone 2 function usage in UI workflows where validated logic improves data quality.
 - Improve cross-app bilingual consistency and content governance.
