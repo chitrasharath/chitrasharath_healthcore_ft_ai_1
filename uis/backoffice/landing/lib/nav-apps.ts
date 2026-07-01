@@ -19,6 +19,12 @@ export const NAV_APPS: NavApp[] = [
     protected: true,
   },
   {
+    title: "Inventory Management",
+    description: "Track medical supply stock, deliveries, and clinical consumption",
+    url: "/inventory",
+    protected: true,
+  },
+  {
     title: "Talent Pipeline Tracker",
     description: "Track recruitment and hiring pipeline",
     url: "/talent-tracker",

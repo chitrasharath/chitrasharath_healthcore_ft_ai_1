@@ -7,6 +7,7 @@ const backofficeFunctions = path.join(landingDir, "../backoffice_functions");
 const incidentAnalyzer = path.join(repoRoot, "uis/incident_analyzer");
 const supplierDirectory = path.join(repoRoot, "uis/supplier_directory");
 const talentTracker = path.join(landingDir, "../talent-tracker");
+const inventory = path.join(landingDir, "../inventory");
 const backofficeShared = path.join(landingDir, "../shared");
 const appsSrc = path.join(repoRoot, "apps/src");
 
@@ -15,6 +16,7 @@ const featureAliases = {
   "@backoffice/incident-analyzer": incidentAnalyzer,
   "@backoffice/supplier-directory": supplierDirectory,
   "@backoffice/talent-tracker": talentTracker,
+  "@backoffice/inventory": inventory,
   "@backoffice/shared": backofficeShared,
   "@healthcore/src": appsSrc,
 };

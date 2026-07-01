@@ -96,6 +96,7 @@ Open **http://localhost:3004**. Requires API on port **8000** (and `NEXT_PUBLIC_
 | `/` | Hub (login, register, nav cards) |
 | `/incident-analyzer` | Incident CSV analysis |
 | `/supplier-directory` | Supplier registry |
+| `/inventory` | Medical supply inventory (stock, deliveries, consumption) |
 | `/talent-tracker` | Talent pipeline (external tracker API) |
 | `/backoffice-functions` | M2 manual test dashboard |
 | `/account/profile` | Profile |
@@ -211,15 +212,16 @@ Plan: `memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN
 
 ## Inventory Management (Milestone 5)
 
-Centralised medical supply inventory API at `services/api`. Tracks supplies across HealthCore's 12 clinics with computed stock levels and order history.
+Centralised medical supply inventory for HealthCore clinic operations: **REST API** at `services/api` and **backoffice UI** at `/inventory` on the landing app (port **3004**).
 
 ### Architecture
 
 - **TinyDB** — users and authentication (unchanged).
 - **Supabase (PostgreSQL)** — `MedicalSupply`, `SupplyDelivery`, `SupplyConsumption` tables in project **`milestone5_inventory`**.
 - Stock is computed on read: `SUM(deliveries) − SUM(consumptions)`; no direct stock mutation endpoint.
+- **Frontend module** — `uis/backoffice/inventory/`, aliased as `@backoffice/inventory` into `uis/backoffice/landing/`.
 
-### Environment
+### Backend environment
 
 Add to `services/api/.env` (copy exact URI from Supabase Dashboard → Database → Transaction pooler):
 
@@ -229,7 +231,7 @@ DATABASE_URL=postgresql://postgres.[ref]:[url-encoded-password]@aws-1-us-west-2.
 
 Tables are created automatically on API startup. URL-encode special characters in the database password.
 
-### Seed and run
+### Seed and run API
 
 From `services/api/`:
 
@@ -241,9 +243,40 @@ uv run seed
 
 Swagger UI: http://localhost:8000/docs → `/api/v1/inventory/` routes.
 
-POST endpoints require Bearer auth (register via `/api/v1/auth/register` first). GET product and order endpoints are public.
+POST inventory endpoints require Bearer auth (register via `/api/v1/auth/register` first). GET product and order endpoints are public.
 
-Plan: `memory-bank/references/milestone5_ai_plan/milestone5_backend_implementation_plan.md`.
+### Dashboard (via landing)
+
+From `uis/backoffice/landing/`:
+
+```bash
+npm install
+npm run dev
+```
+
+Log in at **http://localhost:3004**, then open **Inventory Management** from the hub or navigate directly:
+
+| Route | Description |
+|-------|-------------|
+| `/inventory` | Section landing (hero + nav cards) |
+| `/inventory/products` | All supplies with color-coded stock levels |
+| `/inventory/orders/inbound` | Log vendor delivery (4 fields) |
+| `/inventory/orders/outbound` | Log clinical consumption (reactive stock display) |
+| `/inventory/orders` | Order history (deliveries + consumptions) |
+
+Set `NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1` in `uis/backoffice/landing/.env.local`. POST requests use `healthcoreFetch` (Bearer token from login).
+
+**Order history timestamps** — API stores UTC; the UI parses naive ISO strings as UTC and displays them in a user-selected timezone (default Eastern). The timezone dropdown appears on pages that show dates; preference is saved in `localStorage` (`healthcore_inventory_timezone`).
+
+**TypeScript** — the inventory module symlinks `node_modules` from landing for type resolution:
+
+```bash
+ln -sf ../landing/node_modules uis/backoffice/inventory/node_modules
+```
+
+Verify: `cd uis/backoffice/landing && npm run verify`
+
+Plans: `memory-bank/references/milestone5_ai_plan/milestone5_backend_implementation_plan.md`, `milestone5_frontend_implementation_plan.md`.
 
 ---
 

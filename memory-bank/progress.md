@@ -126,6 +126,17 @@ Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landi
   - `tests/test_inventory.py` — 12 test cases; full suite **82 passed**.
 - Plan: `memory-bank/references/milestone5_ai_plan/milestone5_backend_implementation_plan.md`.
 
+### Milestone 5: Medical Supply Inventory Frontend (Delivered)
+
+- Goal: backoffice UI for stock visibility, delivery logging, consumption logging, and order history.
+- **Delivered:**
+  - `uis/backoffice/inventory/` — feature module with API layer, hooks, and components (≤80 lines per file).
+  - Landing routes at `/inventory`, `/inventory/products`, `/inventory/orders`, `/inventory/orders/inbound`, `/inventory/orders/outbound`.
+  - `@backoffice/inventory` alias in `landing/next.config.ts` and `landing/tsconfig.json`; Tailwind `@source` in `globals.css`.
+  - Hub nav card after Supplier Directory; `ToolToolbar` layout; "Back to Inventory" on sub-pages.
+  - `npm run verify` passes in `uis/backoffice/landing`.
+- Plan: `memory-bank/references/milestone5_ai_plan/milestone5_frontend_implementation_plan.md`.
+
 ## Future Feature Additions
 
 - Expand `services/api` per architecture proposal (remaining domains in doc §12); opaque session tokens for HIPAA (SPECS follow-up).

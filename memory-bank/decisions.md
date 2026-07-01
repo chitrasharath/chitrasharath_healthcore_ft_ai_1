@@ -229,3 +229,20 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision: Inventory seed orders inserted **only on first supply insert**; `user_uuid="1"` placeholder with no TinyDB FK.
 - Why: Idempotent seed per spec §11.4; order traceability string is operational reference only.
 
+## Milestone 5 — Inventory Frontend
+
+- Decision: Feature module at **`uis/backoffice/inventory/`** aliased into landing (`@backoffice/inventory`) — same hybrid pattern as talent-tracker.
+- Why: Reuse landing auth/routing without a standalone dev server; single port 3004.
+
+- Decision: **ToolToolbar only** in inventory layout; footer from root `ConditionalLandingFooter` (not duplicated per-page).
+- Why: Matches supplier-directory / incident-analyzer; stakeholder Q&A 2026-07-01.
+
+- Decision: Unknown `clinic_id` values display **`Unknown clinic ({id})`** in order history.
+- Why: Seed data includes `clinic_id: 10`; frontend clinic map is IDs 1–6 only; no backend change in this milestone.
+
+- Decision: **Strict ≤80 lines** per component/hook file — split tables, forms, and submit logic into hooks + lib helpers.
+- Why: Agent component-size rule; stakeholder Q&A 2026-07-01.
+
+- Decision: Inventory module uses **symlinked `node_modules`** from `landing/` for TypeScript resolution (no separate `package.json`).
+- Why: Next.js `externalDir` typecheck requires React types resolvable from module path; matches talent-tracker isolation without duplicating deps.
+

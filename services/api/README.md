@@ -116,7 +116,9 @@ Plans: [`IMPLEMENTATION_PLAN_auth_1.md`](../../memory-bank/references/authentica
 | `/api/v1/inventory/orders/outbound` | POST | Yes | Log consumption (decreases stock; `400` if insufficient) |
 | `/api/v1/inventory/orders` | GET | No | Combined delivery + consumption history |
 
-Inventory plan: [`milestone5_backend_implementation_plan.md`](../../memory-bank/references/milestone5_ai_plan/milestone5_backend_implementation_plan.md)
+Inventory plans: [`milestone5_backend_implementation_plan.md`](../../memory-bank/references/milestone5_ai_plan/milestone5_backend_implementation_plan.md), [`milestone5_frontend_implementation_plan.md`](../../memory-bank/references/milestone5_ai_plan/milestone5_frontend_implementation_plan.md)
+
+Backoffice UI: `/inventory` on landing (`uis/backoffice/landing/`, port **3004**). Module source: `uis/backoffice/inventory/`.
 
 ### Example flow
 

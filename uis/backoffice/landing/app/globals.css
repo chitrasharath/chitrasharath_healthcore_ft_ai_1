@@ -1,5 +1,6 @@
 @import "tailwindcss";
 
+@source "../../inventory/**/*";
 @source "../../talent-tracker/**/*";
 @source "../../backoffice_functions/**/*";
 @source "../../shared/**/*";
