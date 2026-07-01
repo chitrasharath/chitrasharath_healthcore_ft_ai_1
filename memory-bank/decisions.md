@@ -246,3 +246,26 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision: Inventory module uses **symlinked `node_modules`** from `landing/` for TypeScript resolution (no separate `package.json`).
 - Why: Next.js `externalDir` typecheck requires React types resolvable from module path; matches talent-tracker isolation without duplicating deps.
 
+## Centralized Incident Manager
+
+- Decision: New domain at **`app/domains/incidents/`** (CRUD) alongside unchanged **`reporting/incidents/`** (CSV analyze); both share `/incidents` prefix with route-order care (`/summary` before `/{id}`).
+- Why: Spec requires coexistence with Incident Analyzer; no changes to analyze/export routes.
+
+- Decision: DB column **`incident_id`** (nullable, unique) stores CSV `HC-000nnn` for seed idempotency only; API PK remains auto-increment **`id`**; `incident_id` excluded from public schemas.
+- Why: Stakeholder clarification; CSV business key vs integer REST id.
+
+- Decision: Seed CSV path **`memory-bank/references/centralized_incident_manager_ai_plan/incidents-healthcore.csv`**; standalone `scripts/seed_incidents.py` only (not `uv run seed`).
+- Why: Locked stakeholder answers; plan-folder file is canonical.
+
+- Decision: Summary API returns **zero-filled fixed keys** for status/category/origin; **`by_branch` only keys with count > 0**.
+- Why: Leadership dashboard consistency for enums; dynamic branch breakdown.
+
+- Decision: List UI includes **category** filter (fourth dropdown) in addition to status, origin, branch.
+- Why: Stakeholder request; API already supported `?category=`.
+
+- Decision: Merge **`feature/critical_error_handling`** for global 500 handler — do not duplicate in incident manager work.
+- Why: Handler already delivered on that branch.
+
+- Decision: Feature module **`uis/backoffice/incident-manager/`** with same landing alias / ToolToolbar / ≤80-line component split as inventory.
+- Why: Established backoffice hybrid pattern on port 3004.
+

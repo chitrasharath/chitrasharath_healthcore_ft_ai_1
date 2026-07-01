@@ -148,6 +148,18 @@ Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landi
   - `npm run verify` passes in `uis/backoffice/landing`.
 - Plan: `memory-bank/references/milestone5_ai_plan/milestone5_frontend_implementation_plan.md`.
 
+### Centralized Incident Manager (Delivered)
+
+- Goal: log, track, and manage patient incidents in the browser with CRUD API and summary dashboard.
+- **Delivered:**
+  - `services/api/app/domains/incidents/` — SQLModel `Incident` on Supabase; five endpoints under `/api/v1/incidents/`; lifecycle validation; `incident_id` column for seed dedupe only.
+  - `scripts/seed_incidents.py` — idempotent CSV seed from plan-folder `incidents-healthcore.csv` (94 valid rows).
+  - Merged `feature/critical_error_handling` global 500 handler into `feature/milestone5`.
+  - `uis/backoffice/incident-manager/` — landing, form, filterable list (status/origin/branch/category), summary dashboard.
+  - Landing routes `/incident-manager/*`; hub nav card after Incident Analyzer.
+  - `tests/test_incidents_mgmt.py` — 15 cases; backend incidents domain **~90%** coverage; `npm run verify` passes.
+- Plan: `memory-bank/references/centralized_incident_manager_ai_plan/centralized_incident_manager_implementation_plan.md`.
+
 ## Future Feature Additions
 
 - Expand `services/api` per architecture proposal (remaining domains in doc §12); opaque session tokens for HIPAA (SPECS follow-up).

@@ -3,14 +3,26 @@ export type NavApp = {
   description: string;
   url: string;
   protected: boolean;
+  tag?: string;
+  tagVariant?: "new" | "deprecated";
 };
 
 export const NAV_APPS: NavApp[] = [
   {
     title: "Incident Analyzer",
-    description: "Patient incident report analysis dashboard",
+    description: "Legacy CSV upload and incident report analysis dashboard",
     url: "/incident-analyzer",
     protected: true,
+    tag: "To be deprecated",
+    tagVariant: "deprecated",
+  },
+  {
+    title: "Incident Manager",
+    description: "Log, track, and manage patient incidents across all clinics",
+    url: "/incident-manager",
+    protected: true,
+    tag: "New",
+    tagVariant: "new",
   },
   {
     title: "Supplier Directory",

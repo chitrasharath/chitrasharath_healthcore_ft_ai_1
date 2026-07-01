@@ -9,6 +9,7 @@ from app.api.v1.router import api_v1_router
 from app.core.config import settings
 from app.core.db import supabase_engine
 from app.domains.inventory import models as inventory_models  # noqa: F401
+from app.domains.incidents import models as incident_models  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
