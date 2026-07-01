@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { getIncident, updateIncident } from "@backoffice/incident-manager/lib/incidents-api";
 import type { IncidentCreate } from "@backoffice/incident-manager/types/incidents";
+import { validateIncidentForm } from "@repo/shared/lib/incident-validation";
 
 export const useIncidentEdit = (incidentId: number) => {
   const [form, setForm] = useState<IncidentCreate | null>(null);
@@ -37,12 +38,23 @@ export const useIncidentEdit = (incidentId: number) => {
 
   const submit = async () => {
     if (!form) return;
+
+    const validationError = validateIncidentForm(form);
+    if (validationError) {
+      setFieldError(validationError.message);
+      return;
+    }
+
     setSaving(true);
     setError(null);
     setSuccess(null);
     setFieldError(null);
     try {
-      await updateIncident(incidentId, form);
+      await updateIncident(incidentId, {
+        ...form,
+        title: form.title.trim(),
+        description: form.description.trim(),
+      });
       setSuccess("Incident updated successfully.");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Something went wrong.";

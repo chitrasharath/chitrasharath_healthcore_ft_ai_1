@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { createIncident } from "@backoffice/incident-manager/lib/incidents-api";
 import type { IncidentCreate } from "@backoffice/incident-manager/types/incidents";
+import { validateIncidentForm } from "@repo/shared/lib/incident-validation";
 
 const EMPTY_FORM: IncidentCreate = {
   title: "",
@@ -28,18 +29,27 @@ export const useIncidentForm = () => {
   };
 
   const submit = async () => {
+    const validationError = validateIncidentForm(form);
+    if (validationError) {
+      setFieldError(validationError.message);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setSuccess(null);
     setFieldError(null);
     try {
-      await createIncident(form);
+      await createIncident({
+        ...form,
+        title: form.title.trim(),
+        description: form.description.trim(),
+      });
       setForm(EMPTY_FORM);
       setSuccess("Incident logged successfully.");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Something went wrong.";
-      if (message.includes("Title")) setFieldError(message);
-      else if (message.includes("Description")) setFieldError(message);
+      if (message.includes("Title") || message.includes("Description")) setFieldError(message);
       else if (responseIsServer(message)) setError("Something went wrong. Please try again later.");
       else setError(message);
     } finally {

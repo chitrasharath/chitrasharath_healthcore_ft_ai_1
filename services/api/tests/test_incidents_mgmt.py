@@ -69,6 +69,14 @@ def test_post_missing_title(client: TestClient, bearer: dict[str, str]) -> None:
     assert response.json()["detail"] == "Title is required."
 
 
+def test_post_missing_description(client: TestClient, bearer: dict[str, str]) -> None:
+    body = {**VALID_INCIDENT}
+    del body["description"]
+    response = client.post("/api/v1/incidents", json=body, headers=bearer)
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Description is required."
+
+
 def test_post_empty_title(client: TestClient, bearer: dict[str, str]) -> None:
     body = {**VALID_INCIDENT, "title": "   "}
     response = client.post("/api/v1/incidents", json=body, headers=bearer)

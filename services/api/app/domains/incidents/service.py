@@ -3,18 +3,14 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from fastapi import HTTPException
+from healthcore_incidents import (
+    validate_create_fields as shared_validate_create_fields,
+    validate_status_value as shared_validate_status_value,
+    validate_transition as shared_validate_transition,
+)
 from sqlmodel import Session, select
 
-from app.domains.incidents.constants import (
-    FINAL_STATUSES,
-    STATUS_DISPLAY,
-    STATUS_TRANSITION_ORDER,
-    STATUS_TRANSITIONS,
-    VALID_BRANCHES,
-    VALID_CATEGORIES,
-    VALID_ORIGINS,
-    VALID_STATUSES,
-)
+from app.domains.incidents.constants import VALID_CATEGORIES, VALID_ORIGINS, VALID_STATUSES
 from app.domains.incidents.models import Incident
 from app.domains.incidents.schemas import IncidentCreate, IncidentRead, IncidentSummary
 
@@ -27,98 +23,21 @@ def _to_read(incident: Incident) -> IncidentRead:
     return IncidentRead.model_validate(incident)
 
 
-def _validate_title(title: str | None) -> None:
-    if title is None:
-        raise HTTPException(status_code=400, detail="Title is required.")
-    if not str(title).strip():
-        raise HTTPException(status_code=400, detail="Title cannot be empty.")
-
-
-def _validate_description(description: str | None) -> None:
-    if description is None:
-        raise HTTPException(status_code=400, detail="Description is required.")
-    if not str(description).strip():
-        raise HTTPException(status_code=400, detail="Description cannot be empty.")
-
-
-def _validate_category(category: str | None) -> None:
-    if category is None or not str(category).strip():
-        raise HTTPException(status_code=400, detail="Field 'category' is required.")
-    value = str(category).strip()
-    if value not in VALID_CATEGORIES:
-        options = ", ".join(sorted(VALID_CATEGORIES))
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid category '{value}'. Must be one of: {options}.",
-        )
-
-
-def _validate_status_value(status: str | None) -> str:
-    if status is None or not str(status).strip():
-        raise HTTPException(status_code=400, detail="Field 'status' is required.")
-    value = str(status).strip()
-    if value not in VALID_STATUSES:
-        options = ", ".join(sorted(VALID_STATUSES))
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid status '{value}'. Must be one of: {options}.",
-        )
-    return value
-
-
-def _validate_origin(origin: str | None) -> None:
-    if origin is None or not str(origin).strip():
-        raise HTTPException(status_code=400, detail="Field 'origin' is required.")
-    value = str(origin).strip()
-    if value not in VALID_ORIGINS:
-        options = ", ".join(sorted(VALID_ORIGINS))
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid origin '{value}'. Must be one of: {options}.",
-        )
-
-
-def _validate_branch(branch: str | None) -> None:
-    if branch is None or not str(branch).strip():
-        raise HTTPException(status_code=400, detail="Field 'branch' is required.")
-    value = str(branch).strip()
-    if value not in VALID_BRANCHES:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid branch '{value}'. Must be one of the 12 clinic codes (e.g., US-TX-01) or 'Central'.",
-        )
-
-
-def validate_create_fields(body: IncidentCreate) -> None:
-    _validate_title(body.title)
-    _validate_description(body.description)
-    _validate_category(body.category)
-    _validate_origin(body.origin)
-    _validate_branch(body.branch)
-
-
-def validate_transition(current: str, requested: str) -> None:
-    if current in FINAL_STATUSES:
-        label = STATUS_DISPLAY.get(current, current.capitalize())
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot transition from '{current}' to '{requested}'. {label} is a final state.",
-        )
-    allowed = STATUS_TRANSITIONS.get(current, frozenset())
-    if requested not in allowed:
-        ordered = [s for s in STATUS_TRANSITION_ORDER if s in allowed]
-        valid_list = ", ".join(ordered)
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Cannot transition from '{current}' to '{requested}'. "
-                f"Valid transitions: {valid_list}."
-            ),
-        )
+def _raise_if_invalid(error) -> None:
+    if error is not None:
+        raise HTTPException(status_code=400, detail=error.detail)
 
 
 def create_incident(session: Session, body: IncidentCreate) -> IncidentRead:
-    validate_create_fields(body)
+    _raise_if_invalid(
+        shared_validate_create_fields(
+            title=body.title,
+            description=body.description,
+            category=body.category,
+            origin=body.origin,
+            branch=body.branch,
+        )
+    )
     now = _utc_now()
     incident = Incident(
         title=str(body.title).strip(),
@@ -138,7 +57,15 @@ def create_incident(session: Session, body: IncidentCreate) -> IncidentRead:
 
 
 def update_incident(session: Session, incident_pk: int, body: IncidentCreate) -> IncidentRead:
-    validate_create_fields(body)
+    _raise_if_invalid(
+        shared_validate_create_fields(
+            title=body.title,
+            description=body.description,
+            category=body.category,
+            origin=body.origin,
+            branch=body.branch,
+        )
+    )
     incident = get_incident_or_404(session, incident_pk)
     incident.title = str(body.title).strip()
     incident.description = str(body.description).strip()
@@ -162,16 +89,23 @@ def list_incidents(
 ) -> list[IncidentRead]:
     statement = select(Incident)
     if status is not None:
-        _validate_status_value(status)
+        _, error = shared_validate_status_value(status)
+        _raise_if_invalid(error)
         statement = statement.where(Incident.status == status)
     if origin is not None:
-        _validate_origin(origin)
+        from healthcore_incidents import validate_origin
+
+        _raise_if_invalid(validate_origin(origin))
         statement = statement.where(Incident.origin == origin)
     if branch is not None:
-        _validate_branch(branch)
+        from healthcore_incidents import validate_branch
+
+        _raise_if_invalid(validate_branch(branch))
         statement = statement.where(Incident.branch == branch)
     if category is not None:
-        _validate_category(category)
+        from healthcore_incidents import validate_category
+
+        _raise_if_invalid(validate_category(category))
         statement = statement.where(Incident.category == category)
     incidents = session.exec(statement).all()
     return [_to_read(item) for item in incidents]
@@ -185,9 +119,10 @@ def get_incident_or_404(session: Session, incident_pk: int) -> Incident:
 
 
 def update_status(session: Session, incident_pk: int, new_status: str) -> IncidentRead:
-    status = _validate_status_value(new_status)
+    status, error = shared_validate_status_value(new_status)
+    _raise_if_invalid(error)
     incident = get_incident_or_404(session, incident_pk)
-    validate_transition(incident.status, status)
+    _raise_if_invalid(shared_validate_transition(incident.status, status))
     incident.status = status
     incident.updated_at = _utc_now()
     session.add(incident)

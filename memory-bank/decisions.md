@@ -267,5 +267,8 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Why: Handler already delivered on that branch.
 
 - Decision: Feature module **`uis/backoffice/incident-manager/`** with same landing alias / ToolToolbar / ≤80-line component split as inventory.
+
+- Decision: Incident validation extracted to **`packages/shared/python/healthcore_incidents/`** (`healthcore-incidents-shared` uv package); API and `scripts/seed_incidents.py` import shared validators/constants; `analysis_core.py` reuses CSV validation from shared package. Client form validation in **`packages/shared/lib/incident-validation.ts`**.
+- Why: Central Incident Manager eval criteria require shared validation without duplication across script, API, and frontend.
 - Why: Established backoffice hybrid pattern on port 3004.
 

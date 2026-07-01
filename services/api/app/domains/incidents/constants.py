@@ -1,52 +1,27 @@
-from __future__ import annotations
+"""Re-export shared incident constants for the API domain."""
 
-VALID_CATEGORIES = frozenset(
-    {"APPOINTMENT", "BILLING", "CLINICAL_CARE", "ACCESSIBILITY", "ADMINISTRATIVE"}
+from healthcore_incidents.constants import (
+    CSV_STATUS_MAP,
+    FINAL_STATUSES,
+    STATUS_DISPLAY,
+    STATUS_TRANSITION_ORDER,
+    STATUS_TRANSITIONS,
+    VALID_BRANCHES,
+    VALID_CATEGORIES,
+    VALID_CLINIC_BRANCHES,
+    VALID_ORIGINS,
+    VALID_STATUSES,
 )
 
-VALID_STATUSES = frozenset({"open", "in_progress", "resolved", "discarded"})
-
-VALID_ORIGINS = frozenset({"customer", "branch", "internal"})
-
-VALID_CLINIC_BRANCHES = frozenset(
-    {
-        "US-TX-01",
-        "US-TX-02",
-        "US-TX-03",
-        "US-FL-01",
-        "US-FL-02",
-        "US-FL-03",
-        "US-GA-01",
-        "US-GA-02",
-        "US-GA-03",
-        "UK-LON-01",
-        "UK-LON-02",
-        "UK-MAN-01",
-    }
-)
-
-VALID_BRANCHES = VALID_CLINIC_BRANCHES | frozenset({"Central"})
-
-STATUS_TRANSITIONS: dict[str, frozenset[str]] = {
-    "open": frozenset({"in_progress", "discarded"}),
-    "in_progress": frozenset({"resolved", "discarded"}),
-    "resolved": frozenset(),
-    "discarded": frozenset(),
-}
-
-CSV_STATUS_MAP = {
-    "OPEN": "open",
-    "CLOSED": "resolved",
-    "DISCARDED": "discarded",
-}
-
-FINAL_STATUSES = frozenset({"resolved", "discarded"})
-
-STATUS_TRANSITION_ORDER = ("in_progress", "discarded", "resolved")
-
-STATUS_DISPLAY = {
-    "open": "Open",
-    "in_progress": "In progress",
-    "resolved": "Resolved",
-    "discarded": "Discarded",
-}
+__all__ = [
+    "CSV_STATUS_MAP",
+    "FINAL_STATUSES",
+    "STATUS_DISPLAY",
+    "STATUS_TRANSITION_ORDER",
+    "STATUS_TRANSITIONS",
+    "VALID_BRANCHES",
+    "VALID_CATEGORIES",
+    "VALID_CLINIC_BRANCHES",
+    "VALID_ORIGINS",
+    "VALID_STATUSES",
+]

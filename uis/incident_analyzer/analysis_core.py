@@ -2,38 +2,22 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from enum import Enum
 from io import StringIO
 from pathlib import Path
 from typing import BinaryIO, TextIO, Union
 
 import pandas as pd
-
-VALID_CLINICS: dict[str, str] = {
-    "US-TX-01": "US",
-    "US-TX-02": "US",
-    "US-TX-03": "US",
-    "US-FL-01": "US",
-    "US-FL-02": "US",
-    "US-FL-03": "US",
-    "US-GA-01": "US",
-    "US-GA-02": "US",
-    "US-GA-03": "US",
-    "UK-LON-01": "UK",
-    "UK-LON-02": "UK",
-    "UK-MAN-01": "UK",
-}
-
-VALID_CATEGORIES = frozenset(
-    {"APPOINTMENT", "BILLING", "CLINICAL_CARE", "ACCESSIBILITY", "ADMINISTRATIVE"}
+from healthcore_incidents.constants import (
+    RULE_LABELS,
+    VALID_CATEGORIES,
+    VALID_CLINICS,
+    VALID_CSV_STATUSES,
 )
+from healthcore_incidents.csv_validation import ViolationRule, load_incidents, validate_record
 
-VALID_STATUSES = frozenset({"OPEN", "CLOSED", "DISCARDED"})
-
-PATIENT_ID_PATTERN = re.compile(r"^PAT-\d{6}$")
+VALID_STATUSES = VALID_CSV_STATUSES
 
 SATISFACTION_LABELS: dict[int, str] = {
     1: "Very dissatisfied",
@@ -41,16 +25,6 @@ SATISFACTION_LABELS: dict[int, str] = {
     3: "Neutral",
     4: "Satisfied",
     5: "Very satisfied",
-}
-
-RULE_LABELS: dict[str, str] = {
-    "invalid_clinic_id": "Invalid or missing clinic_id",
-    "country_clinic_mismatch": "Country/clinic mismatch",
-    "invalid_category": "Invalid or missing category",
-    "empty_description": "Empty description",
-    "missing_patient_id": "Missing patient_id",
-    "closed_no_score": "Closed case, no score",
-    "score_out_of_range": "Satisfaction score out of range",
 }
 
 RULE_ORDER = [
@@ -73,16 +47,6 @@ CATEGORY_ORDER = [
 
 STATUS_ORDER = ["OPEN", "CLOSED", "DISCARDED"]
 COUNTRY_ORDER = ["US", "UK"]
-
-
-class ViolationRule(str, Enum):
-    INVALID_CLINIC_ID = "invalid_clinic_id"
-    COUNTRY_CLINIC_MISMATCH = "country_clinic_mismatch"
-    INVALID_CATEGORY = "invalid_category"
-    EMPTY_DESCRIPTION = "empty_description"
-    MISSING_PATIENT_ID = "missing_patient_id"
-    CLOSED_NO_SCORE = "closed_no_score"
-    SCORE_OUT_OF_RANGE = "score_out_of_range"
 
 
 @dataclass
@@ -137,11 +101,6 @@ class AnalysisResult:
 FileInput = Union[str, Path, TextIO, BinaryIO, StringIO]
 
 
-def load_incidents(source: FileInput) -> pd.DataFrame:
-    """Load incidents CSV from path or file-like object."""
-    return pd.read_csv(source, dtype=str, keep_default_na=False)
-
-
 def _is_blank(value: object) -> bool:
     if value is None:
         return True
@@ -157,41 +116,6 @@ def _parse_score(value: object) -> int | None:
         return int(float(str(value).strip()))
     except ValueError:
         return None
-
-
-def validate_record(row: pd.Series) -> list[ViolationRule]:
-    """Return violation rules for a row; never includes PHI."""
-    violations: list[ViolationRule] = []
-
-    clinic_id = str(row.get("clinic_id", "")).strip()
-    country = str(row.get("country", "")).strip()
-    category = str(row.get("category", "")).strip()
-    description = str(row.get("description", "")).strip()
-    status = str(row.get("status", "")).strip()
-    patient_id = str(row.get("patient_id", "")).strip()
-    score = _parse_score(row.get("satisfaction_score"))
-
-    if not clinic_id or clinic_id not in VALID_CLINICS:
-        violations.append(ViolationRule.INVALID_CLINIC_ID)
-    elif country != VALID_CLINICS[clinic_id]:
-        violations.append(ViolationRule.COUNTRY_CLINIC_MISMATCH)
-
-    if not category or category not in VALID_CATEGORIES:
-        violations.append(ViolationRule.INVALID_CATEGORY)
-
-    if len(description) < 5:
-        violations.append(ViolationRule.EMPTY_DESCRIPTION)
-
-    if not patient_id or not PATIENT_ID_PATTERN.match(patient_id):
-        violations.append(ViolationRule.MISSING_PATIENT_ID)
-
-    if score is not None and (score < 1 or score > 5):
-        violations.append(ViolationRule.SCORE_OUT_OF_RANGE)
-
-    if status == "CLOSED" and score is None:
-        violations.append(ViolationRule.CLOSED_NO_SCORE)
-
-    return violations
 
 
 def _percentage(count: int, total: int) -> float | None:

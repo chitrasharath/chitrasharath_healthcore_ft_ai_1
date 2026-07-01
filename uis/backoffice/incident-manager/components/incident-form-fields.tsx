@@ -24,6 +24,7 @@ export const IncidentFormFields = ({ form, fieldError, onChange }: IncidentFormF
       <label className="block space-y-1">
         <span className="text-sm font-medium text-slate-700">Description</span>
         <textarea className={`${incidentInputClass} min-h-[100px]`} value={form.description} onChange={(e) => onChange({ description: e.target.value })} required />
+        {fieldError?.includes("Description") ? <span className="text-sm text-red-600">{fieldError}</span> : null}
       </label>
       <label className="block space-y-1">
         <span className="text-sm font-medium text-slate-700">Category</span>

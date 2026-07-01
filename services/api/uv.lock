@@ -392,6 +392,7 @@ dependencies = [
     { name = "bcrypt" },
     { name = "email-validator" },
     { name = "fastapi" },
+    { name = "healthcore-incidents-shared" },
     { name = "pandas" },
     { name = "passlib", extra = ["bcrypt"] },
     { name = "psycopg2-binary" },
@@ -416,6 +417,7 @@ requires-dist = [
     { name = "bcrypt", specifier = ">=4.0.0,<4.1" },
     { name = "email-validator", specifier = ">=2.0.0" },
     { name = "fastapi", specifier = ">=0.115.0" },
+    { name = "healthcore-incidents-shared", editable = "../../packages/shared/python" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27.0" },
     { name = "pandas", specifier = ">=2.0.0" },
     { name = "passlib", extras = ["bcrypt"], specifier = ">=1.7.4" },
@@ -431,6 +433,17 @@ requires-dist = [
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32.0" },
 ]
 provides-extras = ["dev"]
+
+[[package]]
+name = "healthcore-incidents-shared"
+version = "0.1.0"
+source = { editable = "../../packages/shared/python" }
+dependencies = [
+    { name = "pandas" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pandas", specifier = ">=2.0.0" }]
 
 [[package]]
 name = "httpcore"

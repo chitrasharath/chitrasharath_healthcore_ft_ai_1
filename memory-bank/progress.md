@@ -157,7 +157,8 @@ Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landi
   - Merged `feature/critical_error_handling` global 500 handler into `feature/milestone5`.
   - `uis/backoffice/incident-manager/` — landing, form, filterable list (status/origin/branch/category), summary dashboard.
   - Landing routes `/incident-manager/*`; hub nav card after Incident Analyzer.
-  - `tests/test_incidents_mgmt.py` — 15 cases; backend incidents domain **~90%** coverage; `npm run verify` passes.
+  - `tests/test_incidents_mgmt.py` — 16 cases; `tests/test_seed_incidents.py` — 4 cases; backend incidents domain **~90%** coverage; `npm run verify` passes.
+  - **Eval gap fixes:** shared validation in `packages/shared/python/healthcore_incidents/` (API + seed); client form validation in `packages/shared/lib/incident-validation.ts`; seed/idempotency tests; 500 message aligned to spec.
 - Plan: `memory-bank/references/centralized_incident_manager_ai_plan/centralized_incident_manager_implementation_plan.md`.
 
 ## Future Feature Additions

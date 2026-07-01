@@ -23,7 +23,7 @@ def test_global_exception_handler_returns_generic_500() -> None:
     )
 
     assert response.status_code == 500
-    assert response.body == b'{"detail":"An unexpected error occurred."}'
+    assert response.body == b'{"detail":"An unexpected error occurred. Please try again later."}'
     body = response.body.decode()
     assert "traceback" not in body.lower()
     assert "secret" not in body

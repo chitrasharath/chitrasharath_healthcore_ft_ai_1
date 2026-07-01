@@ -8,24 +8,21 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
+from healthcore_incidents import CSV_STATUS_MAP, RULE_LABELS, load_incidents, validate_record
+from sqlmodel import Session, SQLModel, select
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CSV_PATH = (
     REPO_ROOT
     / "memory-bank/references/centralized_incident_manager_ai_plan/incidents-healthcore.csv"
 )
-ANALYZER_PATH = REPO_ROOT / "uis" / "incident_analyzer"
 API_PATH = REPO_ROOT / "services" / "api"
 
-for path in (str(ANALYZER_PATH), str(API_PATH)):
-    if path not in sys.path:
-        sys.path.insert(0, path)
-
-from analysis_core import RULE_LABELS, load_incidents, validate_record  # noqa: E402
-from sqlmodel import Session, SQLModel, select  # noqa: E402
+if str(API_PATH) not in sys.path:
+    sys.path.insert(0, str(API_PATH))
 
 from app.core.config import settings  # noqa: E402
 from app.core.db import supabase_engine  # noqa: E402
-from app.domains.incidents.constants import CSV_STATUS_MAP  # noqa: E402
 from app.domains.incidents import models as incident_models  # noqa: F401, E402
 from app.domains.incidents.models import Incident  # noqa: E402
 
@@ -38,14 +35,16 @@ def _generate_title(category: str, clinic_id: str) -> str:
     return f"{category} incident at {clinic_id}"
 
 
-def seed_incidents() -> tuple[int, int, int, Counter[str]]:
-    if not settings.database_url or supabase_engine is None:
-        raise SystemExit("DATABASE_URL is not configured. Set it in services/api/.env")
+def seed_incidents(engine=None) -> tuple[int, int, int, Counter[str]]:
+    if engine is None:
+        if not settings.database_url or supabase_engine is None:
+            raise SystemExit("DATABASE_URL is not configured. Set it in services/api/.env")
+        engine = supabase_engine
 
     if not CSV_PATH.is_file():
         raise SystemExit(f"CSV not found: {CSV_PATH}")
 
-    SQLModel.metadata.create_all(supabase_engine)
+    SQLModel.metadata.create_all(engine)
 
     df = load_incidents(CSV_PATH)
     inserted = 0
@@ -53,7 +52,7 @@ def seed_incidents() -> tuple[int, int, int, Counter[str]]:
     skipped_invalid = 0
     invalid_rules: Counter[str] = Counter()
 
-    with Session(supabase_engine) as session:
+    with Session(engine) as session:
         for _, row in df.iterrows():
             csv_incident_id = str(row.get("incident_id", "")).strip()
             violations = validate_record(row)
