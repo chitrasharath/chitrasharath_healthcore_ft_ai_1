@@ -114,6 +114,19 @@ Open **http://localhost:3005** (no auth).
 
 ---
 
+## Monorepo conventions
+
+Notes for contributors working across backend and UI apps:
+
+- **Dual uv lockfiles (intentional):** `services/api/uv.lock` is the canonical backend lock (package-only workflow and Docker builds). Root `uv.lock` exists so `uv run pytest` works from the repository root. After any backend dependency change, re-lock **both**: `uv lock` inside `services/api` and `uv lock` at the repo root.
+- **Test dependencies declared twice:** `services/api` `[project.optional-dependencies] dev` and root `[dependency-groups] dev` — keep them aligned.
+- **Duplicate talent-tracker apps:** `uis/backoffice/talent-tracker/` is the active canonical copy (served through the backoffice landing app). `apps/talent-pipeline-tracker/` is a frozen legacy pre-relocation copy — unmaintained, not part of Docker, and must not receive changes.
+- **Environment file naming:** Root `.env.example` is canonical for Docker. Per-app Next.js examples use `.env.local.example`. `services/api/.example.env` is for the local non-Docker API workflow only.
+- **Per-app npm lockfiles:** Six active UI apps each keep their own `package-lock.json`. Version alignment is enforced by `python3 scripts/check_ui_dep_versions.py` (run before committing `package.json` changes). A root npm-workspaces conversion is deferred until after Docker lands.
+- **`packages/shared/package.json` quirk:** Its `name` is `@repo/shared-types`, but consumers import via the `@repo/shared` alias in `tsconfig.json` paths and `next.config.ts` webpack aliases. The package is never npm-installed — no lockfile, raw `.ts` exports. Do not trust the `name` field; a rename follow-up is deferred.
+
+---
+
 ## Backoffice Functions (M2 manual test)
 
 Feature module at `uis/backoffice/backoffice_functions/` — **imported by landing** at `/backoffice-functions`. Standalone dev on port 3001 is deprecated.

@@ -2,6 +2,9 @@
   "name": "healthcore-backoffice-landing",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9"
+  },
   "scripts": {
     "dev": "next dev --webpack --port 3004",
     "build": "next build --webpack",
