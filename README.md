@@ -114,6 +114,63 @@ Open **http://localhost:3005** (no auth).
 
 ---
 
+## Docker development
+
+Prerequisites: Docker Engine + Compose v2 (or Docker Desktop).
+
+### First run
+
+```bash
+cp .env.example .env
+# Edit .env: set SECRET_KEY and, for full platform features, DATABASE_URL
+docker compose up --build
+```
+
+| URL | Service |
+|-----|---------|
+| http://localhost:3000 | Public website |
+| http://localhost:3001 | Backoffice landing (hub + all tool routes) |
+| http://localhost:8000/docs | API Swagger |
+
+### Day-to-day
+
+```bash
+docker compose up
+docker compose up -d
+docker compose down
+docker compose logs -f ui
+docker compose logs -f api
+docker compose exec api uv run pytest
+docker compose exec api uv run seed
+```
+
+After dependency changes (`package.json` / `pyproject.toml`): `docker compose up --build`. If `node_modules` look stale, run `docker compose down -v` first.
+
+### Optional seeding (post-first-up)
+
+- `docker compose exec api uv run seed` — TinyDB suppliers (+ inventory when `DATABASE_URL` is set).
+- Incident CSV seed (Supabase): `docker compose exec api uv run python /app/scripts/seed_incidents.py` when `DATABASE_URL` is configured.
+
+### Port conflicts
+
+Local non-Docker dev uses ports **3004/3005** (backoffice/website) and **8000** (API). Do not run `npm run dev` or `uv run uvicorn` on the same ports while Docker is up.
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| Port already in use | Stop the conflicting local dev server |
+| API exits immediately | Ensure `SECRET_KEY` and `JWT_EXPIRE_MINUTES` are set in `.env` |
+| Backoffice webpack module errors | `docker compose up --build`; if persistent, `docker compose down -v` |
+| Hot reload not working | Uncomment `WATCHPACK_POLLING=true` in `.env`, restart `ui` |
+| Inventory / incident-manager errors | Set `DATABASE_URL` in `.env`, restart `api`, run seed |
+
+Docker uses the root `.env` only. The local non-Docker API workflow continues to use `services/api/.env`.
+
+Plan: `memory-bank/references/docker_ai_plan/docker_implementation_plan.md`.
+
+---
+
 ## Monorepo conventions
 
 Notes for contributors working across backend and UI apps:

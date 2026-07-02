@@ -1,5 +1,13 @@
 # HealthCore — Testing Guide
 
+## Pre-commit guardrails
+
+Before committing any `package.json` change across the six active UI apps:
+
+```bash
+python3 scripts/check_ui_dep_versions.py
+```
+
 ## How to run tests
 
 ### Backend API (pytest)
@@ -22,6 +30,12 @@ uv sync --extra dev
 uv run pip install pytest-cov
 uv run pytest
 uv run pytest --cov=app --cov-report=term-missing
+```
+
+Inside Docker:
+
+```bash
+docker compose exec api uv run pytest
 ```
 
 ### Frontend — Website (Jest)

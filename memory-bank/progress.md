@@ -172,6 +172,16 @@ Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landi
   - BUG-001 fixed: weekend preferred-date validation added to `enquiry-validation.ts`.
 - Plan: `memory-bank/references/unit_tests/unit_test_IMPLEMENTATION_PLAN.md`.
 
+### Docker development environment (#infra-40) (Delivered)
+
+- Goal: containerize the monorepo for local development with zero-step onboarding via Docker Compose.
+- **Delivered:**
+  - §0 cleanup: redundant `pandas` removed from API deps, dual uv lockfiles, `scripts/check_ui_dep_versions.py`, `.nvmrc`, Node `engines`, env-example consolidation, README monorepo notes.
+  - Docker Compose stack: `ui` (website :3000 + backoffice landing :3001) and `api` (FastAPI :8000) on `healthcore_net`.
+  - Proactive `npm ci` for six UI apps in the UI image; root `.env.example`; env-driven Public Website URL in `nav-apps.ts`.
+  - README Docker section, `TESTING.md` guardrails, verification screenshot in `memory-bank/references/docker_ai_plan/`.
+- Plan: `memory-bank/references/docker_ai_plan/docker_implementation_plan.md`.
+
 ## Future Feature Additions
 
 - Expand `services/api` per architecture proposal (remaining domains in doc §12); opaque session tokens for HIPAA (SPECS follow-up).

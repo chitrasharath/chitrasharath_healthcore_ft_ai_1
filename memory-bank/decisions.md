@@ -267,8 +267,30 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Why: Handler already delivered on that branch.
 
 - Decision: Feature module **`uis/backoffice/incident-manager/`** with same landing alias / ToolToolbar / ≤80-line component split as inventory.
+- Why: Established backoffice hybrid pattern on port 3004.
 
 - Decision: Incident validation extracted to **`packages/shared/python/healthcore_incidents/`** (`healthcore-incidents-shared` uv package); API and `scripts/seed_incidents.py` import shared validators/constants; `analysis_core.py` reuses CSV validation from shared package. Client form validation in **`packages/shared/lib/incident-validation.ts`**.
 - Why: Central Incident Manager eval criteria require shared validation without duplication across script, API, and frontend.
-- Why: Established backoffice hybrid pattern on port 3004.
 
+## Docker (#infra-40)
+
+- Decision: **Development-only** Docker Compose with exactly two services (`ui`, `api`) on named network `healthcore_net`; no production multi-stage builds in this ticket.
+- Why: Ticket scope is developer onboarding, not deployment.
+
+- Decision: Backend image uses **uv** (`uv sync --frozen`) with `UV_PROJECT_ENVIRONMENT=/opt/venv` outside bind-mounted paths; **no `requirements.txt`**.
+- Why: Matches existing repo tooling; prevents mount shadowing of installed packages.
+
+- Decision: Single `ui` container runs website and backoffice landing dev servers; aliased modules (inventory, incident-manager, talent-tracker, etc.) compile via landing webpack — no separate containers or ports.
+- Why: Spec requirement; mirrors local architecture.
+
+- Decision: **Proactive `npm ci`** for all six active UI apps at image build time with anonymous volumes per `node_modules`.
+- Why: First-run reliability for aliased backoffice modules.
+
+- Decision: Root `.env` + `.env.example` for Docker; `services/api/.env` remains for local non-Docker workflow. `JWT_EXPIRE_MINUTES=15` in Docker env.
+- Why: Stakeholder clarification; Compose injects process env — no per-app `.env.local` needed in Docker.
+
+- Decision: `NEXT_PUBLIC_*` URLs use `localhost` (browser-facing); `API_URL_INTERNAL` uses `http://api:8000/api/v1` for container-to-container calls.
+- Why: Browsers cannot resolve Docker service names.
+
+- Decision: npm-workspaces conversion and `@repo/shared-types` rename deferred post-#infra-40.
+- Why: Explicit out-of-scope per plan.
