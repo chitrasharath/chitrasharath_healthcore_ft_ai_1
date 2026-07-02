@@ -285,3 +285,43 @@ def test_invalid_category_query(client: TestClient, bearer: dict[str, str]) -> N
 def test_list_suppliers_without_token_returns_401(client: TestClient) -> None:
     response = client.get('/api/v1/suppliers')
     assert response.status_code == 401
+
+
+def test_create_supplier_missing_required_fields_returns_422(
+    client: TestClient,
+    bearer: dict[str, str],
+) -> None:
+    response = client.post("/api/v1/suppliers", json={}, headers=bearer)
+    assert response.status_code == 422
+
+
+def test_patch_supplier_details_not_found_returns_404(
+    client: TestClient,
+    bearer: dict[str, str],
+) -> None:
+    response = client.patch(
+        "/api/v1/suppliers/99999/details",
+        json={"notes": "missing supplier"},
+        headers=bearer,
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Supplier not found"
+
+
+@pytest.mark.parametrize(
+    "override",
+    [
+        {"monthly_rate": 0},
+        {"country": ""},
+        {"categories": ["not_a_real_category"]},
+    ],
+)
+def test_supplier_schema_validation_edge_cases(
+    client: TestClient,
+    bearer: dict[str, str],
+    override: dict,
+) -> None:
+    # Each override targets a distinct Pydantic boundary named in SPECS §3b.
+    payload = {**VALID_SUPPLIER, **override}
+    response = client.post("/api/v1/suppliers", json=payload, headers=bearer)
+    assert response.status_code == 422

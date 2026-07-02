@@ -92,6 +92,8 @@ export const validatePreferredDate = (lang: Lang, value: string): string | null 
   const minDate = getNextBusinessDay(today);
   const maxDate = getMaxPreferredDate(today);
   if (!selected || selected < minDate || selected > maxDate) return err(lang, "preferred_date");
+  const day = selected.getDay();
+  if (day === 0 || day === 6) return err(lang, "preferred_date");
   return null;
 };
 

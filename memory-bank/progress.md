@@ -161,6 +161,17 @@ Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landi
   - **Eval gap fixes:** shared validation in `packages/shared/python/healthcore_incidents/` (API + seed); client form validation in `packages/shared/lib/incident-validation.ts`; seed/idempotency tests; 500 message aligned to spec.
 - Plan: `memory-bank/references/centralized_incident_manager_ai_plan/centralized_incident_manager_implementation_plan.md`.
 
+### Unit test gap coverage (AUTH-088, API-042, FE-019) (Delivered)
+
+- Goal: close pytest and Jest gaps per `memory-bank/references/unit_tests/unit_test_SPECS.md`.
+- **Delivered:**
+  - Root `TESTING.md` — run commands, test plan, coverage results, bugs/AI log.
+  - `services/api/tests/` — 18 new pytest cases (`test_auth.py` +8, `test_incidents.py` +5, `test_suppliers.py` +3 parametrized); **88 passed**, **97%** line coverage.
+  - `uis/website` — Jest + `__tests__/enquiry-validation.test.ts` (22 cases).
+  - `uis/supplier_directory` — Jest + `format.test.ts` and `supplier-filter-params.test.ts` (17 cases).
+  - BUG-001 fixed: weekend preferred-date validation added to `enquiry-validation.ts`.
+- Plan: `memory-bank/references/unit_tests/unit_test_IMPLEMENTATION_PLAN.md`.
+
 ## Future Feature Additions
 
 - Expand `services/api` per architecture proposal (remaining domains in doc §12); opaque session tokens for HIPAA (SPECS follow-up).
