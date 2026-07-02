@@ -28,3 +28,17 @@ def reset_db(path: Path | None = None) -> None:
         _db = None
     if path is not None:
         DB_PATH = path
+
+
+from sqlmodel import Session, create_engine
+
+from app.core.config import settings
+
+supabase_engine = None
+if settings.database_url:
+    supabase_engine = create_engine(settings.database_url, echo=False)
+
+
+def get_supabase_db():
+    with Session(supabase_engine) as session:
+        yield session

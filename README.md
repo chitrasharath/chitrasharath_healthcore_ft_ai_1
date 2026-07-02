@@ -96,6 +96,7 @@ Open **http://localhost:3004**. Requires API on port **8000** (and `NEXT_PUBLIC_
 | `/` | Hub (login, register, nav cards) |
 | `/incident-analyzer` | Incident CSV analysis |
 | `/supplier-directory` | Supplier registry |
+| `/inventory` | Medical supply inventory (stock, deliveries, consumption) |
 | `/talent-tracker` | Talent pipeline (external tracker API) |
 | `/backoffice-functions` | M2 manual test dashboard |
 | `/account/profile` | Profile |
@@ -162,6 +163,12 @@ Local dev works without a `.env` file. Uvicorn uses port **8000**; backoffice la
 | `/api/v1/suppliers/{id}/rate` | PATCH | Yes | Update monthly rate |
 | `/api/v1/suppliers/{id}/status` | PATCH | Yes | Activate or suspend supplier |
 | `/api/v1/suppliers/{id}/details` | PATCH | Yes | Update optional fields |
+| `/api/v1/inventory/products` | GET | No | List supplies with computed `current_stock` |
+| `/api/v1/inventory/products` | POST | Yes | Register a new supply |
+| `/api/v1/inventory/products/{id}` | GET | No | Single supply with computed stock |
+| `/api/v1/inventory/orders/inbound` | POST | Yes | Log vendor delivery (increases stock) |
+| `/api/v1/inventory/orders/outbound` | POST | Yes | Log consumption (decreases stock) |
+| `/api/v1/inventory/orders` | GET | No | Combined delivery + consumption history |
 | `/api/v1/auth/register` | POST | Register user; returns JWT |
 | `/api/v1/auth/login` | POST | Login; returns JWT |
 | `/api/v1/auth/me` | GET | Current user (Bearer token) |
@@ -193,11 +200,83 @@ uv run seed
 
 Loads 15 suppliers idempotently (skips existing names). Plan: `memory-bank/references/supplier_directory_ai_plan/IMPLEMENTATION_PLAN.md`.
 
+When `DATABASE_URL` is set, the same command also seeds inventory data in Supabase (6 supplies, 4 deliveries, 3 consumptions). See [Inventory Management](#inventory-management-milestone-5) below.
+
 ### Dashboard (via landing)
 
 Use `/supplier-directory` on the backoffice landing app (port **3004**). Standalone `uis/supplier_directory/` is deprecated.
 
 Plan: `memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN_auth_2_3.md`.
+
+---
+
+## Inventory Management (Milestone 5)
+
+Centralised medical supply inventory for HealthCore clinic operations: **REST API** at `services/api` and **backoffice UI** at `/inventory` on the landing app (port **3004**).
+
+### Architecture
+
+- **TinyDB** — users and authentication (unchanged).
+- **Supabase (PostgreSQL)** — `MedicalSupply`, `SupplyDelivery`, `SupplyConsumption` tables in project **`milestone5_inventory`**.
+- Stock is computed on read: `SUM(deliveries) − SUM(consumptions)`; no direct stock mutation endpoint.
+- **Frontend module** — `uis/backoffice/inventory/`, aliased as `@backoffice/inventory` into `uis/backoffice/landing/`.
+
+### Backend environment
+
+Add to `services/api/.env` (copy exact URI from Supabase Dashboard → Database → Transaction pooler):
+
+```bash
+DATABASE_URL=postgresql://postgres.[ref]:[url-encoded-password]@aws-1-us-west-2.pooler.supabase.com:6543/postgres
+```
+
+Tables are created automatically on API startup. URL-encode special characters in the database password.
+
+### Seed and run API
+
+From `services/api/`:
+
+```bash
+uv sync --extra dev
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uv run seed
+```
+
+Swagger UI: http://localhost:8000/docs → `/api/v1/inventory/` routes.
+
+POST inventory endpoints require Bearer auth (register via `/api/v1/auth/register` first). GET product and order endpoints are public.
+
+### Dashboard (via landing)
+
+From `uis/backoffice/landing/`:
+
+```bash
+npm install
+npm run dev
+```
+
+Log in at **http://localhost:3004**, then open **Inventory Management** from the hub or navigate directly:
+
+| Route | Description |
+|-------|-------------|
+| `/inventory` | Section landing (hero + nav cards) |
+| `/inventory/products` | All supplies with color-coded stock levels |
+| `/inventory/orders/inbound` | Log vendor delivery (4 fields) |
+| `/inventory/orders/outbound` | Log clinical consumption (reactive stock display) |
+| `/inventory/orders` | Order history (deliveries + consumptions) |
+
+Set `NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1` in `uis/backoffice/landing/.env.local`. POST requests use `healthcoreFetch` (Bearer token from login).
+
+**Order history timestamps** — API stores UTC; the UI parses naive ISO strings as UTC and displays them in a user-selected timezone (default Eastern). The timezone dropdown appears on pages that show dates; preference is saved in `localStorage` (`healthcore_inventory_timezone`).
+
+**TypeScript** — the inventory module symlinks `node_modules` from landing for type resolution:
+
+```bash
+ln -sf ../landing/node_modules uis/backoffice/inventory/node_modules
+```
+
+Verify: `cd uis/backoffice/landing && npm run verify`
+
+Plans: `memory-bank/references/milestone5_ai_plan/milestone5_backend_implementation_plan.md`, `milestone5_frontend_implementation_plan.md`.
 
 ---
 
@@ -217,6 +296,7 @@ JWT_EXPIRE_MINUTES=30
 CORS_ORIGINS=http://localhost:3004,http://localhost:3005
 EMAIL_API_KEY=
 FRONTEND_URL=http://localhost:3004
+# DATABASE_URL=postgresql://...  # Supabase pooler URI for inventory (see Inventory Management section)
 ```
 
 Override `SECRET_KEY` in any non-local environment.

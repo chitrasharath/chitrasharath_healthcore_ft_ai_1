@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int
     email_api_key: str = ""
     frontend_url: str = "http://localhost:3004"
+    database_url: str = ""
 
     @property
     def cors_origin_list(self) -> list[str]:

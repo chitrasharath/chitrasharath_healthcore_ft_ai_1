@@ -20,10 +20,20 @@ const LockIcon = () => (
   </svg>
 );
 
+const tagClassName: Record<NonNullable<NavApp["tagVariant"]>, string> = {
+  new: "rounded-full bg-teal-100 px-2 py-0.5 text-xs font-semibold text-teal-800",
+  deprecated: "rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800",
+};
+
 const NavCardContent = ({ app }: NavCardProps) => (
   <>
     <div className="flex items-start justify-between gap-2">
-      <h3 className="font-semibold text-slate-900 group-hover:text-sky-800">{app.title}</h3>
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="font-semibold text-slate-900 group-hover:text-sky-800">{app.title}</h3>
+        {app.tag && app.tagVariant ? (
+          <span className={tagClassName[app.tagVariant]}>{app.tag}</span>
+        ) : null}
+      </div>
       {app.protected ? <LockIcon /> : null}
     </div>
     <p className="mt-2 flex-1 text-sm leading-6 text-slate-600">{app.description}</p>

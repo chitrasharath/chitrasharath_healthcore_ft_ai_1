@@ -1,6 +1,17 @@
 # HealthCore API (`services/api`)
 
-FastAPI modular monolith for HealthCore internal tools. Domains include incidents reporting, supplier directory, and JWT authentication with password reset.
+FastAPI modular monolith for HealthCore internal tools. Domains include incidents reporting, supplier directory, medical supply inventory, and JWT authentication with password reset.
+
+## Architecture
+
+The API uses **two databases**:
+
+| Database | Purpose | Access |
+|----------|---------|--------|
+| **TinyDB** (`db.json`) | Users, auth tokens, suppliers | `get_db()` |
+| **Supabase (PostgreSQL)** | Medical supplies, deliveries, consumptions | `get_supabase_db()` |
+
+Inventory stock is **computed**, never stored: `SUM(deliveries) − SUM(consumptions)`.
 
 ## Setup
 
@@ -24,6 +35,23 @@ Optional:
 | `CORS_ORIGINS` | `http://localhost:3004,http://localhost:3005` | Comma-separated allowed origins |
 | `EMAIL_API_KEY` | (empty) | Resend API key; when empty, reset links print to stdout |
 | `FRONTEND_URL` | `http://localhost:3004` | Base URL for password-reset email links |
+| `DATABASE_URL` | (empty) | Supabase PostgreSQL URI for inventory; required for live inventory routes and seed |
+
+### Supabase (`DATABASE_URL`)
+
+Inventory data lives in Supabase project **`milestone5_inventory`**. Copy the **Transaction pooler** URI from Supabase Dashboard → Project Settings → Database.
+
+```env
+DATABASE_URL=postgresql://postgres.[ref]:[url-encoded-password]@aws-1-us-west-2.pooler.supabase.com:6543/postgres
+```
+
+Notes:
+
+- Copy the exact host from the dashboard (pooler region varies, e.g. `aws-1-us-west-2` for this project).
+- URL-encode special characters in the password (`$` → `%24`, etc.).
+- Do not wrap the password in `[` `]` — those are placeholder markers in Supabase docs.
+- Tables are created on API startup via `SQLModel.metadata.create_all()`.
+- **Pytest does not need Supabase** — inventory tests use an in-memory SQLite override.
 
 ## Run
 
@@ -33,13 +61,26 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 Interactive docs: http://localhost:8000/docs
 
+## Seed
+
+```bash
+uv run seed
+```
+
+Idempotent seeder:
+
+- **Suppliers** — 15 records in TinyDB (skips existing names).
+- **Inventory** — 6 supplies, 4 deliveries, 3 consumptions in Supabase (skips if supplies already exist; order records only on first insert).
+
+Requires `DATABASE_URL` for the inventory portion. Supplier seed runs regardless.
+
 ## Test
 
 ```bash
 uv run pytest
 ```
 
-Tests force `EMAIL_API_KEY=""` so password-reset flows use stdout fallback regardless of local `.env`.
+Tests force `EMAIL_API_KEY=""` and `DATABASE_URL=""` so runs are deterministic and do not hit live Supabase.
 
 ## Authentication
 
@@ -68,6 +109,16 @@ Plans: [`IMPLEMENTATION_PLAN_auth_1.md`](../../memory-bank/references/authentica
 | `/api/v1/suppliers/{id}/rate` | PATCH | Yes | Update monthly rate |
 | `/api/v1/suppliers/{id}/status` | PATCH | Yes | Activate or suspend supplier |
 | `/api/v1/suppliers/{id}/details` | PATCH | Yes | Update optional fields |
+| `/api/v1/inventory/products` | GET | No | List supplies with computed `current_stock` |
+| `/api/v1/inventory/products` | POST | Yes | Register a new supply (`current_stock: 0`) |
+| `/api/v1/inventory/products/{id}` | GET | No | Single supply with computed stock |
+| `/api/v1/inventory/orders/inbound` | POST | Yes | Log vendor delivery (increases stock) |
+| `/api/v1/inventory/orders/outbound` | POST | Yes | Log consumption (decreases stock; `400` if insufficient) |
+| `/api/v1/inventory/orders` | GET | No | Combined delivery + consumption history |
+
+Inventory plans: [`milestone5_backend_implementation_plan.md`](../../memory-bank/references/milestone5_ai_plan/milestone5_backend_implementation_plan.md), [`milestone5_frontend_implementation_plan.md`](../../memory-bank/references/milestone5_ai_plan/milestone5_frontend_implementation_plan.md)
+
+Backoffice UI: `/inventory` on landing (`uis/backoffice/landing/`, port **3004**). Module source: `uis/backoffice/inventory/`.
 
 ### Example flow
 
@@ -85,6 +136,15 @@ TOKEN=$(curl -s -X POST http://localhost:8000/api/v1/auth/login \
 # Protected route
 curl -s http://localhost:8000/api/v1/auth/me \
   -H "Authorization: Bearer $TOKEN"
+
+# Inventory — create product (auth required)
+curl -s -X POST http://localhost:8000/api/v1/inventory/products \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Nitrile gloves","sku":"HCR-TEST-001","category":"ppe","unit":"box","country":"US"}'
+
+# Inventory — list products (public)
+curl -s http://localhost:8000/api/v1/inventory/products
 ```
 
 Use `/docs` → **Authorize** to paste the token for interactive testing.

@@ -114,9 +114,67 @@ Milestone 4 public portal migration is **delivered** at `uis/website` (`/` landi
 - **Delivered (Step 13 — integration):** Final docs pass (root `README.md`, `services/api/README.md`, website dev port 3005); pytest suite green (`70 passed`); `tests/conftest.py` forces empty `EMAIL_API_KEY` for deterministic reset stdout tests.
 - Plan: `memory-bank/references/authentication_backend_ai_plan/IMPLEMENTATION_PLAN_auth_2_3.md`.
 
+### Critical Error Handling (Delivered)
+
+- Goal: fix the 10 CRITICAL findings from `memory-bank/references/error_handling_test/error_handling_specs.md` without adding features.
+- **Delivered on branch `feature/critical_error_handling`:**
+  - **Backend (#1–#2):** Global FastAPI exception handler in `app/main.py`; UTF-8 decode guard in incidents `service.py`; `tests/test_error_handling.py`.
+  - **Frontend (#5–#10):** Network error handling in `uis/backoffice/landing/lib/api.ts`; change-password hook try/catch/finally; talent-tracker `lib/api.ts` network guard + sanitized API errors.
+  - **Scripts (#3–#4):** `skills/data-analysis/scripts/pandas_clean.py` refactored to `main()` with validation, scoped exceptions, and `sys.exit`.
+  - **Verified:** `uv run pytest` — 72 passed; `npm run build` — landing app (includes talent-tracker via path aliases); `pandas_clean.py` smoke test — exit 1 + stderr on missing file.
+- **Deferred:** 61 non-critical findings (HIGH/MEDIUM/LOW) per `error_handling_IMPLEMENTATION_PLAN.md` follow-up section.
+- Plan: `memory-bank/references/error_handling_test/error_handling_IMPLEMENTATION_PLAN.md`.
+
+### Milestone 5: Medical Supply Inventory API (Delivered)
+
+- Goal: centralised medical supply inventory REST API with computed stock levels and order history.
+- **Delivered:**
+  - `services/api/app/domains/inventory/` — SQLModel ORM (`MedicalSupply`, `SupplyDelivery`, `SupplyConsumption`) on Supabase PostgreSQL via `get_supabase_db()`; TinyDB auth unchanged.
+  - Six endpoints under `/api/v1/inventory/` — products CRUD (GET public, POST auth), inbound/outbound orders (POST auth), combined order history (GET public).
+  - Stock computed as `SUM(deliveries) − SUM(consumptions)`; negative stock rejected with HTTP 400.
+  - Idempotent inventory seed (6 supplies, 4 deliveries, 3 consumptions) wired into `uv run seed`.
+  - Supabase project **`milestone5_inventory`** (`wqvklsghwmwylucfhzax`, `us-west-2`).
+  - `tests/test_inventory.py` — 12 test cases; full suite **82 passed**.
+- Plan: `memory-bank/references/milestone5_ai_plan/milestone5_backend_implementation_plan.md`.
+
+### Milestone 5: Medical Supply Inventory Frontend (Delivered)
+
+- Goal: backoffice UI for stock visibility, delivery logging, consumption logging, and order history.
+- **Delivered:**
+  - `uis/backoffice/inventory/` — feature module with API layer, hooks, and components (≤80 lines per file).
+  - Landing routes at `/inventory`, `/inventory/products`, `/inventory/orders`, `/inventory/orders/inbound`, `/inventory/orders/outbound`.
+  - `@backoffice/inventory` alias in `landing/next.config.ts` and `landing/tsconfig.json`; Tailwind `@source` in `globals.css`.
+  - Hub nav card after Supplier Directory; `ToolToolbar` layout; "Back to Inventory" on sub-pages.
+  - `npm run verify` passes in `uis/backoffice/landing`.
+- Plan: `memory-bank/references/milestone5_ai_plan/milestone5_frontend_implementation_plan.md`.
+
+### Centralized Incident Manager (Delivered)
+
+- Goal: log, track, and manage patient incidents in the browser with CRUD API and summary dashboard.
+- **Delivered:**
+  - `services/api/app/domains/incidents/` — SQLModel `Incident` on Supabase; five endpoints under `/api/v1/incidents/`; lifecycle validation; `incident_id` column for seed dedupe only.
+  - `scripts/seed_incidents.py` — idempotent CSV seed from plan-folder `incidents-healthcore.csv` (94 valid rows).
+  - Merged `feature/critical_error_handling` global 500 handler into `feature/milestone5`.
+  - `uis/backoffice/incident-manager/` — landing, form, filterable list (status/origin/branch/category), summary dashboard.
+  - Landing routes `/incident-manager/*`; hub nav card after Incident Analyzer.
+  - `tests/test_incidents_mgmt.py` — 16 cases; `tests/test_seed_incidents.py` — 4 cases; backend incidents domain **~90%** coverage; `npm run verify` passes.
+  - **Eval gap fixes:** shared validation in `packages/shared/python/healthcore_incidents/` (API + seed); client form validation in `packages/shared/lib/incident-validation.ts`; seed/idempotency tests; 500 message aligned to spec.
+- Plan: `memory-bank/references/centralized_incident_manager_ai_plan/centralized_incident_manager_implementation_plan.md`.
+
+### Unit test gap coverage (AUTH-088, API-042, FE-019) (Delivered)
+
+- Goal: close pytest and Jest gaps per `memory-bank/references/unit_tests/unit_test_SPECS.md`.
+- **Delivered:**
+  - Root `TESTING.md` — run commands, test plan, coverage results, bugs/AI log.
+  - `services/api/tests/` — 18 new pytest cases (`test_auth.py` +8, `test_incidents.py` +5, `test_suppliers.py` +3 parametrized); **88 passed**, **97%** line coverage.
+  - `uis/website` — Jest + `__tests__/enquiry-validation.test.ts` (22 cases).
+  - `uis/supplier_directory` — Jest + `format.test.ts` and `supplier-filter-params.test.ts` (17 cases).
+  - BUG-001 fixed: weekend preferred-date validation added to `enquiry-validation.ts`.
+- Plan: `memory-bank/references/unit_tests/unit_test_IMPLEMENTATION_PLAN.md`.
+
 ## Future Feature Additions
 
-- Expand `services/api` per architecture proposal (Supabase, remaining domains in doc §12); opaque session tokens for HIPAA (SPECS follow-up).
+- Expand `services/api` per architecture proposal (remaining domains in doc §12); opaque session tokens for HIPAA (SPECS follow-up).
 - Expand reusable shared logic and typing between migrated milestone 1 and existing milestone 3 apps.
 - Extend milestone 2 function usage in UI workflows where validated logic improves data quality.
 - Improve cross-app bilingual consistency and content governance.

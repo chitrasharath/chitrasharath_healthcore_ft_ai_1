@@ -1,5 +1,11 @@
 # Dependencies
 node_modules/
+.venv/
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
 
 # Next.js
 .next/
@@ -14,6 +20,7 @@ apps/dist/
 .env.*
 !.env.example
 !.env*.example
+.cursor/mcp.json
 
 # Logs and debug
 npm-debug.log*
@@ -35,6 +42,12 @@ Thumbs.db
 
 # Test coverage
 coverage/
+.coverage
+coverage.json
+services/api/.coverage
+services/api/coverage.json
+pytestdebug.log
+.pytest_cache/
 
 # Misc
 *.pem
