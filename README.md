@@ -155,11 +155,33 @@ After dependency changes (`package.json` / `pyproject.toml`): `docker compose up
 
 Local non-Docker dev uses ports **3004/3005** (backoffice/website) and **8000** (API). Do not run `npm run dev` or `uv run uvicorn` on the same ports while Docker is up.
 
+### Disk space
+
+The UI image runs `npm ci` for six apps and needs several GB free during `docker compose up --build`. On small Codespaces disks, failed builds can fill the volume with cache and anonymous volumes.
+
+Keep **at least 5–6 GB free** before building. When done with Docker for the day:
+
+```bash
+docker compose down -v
+```
+
+If a build fails with `ENOSPC: no space left on device`, prune unused Docker data from the repo root:
+
+```bash
+docker compose down -v          # stop stack and remove anonymous volumes
+docker builder prune -af        # clear build cache (largest win after failed builds)
+docker volume prune -f          # remove unused volumes
+docker image prune -af          # optional — remove unused images if still tight
+df -h /workspaces               # confirm free space before rebuilding
+docker compose up --build
+```
+
 ### Troubleshooting
 
 | Symptom | Fix |
 |---------|-----|
-| Port already in use | Stop the conflicting local dev server |
+| Port already in use | Stop the conflicting local dev server or run `docker compose down` |
+| Build fails with `ENOSPC` / no space left on device | See [Disk space](#disk-space) — prune, then `docker compose up --build` |
 | API exits immediately | Ensure `SECRET_KEY` and `JWT_EXPIRE_MINUTES` are set in `.env` |
 | Backoffice webpack module errors | `docker compose up --build`; if persistent, `docker compose down -v` |
 | Hot reload not working | Uncomment `WATCHPACK_POLLING=true` in `.env`, restart `ui` |

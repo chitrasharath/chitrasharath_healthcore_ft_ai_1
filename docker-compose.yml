@@ -8,6 +8,9 @@ services:
     volumes:
       - ./services:/app/services
       - ./packages:/app/packages
+      - ./scripts:/app/scripts
+      - ./memory-bank:/app/memory-bank
+      - ./uis:/app/uis
     env_file:
       - .env
     networks:
