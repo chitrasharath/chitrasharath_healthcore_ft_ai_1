@@ -51,7 +51,7 @@ export const NAV_APPS: NavApp[] = [
   {
     title: "Public Website",
     description: "HealthCore public-facing website",
-    url: "http://localhost:3005",
+    url: process.env.NEXT_PUBLIC_WEBSITE_URL ?? "http://localhost:3005",
     protected: false,
   },
 ];
