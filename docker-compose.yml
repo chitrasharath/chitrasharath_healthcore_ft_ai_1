@@ -42,6 +42,24 @@ services:
     networks:
       - healthcore_net
 
+  test:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+    volumes:
+      - ./services:/app/services
+      - ./packages:/app/packages
+      - ./scripts:/app/scripts
+      - ./memory-bank:/app/memory-bank
+      - ./uis:/app/uis
+    env_file:
+      - .env
+    command: ["uv", "run", "pytest"]
+    profiles:
+      - test
+    networks:
+      - healthcore_net
+
 networks:
   healthcore_net:
     name: healthcore_net

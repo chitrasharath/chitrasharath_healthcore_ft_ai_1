@@ -1,3 +1,5 @@
+import { PUBLIC_WEBSITE_URL } from "@/lib/public-website-url";
+
 export type NavApp = {
   title: string;
   description: string;
@@ -51,7 +53,7 @@ export const NAV_APPS: NavApp[] = [
   {
     title: "Public Website",
     description: "HealthCore public-facing website",
-    url: process.env.NEXT_PUBLIC_WEBSITE_URL ?? "http://localhost:3005",
+    url: PUBLIC_WEBSITE_URL,
     protected: false,
   },
 ];

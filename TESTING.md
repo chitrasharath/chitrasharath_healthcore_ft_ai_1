@@ -35,6 +35,10 @@ uv run pytest --cov=app --cov-report=term-missing
 Inside Docker:
 
 ```bash
+# One-off — stack not required
+docker compose --profile test run --rm test
+
+# Stack already running
 docker compose exec api uv run pytest
 ```
 

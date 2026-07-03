@@ -125,7 +125,7 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision: Never expose `patient_id` or row-level PHI in CLI output, API JSON, logs, or export CSV — aggregate counts only.
 - Why: HIPAA / UK GDPR compliance requirement from stakeholders (Priya Nair, James Osei).
 
-## Supplier Directory (Milestone 09)
+## Supplier Directory
 
 - Decision: Use TinyDB JSON store at `services/api/db.json` as interim persistence (Postgres migration deferred per James Osei).
 - Why: Lightweight storage for immediate delivery; aligns with SPECS milestone 09 scope.
@@ -188,7 +188,7 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision: Navigation cards on backoffice landing (`/`) are **hidden until the user is logged in**; logged-out visitors see a public staff-portal info section instead (no internal tool URLs).
 - Why: Stakeholder UX — internal app links should not be exposed to unauthenticated users; public view provides context and link to patient website only.
 
-- Decision: Consolidate internal tools as **same-origin routes** on landing (`3004`); deprecate standalone dev servers on 3000–3003.
+- Decision: Consolidate internal tools as **same-origin routes** on landing (`3001`); deprecate standalone dev servers on 3000–3003 (legacy multi-port era).
 - Why: Eliminates cross-port `localStorage` / `?token=` handoff and logout chains; single `AuthGuard`.
 
 - Decision: Hybrid import model — feature UI in sibling folders (`uis/incident_analyzer`, `uis/supplier_directory`, `uis/backoffice/backoffice_functions`, `uis/backoffice/talent-tracker`); landing owns App Router routes.
@@ -206,8 +206,12 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision: Pytest forces **`EMAIL_API_KEY=""`** in `tests/conftest.py` so password-reset tests use stdout fallback regardless of developer `.env`.
 - Why: Resend sandbox rejects non-owner recipients; tests must not depend on external email delivery.
 
-- Decision: Public website dev server runs on port **3005** (`uis/website/package.json`).
-- Why: Locked port map — backoffice landing on 3004, public site on 3005.
+- Decision: Public website dev server runs on port **3000** (`uis/website/package.json`); backoffice landing on **3001**.
+- Why: Unified port map for local `npm run dev` and Docker Compose — single mental model; public website links on landing resolve without env overrides.
+
+- Decision: Unify local and Docker UI ports (3000 website, 3001 backoffice), superseding the prior 3004/3005 local-only map.
+- Why: Fixes backoffice public-website links in both auth states; eliminates `NEXT_PUBLIC_WEBSITE_URL` workaround for the common case.
+- Tradeoff: Cannot run Docker UI stack and local `npm run dev` UI simultaneously (API port 8000 conflict remains either way).
 
 ## Milestone 5 — Inventory Backend
 
@@ -232,7 +236,7 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 ## Milestone 5 — Inventory Frontend
 
 - Decision: Feature module at **`uis/backoffice/inventory/`** aliased into landing (`@backoffice/inventory`) — same hybrid pattern as talent-tracker.
-- Why: Reuse landing auth/routing without a standalone dev server; single port 3004.
+- Why: Reuse landing auth/routing without a standalone dev server; single port 3001.
 
 - Decision: **ToolToolbar only** in inventory layout; footer from root `ConditionalLandingFooter` (not duplicated per-page).
 - Why: Matches supplier-directory / incident-analyzer; stakeholder Q&A 2026-07-01.
@@ -267,7 +271,7 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Why: Handler already delivered on that branch.
 
 - Decision: Feature module **`uis/backoffice/incident-manager/`** with same landing alias / ToolToolbar / ≤80-line component split as inventory.
-- Why: Established backoffice hybrid pattern on port 3004.
+- Why: Established backoffice hybrid pattern on port 3001.
 
 - Decision: Incident validation extracted to **`packages/shared/python/healthcore_incidents/`** (`healthcore-incidents-shared` uv package); API and `scripts/seed_incidents.py` import shared validators/constants; `analysis_core.py` reuses CSV validation from shared package. Client form validation in **`packages/shared/lib/incident-validation.ts`**.
 - Why: Central Incident Manager eval criteria require shared validation without duplication across script, API, and frontend.
@@ -286,7 +290,7 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision: **Proactive `npm ci`** for all six active UI apps at image build time with anonymous volumes per `node_modules`.
 - Why: First-run reliability for aliased backoffice modules.
 
-- Decision: Root `.env` + `.env.example` for Docker; `services/api/.env` remains for local non-Docker workflow. `JWT_EXPIRE_MINUTES=15` in Docker env.
+- Decision: Root `.env` + `.example.env` for Docker; `services/api/.env` from `services/api/.example.env` for local non-Docker API. Manual backoffice dev: `uis/backoffice/landing/.example.env` → `.env.local` only — aliased modules and `uis/website` do not need their own env files in normal workflow. `JWT_EXPIRE_MINUTES=15` in Docker env.
 - Why: Stakeholder clarification; Compose injects process env — no per-app `.env.local` needed in Docker.
 
 - Decision: `NEXT_PUBLIC_*` URLs use `localhost` (browser-facing); `API_URL_INTERNAL` uses `http://api:8000/api/v1` for container-to-container calls.
@@ -294,3 +298,6 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 
 - Decision: npm-workspaces conversion and `@repo/shared-types` rename deferred post-#infra-40.
 - Why: Explicit out-of-scope per plan.
+
+- Decision: Add Compose **`test` profile** service reusing API image/volumes; default command `uv run pytest`. Does not start with `docker compose up`.
+- Why: One-shot pytest without requiring the dev stack to be running; `docker compose exec api uv run pytest` retained for iterative dev.

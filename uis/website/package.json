@@ -6,7 +6,7 @@
     "node": ">=20.9"
   },
   "scripts": {
-    "dev": "next dev --port 3005",
+    "dev": "next dev --port 3000",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
