@@ -59,8 +59,15 @@ export const useProfileForm = () => {
       setUser(updated);
       setName(updated.name);
       setSaved(true);
-    } catch {
-      // 401 redirect handled by apiFetch
+    } catch (err) {
+      if (err instanceof Error && err.message === "Unauthorized") {
+        return;
+      }
+      setError(
+        err instanceof Error && err.message
+          ? err.message
+          : "Could not save profile. Please try again.",
+      );
     } finally {
       setSaving(false);
     }

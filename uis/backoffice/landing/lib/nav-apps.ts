@@ -1,21 +1,41 @@
+import { PUBLIC_WEBSITE_URL } from "@/lib/public-website-url";
+
 export type NavApp = {
   title: string;
   description: string;
   url: string;
   protected: boolean;
+  tag?: string;
+  tagVariant?: "new" | "deprecated";
 };
 
 export const NAV_APPS: NavApp[] = [
   {
     title: "Incident Analyzer",
-    description: "Patient incident report analysis dashboard",
+    description: "Legacy CSV upload and incident report analysis dashboard",
     url: "/incident-analyzer",
     protected: true,
+    tag: "To be deprecated",
+    tagVariant: "deprecated",
+  },
+  {
+    title: "Incident Manager",
+    description: "Log, track, and manage patient incidents across all clinics",
+    url: "/incident-manager",
+    protected: true,
+    tag: "New",
+    tagVariant: "new",
   },
   {
     title: "Supplier Directory",
     description: "Manage and search healthcare suppliers",
     url: "/supplier-directory",
+    protected: true,
+  },
+  {
+    title: "Inventory Management",
+    description: "Track medical supply stock, deliveries, and clinical consumption",
+    url: "/inventory",
     protected: true,
   },
   {
@@ -33,7 +53,7 @@ export const NAV_APPS: NavApp[] = [
   {
     title: "Public Website",
     description: "HealthCore public-facing website",
-    url: "http://localhost:3005",
+    url: PUBLIC_WEBSITE_URL,
     protected: false,
   },
 ];

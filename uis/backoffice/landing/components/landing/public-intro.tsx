@@ -1,4 +1,4 @@
-const PUBLIC_WEBSITE_URL = "http://localhost:3005";
+import { PUBLIC_WEBSITE_URL } from "@/lib/public-website-url";
 
 const BULLETS = [
   "Secure access to internal dashboards and operational tools",

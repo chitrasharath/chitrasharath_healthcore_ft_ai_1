@@ -2,11 +2,16 @@
   "name": "healthcore-supplier-directory",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9"
+  },
   "scripts": {
     "dev": "next dev --webpack --port 3003",
     "build": "next build --webpack",
     "start": "next start --port 3003",
     "lint": "eslint",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
     "verify": "npm run lint && npm run build"
   },
   "dependencies": {
@@ -16,12 +21,15 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "jest": "^30.4.2",
     "tailwindcss": "^4",
+    "ts-jest": "^29.4.11",
     "typescript": "^5"
   }
 }

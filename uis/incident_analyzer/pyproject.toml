@@ -4,8 +4,12 @@ version = "0.1.0"
 description = "HealthCore patient incident CSV analysis CLI"
 requires-python = ">=3.12"
 dependencies = [
+    "healthcore-incidents-shared",
     "pandas>=2.0.0",
 ]
+
+[tool.uv.sources]
+healthcore-incidents-shared = { path = "../../packages/shared/python", editable = true }
 
 [project.scripts]
 analyze = "analyze:main"

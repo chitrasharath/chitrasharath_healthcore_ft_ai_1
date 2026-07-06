@@ -1,0 +1,65 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./services:/app/services
+      - ./packages:/app/packages
+      - ./scripts:/app/scripts
+      - ./memory-bank:/app/memory-bank
+      - ./uis:/app/uis
+    env_file:
+      - .env
+    networks:
+      - healthcore_net
+
+  ui:
+    build:
+      context: ./uis
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+    volumes:
+      - ./uis:/app/uis
+      - ./packages:/app/packages
+      - ./apps:/app/apps
+      - /app/uis/website/node_modules
+      - /app/uis/backoffice/landing/node_modules
+      - /app/uis/backoffice/backoffice_functions/node_modules
+      - /app/uis/backoffice/talent-tracker/node_modules
+      - /app/uis/incident_analyzer/node_modules
+      - /app/uis/supplier_directory/node_modules
+      - /app/uis/website/.next
+      - /app/uis/backoffice/landing/.next
+    env_file:
+      - .env
+    depends_on:
+      - api
+    networks:
+      - healthcore_net
+
+  test:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+    volumes:
+      - ./services:/app/services
+      - ./packages:/app/packages
+      - ./scripts:/app/scripts
+      - ./memory-bank:/app/memory-bank
+      - ./uis:/app/uis
+    env_file:
+      - .env
+    command: ["uv", "run", "pytest"]
+    profiles:
+      - test
+    networks:
+      - healthcore_net
+
+networks:
+  healthcore_net:
+    name: healthcore_net

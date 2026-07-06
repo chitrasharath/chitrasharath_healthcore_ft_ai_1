@@ -1,7 +1,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
-import { apiFetch, verifyCredentials, type UserProfile } from "@/lib/api";
+import { apiFetch, NETWORK_ERROR_MESSAGE, verifyCredentials, type UserProfile } from "@/lib/api";
 
 export type ChangePasswordFieldErrors = {
   currentPassword?: string;
@@ -9,6 +9,10 @@ export type ChangePasswordFieldErrors = {
   confirmPassword?: string;
   form?: string;
 };
+
+const VERIFY_SERVER_ERROR =
+  "Could not verify your current password. The sign-in service may be unavailable — try again.";
+const SAVE_PASSWORD_ERROR = "Could not save your new password. Please try again.";
 
 const validateClient = (currentPassword: string, newPassword: string, confirmPassword: string) => {
   const errors: ChangePasswordFieldErrors = {};
@@ -67,31 +71,39 @@ export const useChangePasswordForm = () => {
     setSubmitting(true);
     setSuccess(false);
 
-    const verifyResult = await verifyCredentials(user.email, currentPassword);
-    if (verifyResult === "invalid") {
-      setFieldErrors({ currentPassword: "Current password is incorrect." });
-      setSubmitting(false);
-      return;
-    }
-    if (verifyResult === "error") {
-      setFieldErrors({ form: "Something went wrong. Please try again." });
-      setSubmitting(false);
-      return;
-    }
-
     try {
+      const verifyResult = await verifyCredentials(user.email, currentPassword);
+      if (verifyResult === "invalid") {
+        setFieldErrors({ currentPassword: "Current password is incorrect." });
+        return;
+      }
+      if (verifyResult === "network") {
+        setFieldErrors({ form: NETWORK_ERROR_MESSAGE });
+        return;
+      }
+      if (verifyResult === "server_error") {
+        setFieldErrors({ form: VERIFY_SERVER_ERROR });
+        return;
+      }
+
       const response = await apiFetch(`/users/${user.id}`, {
         method: "PUT",
         body: JSON.stringify({ password: newPassword }),
       });
       if (!response.ok) {
-        setFieldErrors({ form: "Something went wrong. Please try again." });
+        setFieldErrors({ form: SAVE_PASSWORD_ERROR });
         return;
       }
       setSuccess(true);
       window.setTimeout(() => router.push("/account/profile"), 1200);
-    } catch {
-      setFieldErrors({ form: "Something went wrong. Please try again." });
+    } catch (err) {
+      if (err instanceof Error && err.message === "Unauthorized") {
+        return;
+      }
+      setFieldErrors({
+        form:
+          err instanceof Error && err.message ? err.message : SAVE_PASSWORD_ERROR,
+      });
     } finally {
       setSubmitting(false);
     }

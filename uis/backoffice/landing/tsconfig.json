@@ -20,7 +20,10 @@
       "@backoffice/incident-analyzer/*": ["../../incident_analyzer/*"],
       "@backoffice/supplier-directory/*": ["../../supplier_directory/*"],
       "@backoffice/talent-tracker/*": ["../talent-tracker/*"],
+      "@backoffice/inventory/*": ["../inventory/*"],
+      "@backoffice/incident-manager/*": ["../incident-manager/*"],
       "@backoffice/shared/*": ["../shared/*"],
+      "@repo/shared/*": ["../../../packages/shared/*"],
       "@healthcore/src/*": ["../../../apps/src/*"]
     }
   },
