@@ -9,7 +9,7 @@ The API uses **two databases**:
 | Database | Purpose | Access |
 |----------|---------|--------|
 | **TinyDB** (`db.json`) | Users, auth tokens, suppliers | `get_db()` |
-| **Supabase (PostgreSQL)** | Medical supplies, deliveries, consumptions | `get_supabase_db()` |
+| **Supabase (PostgreSQL)** | Medical supplies, incidents (CRUD), deliveries, consumptions | `get_supabase_db()` |
 
 Inventory stock is **computed**, never stored: `SUM(deliveries) − SUM(consumptions)`.
 
@@ -32,14 +32,14 @@ Optional:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `CORS_ORIGINS` | `http://localhost:3004,http://localhost:3005` | Comma-separated allowed origins |
+| `CORS_ORIGINS` | `http://localhost:3000,http://localhost:3001` | Comma-separated allowed origins |
 | `EMAIL_API_KEY` | (empty) | Resend API key; when empty, reset links print to stdout |
-| `FRONTEND_URL` | `http://localhost:3004` | Base URL for password-reset email links |
-| `DATABASE_URL` | (empty) | Supabase PostgreSQL URI for inventory; required for live inventory routes and seed |
+| `FRONTEND_URL` | `http://localhost:3001` | Base URL for password-reset email links |
+| `DATABASE_URL` | (empty) | Supabase PostgreSQL URI; required for inventory, incident manager, and related seed |
 
 ### Supabase (`DATABASE_URL`)
 
-Inventory data lives in Supabase project **`milestone5_inventory`**. Copy the **Transaction pooler** URI from Supabase Dashboard → Project Settings → Database.
+Inventory and incident-manager data live in Supabase project **`milestone5_inventory`**. Copy the **Transaction pooler** URI from Supabase Dashboard → Project Settings → Database.
 
 ```env
 DATABASE_URL=postgresql://postgres.[ref]:[url-encoded-password]@aws-1-us-west-2.pooler.supabase.com:6543/postgres
@@ -102,8 +102,14 @@ Plans: [`IMPLEMENTATION_PLAN_auth_1.md`](../../memory-bank/references/authentica
 | `/api/v1/users/{id}` | GET | Yes | Get user by id |
 | `/api/v1/users/{id}` | PUT | Yes | Update own record only (`403` otherwise) |
 | `/api/v1/users/{id}` | DELETE | Yes | Delete user (`204`) |
-| `/api/v1/incidents/analyze` | POST | Yes | Upload incident CSV |
-| `/api/v1/incidents/results/export` | GET | Yes | Export last analysis CSV |
+| `/api/v1/incidents/analyze` | POST | Yes | Upload incident CSV for aggregate analysis |
+| `/api/v1/incidents/results/export` | GET | Yes | Export last CSV analysis results |
+| `/api/v1/incidents` | POST | Yes | Create incident (incident manager) |
+| `/api/v1/incidents` | GET | Yes | List incidents (`?status`, `?origin`, `?branch`, `?category`) |
+| `/api/v1/incidents/summary` | GET | Yes | Summary dashboard counts |
+| `/api/v1/incidents/{id}` | GET | Yes | Incident detail |
+| `/api/v1/incidents/{id}` | PATCH | Yes | Update incident fields |
+| `/api/v1/incidents/{id}/status` | PATCH | Yes | Update incident status |
 | `/api/v1/suppliers` | GET, POST | Yes | List or register suppliers |
 | `/api/v1/suppliers/{id}` | GET, DELETE | Yes | Supplier detail; DELETE soft-suspends |
 | `/api/v1/suppliers/{id}/rate` | PATCH | Yes | Update monthly rate |
@@ -118,7 +124,7 @@ Plans: [`IMPLEMENTATION_PLAN_auth_1.md`](../../memory-bank/references/authentica
 
 Inventory plans: [`milestone5_backend_implementation_plan.md`](../../memory-bank/references/milestone5_ai_plan/milestone5_backend_implementation_plan.md), [`milestone5_frontend_implementation_plan.md`](../../memory-bank/references/milestone5_ai_plan/milestone5_frontend_implementation_plan.md)
 
-Backoffice UI: `/inventory` on landing (`uis/backoffice/landing/`, port **3004**). Module source: `uis/backoffice/inventory/`.
+Backoffice UI: `/inventory` on landing (`uis/backoffice/landing/`, port **3001**). Module source: `uis/backoffice/inventory/`.
 
 ### Example flow
 

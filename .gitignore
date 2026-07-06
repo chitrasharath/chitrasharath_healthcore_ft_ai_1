@@ -19,6 +19,7 @@ apps/dist/
 .env
 .env.*
 !.env.example
+!.example.env
 !.env*.example
 .cursor/mcp.json
 

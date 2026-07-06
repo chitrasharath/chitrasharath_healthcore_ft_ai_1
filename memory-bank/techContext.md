@@ -1,5 +1,53 @@
 # Technical Context
 
+## Monorepo layout
+
+| Path | Role |
+|------|------|
+| `uis/website/` | Public Next.js portal (M1/M4) |
+| `uis/backoffice/landing/` | Backoffice hub — auth + all internal tool routes (M5) |
+| `uis/backoffice/*` | Feature modules aliased into landing (inventory, incident-manager, talent-tracker, etc.) |
+| `uis/incident_analyzer/` | Shared Python analysis core + deprecated standalone UI |
+| `uis/supplier_directory/` | Supplier UI components (served via landing) |
+| `services/api/` | FastAPI modular monolith (M5) |
+| `apps/` | Legacy M1 static portal, M2 TypeScript utils, frozen M3 tracker copy |
+| `packages/shared/` | Shared TypeScript and Python validation/types |
+| `scripts/` | Seeding, version checks, utilities |
+| `memory-bank/` | Agent bootstrap and milestone context |
+| `docs/` | Cross-cutting architecture documentation |
+
+Docker Compose: `api` + `ui` services; optional `test` profile for pytest. Root env template: `.example.env` → copy to `.env`.
+
+## Local development ports
+
+| Port | Service |
+|------|---------|
+| **3000** | `uis/website` (public) |
+| **3001** | `uis/backoffice/landing` (hub + all tool routes) |
+| **8000** | `services/api` (FastAPI) |
+
+Do not run Docker UI and local `npm run dev` on the same ports simultaneously. See [README.md](../README.md) § Manual development.
+
+## Manual development workflow
+
+Three local processes (API required for backoffice):
+
+1. **API** — `cd services/api && cp .example.env .env && uv sync --extra dev && uv run uvicorn app.main:app --reload --port 8000`
+2. **Backoffice** — `cd uis/backoffice/landing && cp .example.env .env.local && npm install && npm run dev`
+3. **Website** — `cd uis/website && npm install && npm run dev`
+
+Env files: manual API uses `services/api/.env`; backoffice landing uses `.env.local` (from `cp .example.env .env.local`); `uis/website` needs no env file. Docker uses root `.env` from `cp .example.env .env`.
+
+## Docker testing
+
+| Use case | Command |
+|----------|---------|
+| One-off pytest (stack not required) | `docker compose --profile test run --rm test` |
+| With coverage | `docker compose --profile test run --rm test uv run pytest --cov=app --cov-report=term-missing` |
+| Against running stack | `docker compose exec api uv run pytest` |
+
+Inventory tests use in-memory SQLite (`DATABASE_URL=""` in test config); live Supabase is not required for pytest. See [TESTING.md](../TESTING.md) for local and Jest commands.
+
 ## Tech Stack
 
 ### Milestone 1 (Legacy — retained)
@@ -7,9 +55,9 @@
 - Static pages: `apps/healthcore_web_portal/index.html`, `application.html`, `validation.js`
 - No framework; client-side validation only
 
-### Milestone 1 (Migrated — `uis/website`)
-- Next.js 16.2.6 (App Router) with TypeScript and Tailwind CSS v4 via PostCSS
-- React 19 functional components (target ≤80 lines per component file)
+### Milestone 1 / Milestone 4 (Primary public app — `uis/website`)
+- Next.js 16 (App Router) with TypeScript and Tailwind CSS v4 via PostCSS
+- React 19 functional components (≤80 lines per component file)
 - Routes: `/` (landing), `/enquiry-form` (patient enquiry)
 - Bilingual EN/ES: `lib/i18n/translations.ts`, `LanguageProvider`, `?lang=` + `localStorage`
 - No backend; form submit shows success modal only (parity with legacy)
@@ -20,76 +68,52 @@
 - Node.js for CLI/test execution
 - Modular code structure: models, collections, search, transformations, validations
 - Location: `apps/src/` — CLI, tests, legacy browser page (`index.html` + compiled `dist/main.js`)
-- **Internal manual test UI:** `uis/backoffice/backoffice_functions/` — imports utils/types via `@healthcore/src/*`; registry/fixtures copied to `lib/`
-
-### Milestone 2 Backoffice (`uis/backoffice/backoffice_functions`)
-- Next.js 16.2.6 (App Router) with TypeScript and Tailwind CSS v4 via PostCSS
-- React 19 client components (≤80 lines per file)
-- Single route `/` — M2 function manual test dashboard; sky/teal styling aligned with `uis/website`
-- Parent folder `uis/backoffice/` for additional internal apps
-- Import pattern: `@healthcore/src/*` → `../../../apps/src/*` in `tsconfig.json`
-- Bundler: webpack with `extensionAlias` for `apps/src` `.js` import specifiers; `turbopack.root` set to repo root
-- Verification: `cd uis/backoffice/backoffice_functions && npm run verify`
-- Dev: `npm run dev` (webpack, port 3001)
+- **Internal manual test UI:** served via landing `/backoffice-functions` (`uis/backoffice/backoffice_functions/`); imports utils via `@healthcore/src/*`
 
 ### Milestone 3
 - Next.js 16 (App Router) with TypeScript and Tailwind CSS
-- React functional components
-- API integration with Talent Tracker API
-- Mobile-first responsive design
-- Location: `apps/talent-pipeline-tracker/`
+- React functional components; mobile-first responsive design
+- API integration with Talent Tracker API (`NEXT_PUBLIC_TRACKER_API_URL`)
+- **Canonical location:** `uis/backoffice/talent-tracker/` via landing `/talent-tracker`
+- **Frozen legacy:** `apps/talent-pipeline-tracker/` — unmaintained, not part of Docker
 
-### Milestone 4
-- Migration target: `uis/website/` (new top-level `uis/` folder)
-- Legacy reference: `apps/healthcore_web_portal/` (do not delete until explicit cutover)
-- Patterns aligned with `apps/talent-pipeline-tracker/`
-- M2 utility integration planned as a follow-up phase
+### Milestone 5 (Backend and internal ops platform)
+- **API:** `services/api` — FastAPI + Pydantic v2; managed with `uv sync` / `uv run pytest`
+- **Databases:** TinyDB (`db.json`) for users, auth, suppliers; Supabase PostgreSQL for inventory and incident manager
+- **Auth:** JWT HS256; `healthcoreFetch` in `uis/backoffice/shared/` for Bearer injection
+- **Backoffice:** landing on `:3001` with hybrid `externalDir` imports from sibling feature folders
+- **Incident analysis:** shared `uis/incident_analyzer/analysis_core.py` (CLI + API)
+- **Shared validation:** `packages/shared/python/` and `packages/shared/lib/`
+- **Docker:** Compose `ui` + `api`; `test` profile for one-shot pytest
 
 ## Architectural Decisions Made
 
 ### Milestone 1 (Legacy)
-- Two-page static site: landing page and application form
-- Shared header, footer, and navigation
-- All validation and interactivity handled client-side
-- Schema.org markup for SEO and compliance
+- Two-page static site: landing page and application form with shared navigation
+- Client-side validation and Schema.org markup
 
-### Milestone 1 (Migrated — `uis/website`)
-- App Router with `app/page.tsx` and `app/enquiry-form/page.tsx`
-- Shared chrome in `components/layout/`; landing sections in `components/landing/`
-- Enquiry UI in `components/enquiry/`; validation in `lib/enquiry-validation.ts`
-- JSON-LD in `components/schema-org/`
-- Footer in root `app/layout.tsx`; header per page
+### Milestone 1 / Milestone 4 (`uis/website`)
+- App Router; enquiry route `/enquiry-form` (not `/application`)
+- Validation in `lib/enquiry-validation.ts`; M2 `apps/src` import deferred
 
 ### Milestone 2
-- Strong typing and validation for all business entities
-- Pure functions for all calculations and data transformations
-- Test harness and CLI for validation and verification
-- Internal Next.js manual test UI at `uis/backoffice/backoffice_functions` reuses utils without moving source
-
-### Milestone 2 Backoffice (`uis/backoffice/backoffice_functions`)
-- App Router with client `ManualTestPage` at `app/page.tsx`
-- Hook: `hooks/use-manual-test-runner.ts`; UI split under `components/manual-test/`
-- Copied layer: `lib/sample-data.ts`, `lib/operations-registry.ts`, `lib/operation-types.ts`
-- No auth in v1; internal dashboard only
+- Typed utility modules with pure functions and deterministic calculations
+- Manual test UI reuses `apps/src` via `@healthcore/src/*` path alias
 
 ### Milestone 3
-- SPA architecture with route-level pages for candidate management
-- State management via React hooks and URL query params
-- All API calls handled with async/await
-- No third-party UI libraries (custom components only)
+- URL-driven filtering/search; custom components only; async/await API calls
 
-### Milestone 4
-- New app at `uis/website` rather than in-place edit of `apps/healthcore_web_portal`
-- Legacy portal retained side-by-side for regression comparison
-- Enquiry route named `/enquiry-form` (not `/application`)
-- M2 `apps/src` import deferred; form rules ported from `validation.js` into `uis/website`
+### Milestone 5
+- Same-origin backoffice on landing `:3001` — single `AuthGuard`, no cross-port tokens
+- Dual-database API: TinyDB + Supabase
+- Feature modules as sibling folders aliased into landing webpack build
+- See [decisions.md](decisions.md) for full decision log
 
 ## Technical Constraints
 
 - Accessibility and responsive design required throughout
 - All styling via Tailwind CSS (no custom CSS unless necessary)
-- No backend or database for public portal; all data is client-side
-- For milestone 2, logic must be deterministic and testable
-- For milestone 3 and `uis/website`, components should be ≤80 lines and functional
-- No third-party UI component libraries on Next.js apps
-- No Tailwind CDN in `uis/website` (build pipeline only)
+- **No backend** for public portal / enquiry form — client-side only
+- M2 logic must be deterministic and testable
+- Next.js components ≤80 lines and functional; no third-party UI libraries
+- Python toolchain: `uv` only for `services/api` and incident CLI — no `requirements.txt`

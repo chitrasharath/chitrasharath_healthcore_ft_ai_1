@@ -19,6 +19,17 @@ HealthCore is an outpatient healthcare network founded in Austin, Texas, operati
 - Enable candidate listing, filtering, detail review, stage/status updates, note workflows, and new candidate creation.
 - Integrate with the Talent Tracker API contract while handling documented schema and behavior mismatches.
 
+### Milestone 4: Public Portal Migration
+- Migrate the milestone 1 public web portal to Next.js at `uis/website` with bilingual landing and structured enquiry.
+- Retain legacy static portal (`apps/healthcore_web_portal/`) for side-by-side comparison until explicit cutover.
+- Align public site stack with internal Next.js apps for maintainability.
+
+### Milestone 5: Backend and Internal Operations Platform
+- Deliver FastAPI modular monolith at `services/api` with JWT authentication and password reset.
+- Provide incident CSV analysis, centralized incident management, supplier registry, and medical supply inventory.
+- Consolidate internal tools on a single backoffice landing app (port 3001) with same-origin routing.
+- Containerize local development with Docker Compose and documented test workflows.
+
 ## Project Vision and Objectives
 
 The project vision is to incrementally modernize HealthCore operations through milestone-driven product delivery, moving from a public-facing trust and access layer to internal operational intelligence and team workflows.
@@ -35,10 +46,13 @@ The project vision is to incrementally modernize HealthCore operations through m
 - Improve recruiting execution speed and data quality with a dedicated candidate workflow application.
 - Objective: centralize candidate lifecycle actions in a responsive web interface integrated with backend APIs.
 
-### Milestone 4 Placeholder (Planned)
-- Scope placeholder: milestone 1 and milestone 2 migration.
-- Intent: migrate and consolidate milestone 1 and milestone 2 app workflows into the next implementation phase.
-- Detailed architecture, sequencing, and acceptance criteria to be defined during milestone 4 planning.
+### Milestone 4 Vision
+- Deliver a modern public web experience on the same framework as internal apps.
+- Objective: enable safe migration from the legacy static portal without functional regression.
+
+### Milestone 5 Vision
+- Unify internal tooling for Patient Experience, procurement, and clinic operations behind authenticated APIs.
+- Objective: replace fragmented spreadsheets and siloed tools with a consolidated backoffice hub and centralized data services.
 
 ## Target Users
 
@@ -57,9 +71,16 @@ The project vision is to incrementally modernize HealthCore operations through m
 - Hiring stakeholders who need fast candidate status visibility and note history.
 - Operations users who need mobile-first and desktop-capable workflows.
 
-### Milestone 4 Target Users (Placeholder)
-- Internal product and engineering teams responsible for migration execution.
-- Operational stakeholders dependent on continuity between existing milestone 1 and 2 capabilities and migrated implementations.
+### Milestone 4 Target Users
+- Prospective and returning patients using the public website.
+- Front-desk and patient experience teams receiving structured enquiry submissions.
+- HealthCore Digital engineers maintaining the migrated Next.js portal.
+
+### Milestone 5 Target Users
+- Patient Experience teams analyzing and managing incident data.
+- Procurement and compliance staff using the supplier directory.
+- Clinic operations staff logging inventory deliveries and consumption.
+- HealthCore Digital engineering and authenticated backoffice users.
 
 ## Problem the Project Solves
 
@@ -75,6 +96,14 @@ The project vision is to incrementally modernize HealthCore operations through m
 - Recruiting workflows were fragmented and inefficient across candidate review, updates, and note management.
 - The organization needed a responsive, API-connected application to manage end-to-end candidate progression.
 
-### Milestone 4 Problem Statement (Placeholder)
-- Milestone 1 and milestone 2 capabilities currently live in separate implementations and require migration alignment.
-- Milestone 4 will address consolidation and migration continuity without functional regression.
+### Milestone 4 Problem
+- The legacy static portal was hard to maintain and inconsistent with the internal app stack.
+- Migration required framework parity without breaking public-facing behaviour.
+
+### Milestone 5 Problem
+- Operational data lived in departmental spreadsheets and disconnected tools.
+- Teams needed centralized APIs, audit-friendly supplier and inventory records, and HIPAA-safe incident reporting in a single authenticated backoffice experience.
+
+## Repository Scope
+
+This monorepo delivers HealthCore Digital milestone work across `uis/`, `services/api`, `apps/`, and shared packages. Business narrative and stakeholder context live in [CONTEXT.md](../CONTEXT.md). Delivery status and technical detail are in [progress.md](progress.md) and [techContext.md](techContext.md).

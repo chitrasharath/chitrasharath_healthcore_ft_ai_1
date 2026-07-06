@@ -5,12 +5,12 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     app_env: str = "development"
-    cors_origins: str = "http://localhost:3004,http://localhost:3005"
+    cors_origins: str = "http://localhost:3000,http://localhost:3001"
     incident_analyzer_path: str = "../../uis/incident_analyzer"
     secret_key: str
     jwt_expire_minutes: int
     email_api_key: str = ""
-    frontend_url: str = "http://localhost:3004"
+    frontend_url: str = "http://localhost:3001"
     database_url: str = ""
 
     @property

@@ -1,17 +1,19 @@
 # HealthCore Backoffice
 
-Internal backoffice umbrella folder for HealthCore Digital operational tools. All tools are served as **same-origin routes** on the landing app (`uis/backoffice/landing/`, port **3004**).
+Internal backoffice umbrella folder for HealthCore Digital operational tools. All tools are served as **same-origin routes** on the landing app (`uis/backoffice/landing/`, port **3001**).
 
 ## Primary app — landing
 
+All internal tools are same-origin routes on this app. **Only landing** needs `.example.env` → `.env.local` for manual dev; aliased modules inherit its env vars.
+
 ```bash
 cd uis/backoffice/landing
-cp .env.local.example .env.local   # set NEXT_PUBLIC_API_URL, NEXT_PUBLIC_TRACKER_API_URL
+cp .example.env .env.local   # NEXT_PUBLIC_API_URL, NEXT_PUBLIC_TRACKER_API_URL
 npm install
 npm run dev
 ```
 
-Open **http://localhost:3004**. Requires the HealthCore API on port **8000** (`services/api`).
+Open **http://localhost:3001**. Requires the HealthCore API on port **8000** (`services/api`).
 
 | Route | Module path | Description |
 |-------|-------------|-------------|
@@ -19,6 +21,7 @@ Open **http://localhost:3004**. Requires the HealthCore API on port **8000** (`s
 | `/incident-analyzer` | `uis/incident_analyzer/` | Patient incident CSV analysis |
 | `/supplier-directory` | `uis/supplier_directory/` | Supplier registry |
 | `/inventory` | `inventory/` | Medical supply stock, deliveries, consumption |
+| `/incident-manager` | `incident-manager/` | Patient incident CRUD and summary dashboard |
 | `/talent-tracker` | `talent-tracker/` | Talent pipeline (external tracker API) |
 | `/backoffice-functions` | `backoffice_functions/` | M2 utility manual test dashboard |
 | `/account/profile` | `landing/` | User profile |
@@ -56,6 +59,26 @@ Landing routes: `landing/app/(protected)/inventory/`
 
 Plan: `memory-bank/references/milestone5_ai_plan/milestone5_frontend_implementation_plan.md`
 
+## Incident manager module (`incident-manager/`)
+
+Feature module for centralized patient incident logging and tracking. Imported into landing via the `@backoffice/incident-manager` path alias.
+
+Landing routes: `landing/app/(protected)/incident-manager/`
+
+| Route | UI |
+|-------|-----|
+| `/incident-manager` | Section landing (hero + nav cards) |
+| `/incident-manager/new` | Create incident form |
+| `/incident-manager/list` | Filterable incident list |
+| `/incident-manager/summary` | Summary dashboard |
+| `/incident-manager/{id}` | Incident detail |
+| `/incident-manager/{id}/edit` | Edit incident |
+
+**Setup notes**
+
+- API: `DATABASE_URL` in `services/api/.env` required for incident CRUD routes.
+- Seed (optional): `docker compose exec api uv run python /app/scripts/seed_incidents.py` or run `scripts/seed_incidents.py` locally with API env configured.
+
 ## Other modules
 
 | Module | Path | Notes |
@@ -74,6 +97,6 @@ Protected tool routes use:
 
 ## Related docs
 
-- Root README: backoffice overview, API endpoints, auth
-- `services/api/README.md` — inventory API, Supabase, seed, pytest
-- `memory-bank/progress.md` — milestone delivery status
+- [README.md](../../README.md) — Docker quick start, manual development, doc map
+- [services/api/README.md](../../services/api/README.md) — API setup, endpoints, pytest
+- [memory-bank/progress.md](../../memory-bank/progress.md) — milestone delivery status
