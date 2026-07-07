@@ -1,0 +1,840 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HealthCore Telemetry Event Schemas",
+  "description": "JSON Schema definitions for all telemetry events in the HealthCore inventory management system. Each event extends the standard Event Envelope with event-specific properties restricted to an explicit allowlist. Schema version 1.0.0.",
+  "oneOf": [
+    {
+      "$ref": "#/definitions/supply_delivery_created"
+    },
+    {
+      "$ref": "#/definitions/dispensing_order_created"
+    },
+    {
+      "$ref": "#/definitions/stock_threshold_triggered"
+    },
+    {
+      "$ref": "#/definitions/direct_stock_edit_rejected"
+    },
+    {
+      "$ref": "#/definitions/dispensing_order_failed"
+    },
+    {
+      "$ref": "#/definitions/emergency_dispensing_flagged"
+    },
+    {
+      "$ref": "#/definitions/user_login_succeeded"
+    },
+    {
+      "$ref": "#/definitions/user_login_failed"
+    },
+    {
+      "$ref": "#/definitions/session_expired"
+    },
+    {
+      "$ref": "#/definitions/supply_list_viewed"
+    },
+    {
+      "$ref": "#/definitions/dispensing_form_abandoned"
+    },
+    {
+      "$ref": "#/definitions/clinic_filter_applied"
+    }
+  ],
+  "definitions": {
+    "eventEnvelope": {
+      "type": "object",
+      "description": "Standard envelope that every HealthCore telemetry event must include. Fields are immutable once persisted.",
+      "required": [
+        "eventId",
+        "timestamp",
+        "sessionId",
+        "userId",
+        "event_type",
+        "schemaVersion",
+        "requestId",
+        "properties"
+      ],
+      "properties": {
+        "eventId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Unique identifier for this event instance. Used for idempotency and deduplication."
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "UTC timestamp in ISO 8601 format (YYYY-MM-DDTHH:mm:ss.sssZ)."
+        },
+        "sessionId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Browser or API session identifier."
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Authenticated operator's TinyDB UUID. Never a name or email."
+        },
+        "event_type": {
+          "type": "string",
+          "pattern": "^[a-z]+(_[a-z]+)+$",
+          "description": "Event name in entity_action format."
+        },
+        "schemaVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Semantic version of this event's schema (e.g. 1.0.0)."
+        },
+        "requestId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Correlation ID joining frontend action, API request, and backend log."
+        },
+        "properties": {
+          "type": "object",
+          "description": "Event-specific payload. Only keys declared in the event's allowlist are permitted."
+        }
+      },
+      "additionalProperties": false
+    },
+    "supply_delivery_created": {
+      "title": "supply_delivery_created",
+      "description": "Emitted when a SupplyDelivery is successfully registered, increasing MedicalSupply stock at a clinic. Processing: BATCH.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/eventEnvelope"
+        },
+        {
+          "properties": {
+            "event_type": {
+              "const": "supply_delivery_created"
+            },
+            "properties": {
+              "type": "object",
+              "required": [
+                "deliveryId",
+                "supplyId",
+                "quantity",
+                "vendor",
+                "clinicId",
+                "jurisdiction",
+                "category"
+              ],
+              "properties": {
+                "deliveryId": {
+                  "type": "string",
+                  "description": "SupplyDelivery.id — the delivery record identifier."
+                },
+                "supplyId": {
+                  "type": "string",
+                  "description": "MedicalSupply.id — which supply was restocked."
+                },
+                "quantity": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Number of units delivered."
+                },
+                "vendor": {
+                  "type": "string",
+                  "description": "Vendor name (corporate entity, not PII)."
+                },
+                "clinicId": {
+                  "type": "string",
+                  "description": "Clinic receiving the delivery."
+                },
+                "jurisdiction": {
+                  "type": "string",
+                  "enum": [
+                    "us",
+                    "uk"
+                  ],
+                  "description": "Jurisdiction of the clinic — mandatory per compliance."
+                },
+                "category": {
+                  "type": "string",
+                  "enum": [
+                    "consumable",
+                    "diagnostic_equipment",
+                    "ppe",
+                    "medication_adjacent",
+                    "cleaning"
+                  ],
+                  "description": "MedicalSupply.category."
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "dispensing_order_created": {
+      "title": "dispensing_order_created",
+      "description": "Emitted when a DispensingOrder is successfully registered, reducing MedicalSupply stock. Processing: BATCH.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/eventEnvelope"
+        },
+        {
+          "properties": {
+            "event_type": {
+              "const": "dispensing_order_created"
+            },
+            "properties": {
+              "type": "object",
+              "required": [
+                "orderId",
+                "supplyId",
+                "quantity",
+                "clinicalContext",
+                "clinicId",
+                "jurisdiction",
+                "category",
+                "remainingStock"
+              ],
+              "properties": {
+                "orderId": {
+                  "type": "string",
+                  "description": "DispensingOrder.id — the dispensing record identifier."
+                },
+                "supplyId": {
+                  "type": "string",
+                  "description": "MedicalSupply.id — which supply was dispensed."
+                },
+                "quantity": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Number of units dispensed."
+                },
+                "clinicalContext": {
+                  "type": "string",
+                  "enum": [
+                    "procedure",
+                    "routine_care",
+                    "emergency",
+                    "waste_disposal"
+                  ],
+                  "description": "Clinical context of the dispensing order."
+                },
+                "clinicId": {
+                  "type": "string",
+                  "description": "Clinic where dispensing occurred."
+                },
+                "jurisdiction": {
+                  "type": "string",
+                  "enum": [
+                    "us",
+                    "uk"
+                  ],
+                  "description": "Jurisdiction — mandatory per compliance."
+                },
+                "category": {
+                  "type": "string",
+                  "enum": [
+                    "consumable",
+                    "diagnostic_equipment",
+                    "ppe",
+                    "medication_adjacent",
+                    "cleaning"
+                  ],
+                  "description": "MedicalSupply.category."
+                },
+                "remainingStock": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Stock level after this dispensing — enables trend analysis."
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "stock_threshold_triggered": {
+      "title": "stock_threshold_triggered",
+      "description": "Emitted when a MedicalSupply's current_stock falls to or below min_stock_threshold after a dispensing. Processing: STREAM (non-negotiable for PPE/critical). Debounce: 15 min per supplyId+clinicId.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/eventEnvelope"
+        },
+        {
+          "properties": {
+            "event_type": {
+              "const": "stock_threshold_triggered"
+            },
+            "properties": {
+              "type": "object",
+              "required": [
+                "supplyId",
+                "supplyName",
+                "currentStock",
+                "threshold",
+                "clinicId",
+                "jurisdiction",
+                "category",
+                "isStockOut",
+                "triggeringOrderId"
+              ],
+              "properties": {
+                "supplyId": {
+                  "type": "string",
+                  "description": "MedicalSupply.id — which supply breached its threshold."
+                },
+                "supplyName": {
+                  "type": "string",
+                  "description": "MedicalSupply.name — human-readable for alert messages."
+                },
+                "currentStock": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Stock level at the moment of the trigger."
+                },
+                "threshold": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "The min_stock_threshold value that was breached."
+                },
+                "clinicId": {
+                  "type": "string",
+                  "description": "Clinic where the threshold was breached."
+                },
+                "jurisdiction": {
+                  "type": "string",
+                  "enum": [
+                    "us",
+                    "uk"
+                  ],
+                  "description": "Jurisdiction — mandatory per compliance."
+                },
+                "category": {
+                  "type": "string",
+                  "enum": [
+                    "consumable",
+                    "diagnostic_equipment",
+                    "ppe",
+                    "medication_adjacent",
+                    "cleaning"
+                  ],
+                  "description": "MedicalSupply.category — PPE triggers are highest priority."
+                },
+                "isStockOut": {
+                  "type": "boolean",
+                  "description": "true when currentStock = 0. Distinguishes threshold breach from stock-out for KPI 3."
+                },
+                "triggeringOrderId": {
+                  "type": "string",
+                  "description": "DispensingOrder.id that caused this trigger — for audit trail."
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "direct_stock_edit_rejected": {
+      "title": "direct_stock_edit_rejected",
+      "description": "Emitted when a request to modify MedicalSupply.current_stock directly (outside an order) is blocked by the API. Processing: BATCH.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/eventEnvelope"
+        },
+        {
+          "properties": {
+            "event_type": {
+              "const": "direct_stock_edit_rejected"
+            },
+            "properties": {
+              "type": "object",
+              "required": [
+                "supplyId",
+                "attemptedField",
+                "clinicId",
+                "jurisdiction",
+                "httpMethod",
+                "endpoint"
+              ],
+              "properties": {
+                "supplyId": {
+                  "type": "string",
+                  "description": "MedicalSupply.id — which supply the user tried to edit."
+                },
+                "attemptedField": {
+                  "type": "string",
+                  "description": "The field the user attempted to modify (e.g. current_stock)."
+                },
+                "clinicId": {
+                  "type": "string",
+                  "description": "Clinic where the attempt originated."
+                },
+                "jurisdiction": {
+                  "type": "string",
+                  "enum": [
+                    "us",
+                    "uk"
+                  ],
+                  "description": "Jurisdiction — mandatory per compliance."
+                },
+                "httpMethod": {
+                  "type": "string",
+                  "enum": [
+                    "PUT",
+                    "PATCH",
+                    "DELETE"
+                  ],
+                  "description": "The HTTP method used in the rejected request."
+                },
+                "endpoint": {
+                  "type": "string",
+                  "description": "The API endpoint that rejected the request."
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "dispensing_order_failed": {
+      "title": "dispensing_order_failed",
+      "description": "Emitted when a DispensingOrder is rejected due to validation failure. Processing: BATCH (with stream exception when failureReason=insufficient_stock AND availableStock=0).",
+      "allOf": [
+        {
+          "$ref": "#/definitions/eventEnvelope"
+        },
+        {
+          "properties": {
+            "event_type": {
+              "const": "dispensing_order_failed"
+            },
+            "properties": {
+              "type": "object",
+              "required": [
+                "supplyId",
+                "quantity",
+                "failureReason",
+                "clinicId",
+                "jurisdiction",
+                "category"
+              ],
+              "properties": {
+                "supplyId": {
+                  "type": "string",
+                  "description": "MedicalSupply.id — which supply the failed order targeted."
+                },
+                "quantity": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Requested quantity that failed."
+                },
+                "clinicalContext": {
+                  "type": "string",
+                  "description": "Raw submitted clinical_context when present. Omit when missing. Invalid values are emitted as-is; use failureReason=invalid_clinical_context for rejected enum values."
+                },
+                "failureReason": {
+                  "type": "string",
+                  "enum": [
+                    "insufficient_stock",
+                    "invalid_clinical_context",
+                    "validation_error",
+                    "quantity_exceeds_available"
+                  ],
+                  "description": "Reason for the dispensing order rejection."
+                },
+                "clinicId": {
+                  "type": "string",
+                  "description": "Clinic where the failure occurred."
+                },
+                "jurisdiction": {
+                  "type": "string",
+                  "enum": [
+                    "us",
+                    "uk"
+                  ],
+                  "description": "Jurisdiction — mandatory per compliance."
+                },
+                "availableStock": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Current stock at time of failure. Present for insufficient_stock cases."
+                },
+                "category": {
+                  "type": "string",
+                  "enum": [
+                    "consumable",
+                    "diagnostic_equipment",
+                    "ppe",
+                    "medication_adjacent",
+                    "cleaning"
+                  ],
+                  "description": "MedicalSupply.category."
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "emergency_dispensing_flagged": {
+      "title": "emergency_dispensing_flagged",
+      "description": "Emitted when a DispensingOrder with clinical_context=emergency is created. Processing: STREAM (non-negotiable).",
+      "allOf": [
+        {
+          "$ref": "#/definitions/eventEnvelope"
+        },
+        {
+          "properties": {
+            "event_type": {
+              "const": "emergency_dispensing_flagged"
+            },
+            "properties": {
+              "type": "object",
+              "required": [
+                "orderId",
+                "supplyId",
+                "quantity",
+                "clinicId",
+                "jurisdiction",
+                "category",
+                "remainingStock"
+              ],
+              "properties": {
+                "orderId": {
+                  "type": "string",
+                  "description": "DispensingOrder.id."
+                },
+                "supplyId": {
+                  "type": "string",
+                  "description": "MedicalSupply.id."
+                },
+                "quantity": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Units dispensed under emergency context."
+                },
+                "clinicId": {
+                  "type": "string",
+                  "description": "Clinic where the emergency dispensing occurred."
+                },
+                "jurisdiction": {
+                  "type": "string",
+                  "enum": [
+                    "us",
+                    "uk"
+                  ],
+                  "description": "Jurisdiction — mandatory per compliance."
+                },
+                "category": {
+                  "type": "string",
+                  "enum": [
+                    "consumable",
+                    "diagnostic_equipment",
+                    "ppe",
+                    "medication_adjacent",
+                    "cleaning"
+                  ],
+                  "description": "MedicalSupply.category."
+                },
+                "remainingStock": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Stock level after this emergency dispensing."
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "user_login_succeeded": {
+      "title": "user_login_succeeded",
+      "description": "Emitted on successful authentication by a clinic manager or administrator. Processing: BATCH.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/eventEnvelope"
+        },
+        {
+          "properties": {
+            "event_type": {
+              "const": "user_login_succeeded"
+            },
+            "properties": {
+              "type": "object",
+              "required": [
+                "loginMethod"
+              ],
+              "properties": {
+                "clinicId": {
+                  "type": "string",
+                  "description": "Clinic the user is associated with, if determinable at login."
+                },
+                "jurisdiction": {
+                  "type": "string",
+                  "enum": [
+                    "us",
+                    "uk"
+                  ],
+                  "description": "Jurisdiction, if determinable at login."
+                },
+                "loginMethod": {
+                  "type": "string",
+                  "enum": [
+                    "password",
+                    "sso",
+                    "token_refresh"
+                  ],
+                  "description": "Authentication method used."
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "user_login_failed": {
+      "title": "user_login_failed",
+      "description": "Emitted on failed authentication attempt. Processing: BATCH (stream exception at 5+ failures in 10 min for same userId). CRITICAL: No passwords or IP addresses in properties.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/eventEnvelope"
+        },
+        {
+          "properties": {
+            "event_type": {
+              "const": "user_login_failed"
+            },
+            "properties": {
+              "type": "object",
+              "required": [
+                "failureReason",
+                "attemptNumber"
+              ],
+              "properties": {
+                "failureReason": {
+                  "type": "string",
+                  "enum": [
+                    "invalid_credentials",
+                    "account_locked",
+                    "expired_session",
+                    "mfa_failed"
+                  ],
+                  "description": "Reason for the authentication failure."
+                },
+                "attemptNumber": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Sequential failure count within the current window."
+                },
+                "clinicId": {
+                  "type": "string",
+                  "description": "Clinic association, if determinable."
+                },
+                "jurisdiction": {
+                  "type": "string",
+                  "enum": [
+                    "us",
+                    "uk"
+                  ],
+                  "description": "Jurisdiction, if determinable."
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "session_expired": {
+      "title": "session_expired",
+      "description": "Emitted when a user session times out and is invalidated. Processing: BATCH.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/eventEnvelope"
+        },
+        {
+          "properties": {
+            "event_type": {
+              "const": "session_expired"
+            },
+            "properties": {
+              "type": "object",
+              "required": [
+                "sessionDuration"
+              ],
+              "properties": {
+                "sessionDuration": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Session length in seconds before expiration."
+                },
+                "lastActiveSection": {
+                  "type": "string",
+                  "description": "Last backoffice section the user was in when the session expired (e.g. supply-list, dispensing-form)."
+                },
+                "clinicId": {
+                  "type": "string",
+                  "description": "Associated clinic."
+                },
+                "jurisdiction": {
+                  "type": "string",
+                  "enum": [
+                    "us",
+                    "uk"
+                  ],
+                  "description": "Jurisdiction."
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "supply_list_viewed": {
+      "title": "supply_list_viewed",
+      "description": "Emitted when a user opens the medical supply stock list for a clinic. Processing: BATCH.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/eventEnvelope"
+        },
+        {
+          "properties": {
+            "event_type": {
+              "const": "supply_list_viewed"
+            },
+            "properties": {
+              "type": "object",
+              "required": [
+                "clinicId",
+                "jurisdiction"
+              ],
+              "properties": {
+                "clinicId": {
+                  "type": "string",
+                  "description": "Clinic whose supply list was viewed."
+                },
+                "jurisdiction": {
+                  "type": "string",
+                  "enum": [
+                    "us",
+                    "uk"
+                  ],
+                  "description": "Jurisdiction."
+                },
+                "supplyCount": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Number of supplies rendered in the list."
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "dispensing_form_abandoned": {
+      "title": "dispensing_form_abandoned",
+      "description": "Emitted when a user starts but does not complete a DispensingOrder form. Processing: BATCH. Debounce: 60 sec per userId+sessionId.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/eventEnvelope"
+        },
+        {
+          "properties": {
+            "event_type": {
+              "const": "dispensing_form_abandoned"
+            },
+            "properties": {
+              "type": "object",
+              "required": [
+                "clinicId",
+                "jurisdiction"
+              ],
+              "properties": {
+                "clinicId": {
+                  "type": "string",
+                  "description": "Clinic where the abandonment occurred."
+                },
+                "jurisdiction": {
+                  "type": "string",
+                  "enum": [
+                    "us",
+                    "uk"
+                  ],
+                  "description": "Jurisdiction."
+                },
+                "lastFieldFilled": {
+                  "type": "string",
+                  "description": "Last form field the user interacted with before abandoning (field name, not value)."
+                },
+                "timeSpentSeconds": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Time in seconds from form open to abandonment."
+                },
+                "fieldsCompleted": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Count of form fields completed before abandonment."
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+    "clinic_filter_applied": {
+      "title": "clinic_filter_applied",
+      "description": "Emitted when a user filters the supply view by a specific clinic or jurisdiction. Processing: BATCH. Debounce: 5 sec per userId+sessionId+section.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/eventEnvelope"
+        },
+        {
+          "properties": {
+            "event_type": {
+              "const": "clinic_filter_applied"
+            },
+            "properties": {
+              "type": "object",
+              "required": [
+                "clinicId",
+                "jurisdiction",
+                "section"
+              ],
+              "properties": {
+                "clinicId": {
+                  "type": "string",
+                  "description": "The clinic selected in the filter."
+                },
+                "jurisdiction": {
+                  "type": "string",
+                  "enum": [
+                    "us",
+                    "uk"
+                  ],
+                  "description": "Jurisdiction."
+                },
+                "previousFilter": {
+                  "type": "string",
+                  "description": "The previous filter value, to track filter switching patterns."
+                },
+                "section": {
+                  "type": "string",
+                  "description": "UI section where the filter was applied (e.g. supply-list, orders)."
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    }
+  }
+}
