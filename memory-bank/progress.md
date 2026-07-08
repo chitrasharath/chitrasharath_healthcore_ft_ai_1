@@ -172,6 +172,16 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
   - Proactive `npm ci` for six UI apps in the UI image; `scripts/check_ui_dep_versions.py`; `TESTING.md` guardrails.
 - Plan: `memory-bank/references/docker_ai_plan/docker_implementation_plan.md`.
 
+#### Telemetry Design (Phase 1) (Delivered)
+
+- Goal: design documentation for backoffice inventory, incident filters, and auth telemetry (no instrumentation code).
+- **Delivered:**
+  - `docs/telemetry/telemetry-plan.md` — 3 reconciled KPIs, flow mapping, envelope (`schemaVersion` 1.1.0), 11-event catalog (10 instrumentable + 1 design-only).
+  - `docs/telemetry/event-schemas.json` — JSON Schema draft-07 with `eventEnvelope` + per-event definitions (`x-pii: false` on all).
+  - v1.1 events: `supply_consumption_form_abandoned`, `incident_list_filter_applied`.
+- **Next:** Phase 2 frontend capture + stub endpoint per `telemetry_frontend_implementation_plan.md`.
+- Plan: `memory-bank/references/telemetry_ai_plan/telemetry_design_implementation_plan.md`.
+
 ## Future Feature Additions
 
 - Expand `services/api` per architecture proposal (remaining domains in doc §12); opaque session tokens for HIPAA (SPECS follow-up).

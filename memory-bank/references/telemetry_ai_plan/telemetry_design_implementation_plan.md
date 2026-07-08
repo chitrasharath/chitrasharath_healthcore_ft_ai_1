@@ -4,22 +4,22 @@ overview: "Documentation-only phase: produce docs/telemetry/telemetry-plan.md an
 todos:
   - id: step0-branch
     content: Create feature/telemetry branch from main; confirm inventory/auth baseline matches spec reconciliation table
-    status: pending
+    status: completed
   - id: step1-baseline-audit
     content: Audit services/api inventory models/router, outbound form, and incident-manager filters against telemetry_design_specs.md §3–§6 plus v1.1 events
-    status: pending
+    status: completed
   - id: step2-telemetry-plan
     content: Write docs/telemetry/telemetry-plan.md with all 8 required sections (§7), Reconciliation with CONTEXT (§4.1), and v1.1 event catalog entries
-    status: pending
+    status: completed
   - id: step3-event-schemas
     content: Write docs/telemetry/event-schemas.json (draft-07 envelope + 11 event definitions incl. supply_consumption_form_abandoned and incident_list_filter_applied)
-    status: pending
+    status: completed
   - id: step4-consistency-pass
     content: Cross-check plan event catalog vs JSON schemas (event_type values, property allowlists, envelope fields)
-    status: pending
+    status: completed
   - id: step5-verify
     content: Validate JSON with python -m json.tool; manual checklist against spec §12 Definition of done
-    status: pending
+    status: completed
   - id: step6-docs-commit
     content: Commit on feature/telemetry with PR title [W16D46] Telemetry Design Plan
     status: pending
@@ -36,7 +36,7 @@ isProject: false
 
 **Working directory:** `docs/telemetry/`
 
-**Status:** Not started — create `docs/telemetry/` and both deliverables
+**Status:** **Delivered** — `docs/telemetry/telemetry-plan.md` and `event-schemas.json` (v1.1.0, 11 events)
 
 ---
 
