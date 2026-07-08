@@ -1,18 +1,18 @@
 ---
 name: Telemetry Design (Phase 1)
-overview: "Documentation-only phase: produce docs/telemetry/telemetry-plan.md and event-schemas.json grounded in real inventory/auth entities, reconciled KPIs, and the standard event envelope — no application code."
+overview: "Documentation-only phase: produce docs/telemetry/telemetry-plan.md and event-schemas.json — includes v1.1 events supply_consumption_form_abandoned and incident_list_filter_applied."
 todos:
   - id: step0-branch
     content: Create feature/telemetry branch from main; confirm inventory/auth baseline matches spec reconciliation table
     status: pending
   - id: step1-baseline-audit
-    content: Audit services/api inventory models/router and backoffice inventory hooks against telemetry_design_specs.md §3–§6
+    content: Audit services/api inventory models/router, outbound form, and incident-manager filters against telemetry_design_specs.md §3–§6 plus v1.1 events
     status: pending
   - id: step2-telemetry-plan
-    content: Write docs/telemetry/telemetry-plan.md with all 8 required sections (§7) including Reconciliation with CONTEXT (§4.1)
+    content: Write docs/telemetry/telemetry-plan.md with all 8 required sections (§7), Reconciliation with CONTEXT (§4.1), and v1.1 event catalog entries
     status: pending
   - id: step3-event-schemas
-    content: Write docs/telemetry/event-schemas.json (draft-07 envelope + per-event definitions with x-pii flags)
+    content: Write docs/telemetry/event-schemas.json (draft-07 envelope + 11 event definitions incl. supply_consumption_form_abandoned and incident_list_filter_applied)
     status: pending
   - id: step4-consistency-pass
     content: Cross-check plan event catalog vs JSON schemas (event_type values, property allowlists, envelope fields)
@@ -30,13 +30,13 @@ isProject: false
 
 **Plan file:** [`memory-bank/references/telemetry_ai_plan/telemetry_design_implementation_plan.md`](telemetry_design_implementation_plan.md)
 
-**Requirements source:** [`telemetry_design_specs.md`](telemetry_design_specs.md)
+**Requirements source:** [`telemetry_design_specs.md`](telemetry_design_specs.md) + v1.1 stakeholder additions (below)
 
 **Branch:** `feature/telemetry` (single branch for all four phases; Phase 1 is first commit)
 
-**Working directory:** `docs/telemetry/` (new)
+**Working directory:** `docs/telemetry/`
 
-**Status:** Not started — no `docs/telemetry/` folder exists yet
+**Status:** Not started — create `docs/telemetry/` and both deliverables
 
 ---
 
@@ -49,7 +49,58 @@ Phase 1 delivers **design documentation only** — two files another developer u
 1. `docs/telemetry/telemetry-plan.md` — KPIs, flows, envelope, event catalog, risks
 2. `docs/telemetry/event-schemas.json` — JSON Schema draft-07 definitions
 
+**v1.1 adds two events** beyond the original spec §6 catalog:
+
+- `supply_consumption_form_abandoned` — outbound form left with unsaved changes
+- `incident_list_filter_applied` — Incident Manager list filter dropdown change
+
 No servers, packages, or instrumentation code in this phase.
+
+---
+
+## Extended events (v1.1 — stakeholder additions)
+
+### Event A — `supply_consumption_form_abandoned` (inventory)
+
+| | |
+|---|---|
+| **Golden rule** | When staff leave the outbound consumption form with unsaved changes, we record partial form state so ops can distinguish form friction from stock-out rejections (`supply_consumption_failed`). |
+| **Trigger** | User navigates away from `/inventory/orders/outbound` or the tab becomes `hidden` while the form is **dirty** and no successful submit occurred on that mount. |
+| **Dirty definition** | Any field differs from `emptyOutbound()` in `outbound-form-logic.ts`: `supplyId !== null` OR `quantity !== ""` OR `consumptionType !== CONSUMPTION_TYPES[0].value` OR `clinicId !== 1`. |
+| **Code location (Phase 2)** | `inventory/hooks/use-outbound-form.ts` — `useEffect` cleanup + `visibilitychange`; refs for dirty/submitted flags. |
+| **Properties (allowlist)** | `clinic_id` (int), `had_supply_selected` (bool), `had_quantity` (bool), `jurisdiction` (`us` \| `uk`, omit if no supply selected), `abandon_trigger` (`navigation` \| `tab_hidden`) |
+| **PII** | false |
+| **Stream/batch** | batch — debounce duplicate abandon within 30s per form mount |
+| **KPI link** | Supports KPI 3 interpretation — high abandons alongside `supply_consumption_failed` suggests UX/stock friction |
+
+**Design notes:**
+
+- Do **not** include raw `quantity` or supply name.
+- Do **not** include `supply_id` — use `had_supply_selected` boolean.
+- Fire at most once per abandon episode per form mount.
+
+---
+
+### Event B — `incident_list_filter_applied` (incident manager)
+
+Inventory has **no filter UI**. This event covers the Incident Manager list (`incident-manager/components/incident-list-filters.tsx`).
+
+| | |
+|---|---|
+| **Golden rule** | When staff apply a filter on the incident list, we record which dimension changed and how many filters are active so Patient Experience can audit how teams slice incident data. |
+| **Trigger** | Any dropdown change in `IncidentListFilters` that invokes `onChange` (including clear to All). |
+| **Code location (Phase 2)** | `incident-manager/components/incident-list-filters.tsx` `onChange` wrapper, or `incident-manager/hooks/use-incident-list.ts` `setFilters`. |
+| **Properties (allowlist)** | `filter_dimension` (`status` \| `origin` \| `branch` \| `category`), `filter_value` (string — enum value or empty when cleared), `active_filter_count` (integer 0–4) |
+| **PII** | false — operational enums only; never incident title/description |
+| **Stream/batch** | batch — 500ms debounce when staff change multiple dropdowns quickly |
+| **API touchpoint** | Triggers `GET /api/v1/incidents?...` via `listIncidents(filters)` — telemetry is client-side only |
+
+**Rejected filter alternatives (documented):**
+
+| Alternative | Why not chosen |
+|-------------|----------------|
+| `supplier_list_filter_applied` | Supplier Directory country/category filters — procurement domain |
+| `candidate_list_filter_applied` | Talent Tracker — external API, recruiting domain |
 
 ---
 
@@ -57,48 +108,49 @@ No servers, packages, or instrumentation code in this phase.
 
 | Topic | Decision |
 |-------|----------|
-| Entity names | **Code wins** — `MedicalSupply`, `SupplyDelivery`, `SupplyConsumption` (not Product/InboundOrder/DispensingOrder) |
+| Entity names | **Code wins** — `MedicalSupply`, `SupplyDelivery`, `SupplyConsumption` |
 | KPIs | Three reconciled KPIs from spec §4 (consumption rate, waste rate, insufficient-stock rejection rate) |
-| Dropped events | `stock_threshold_triggered`, `direct_stock_edit_rejected`, `emergency_dispensing_flagged` — document in Risks/exclusions |
-| `product_created` | Design-only (API exists, no UI); flag as future instrumentation |
+| Dropped events | `stock_threshold_triggered`, `direct_stock_edit_rejected`, `emergency_dispensing_flagged` |
+| `product_created` | Design-only (API exists, no UI) |
+| Form abandon event | **`supply_consumption_form_abandoned`** |
+| Filter event | **`incident_list_filter_applied`** (stakeholder choice) |
 | Envelope | Include **both** `requestId` and `service: "backoffice"` |
-| `userId` | Opaque TinyDB user id as **string** (`str(user.id)` — matches inventory `user_uuid` convention; not a UUID v4) |
-| `jurisdiction` | Derived client-side from `MedicalSupply.country`: `US`→`us`, `UK`→`uk` |
+| `schemaVersion` | **`1.1.0`** once v1.1 events are in design docs |
+| `userId` | Opaque TinyDB user id as **string** (`str(user.id)`) |
+| `jurisdiction` | Derived from `MedicalSupply.country`: `US`→`us`, `UK`→`uk` |
 | Branch | `feature/telemetry` — sequential commits per phase |
-| Supabase (downstream) | Reuse **`milestone5_inventory`** project (locked for Phases 3–4) |
-| Report auth (downstream) | `GET /telemetry/report` will be **JWT-protected** (locked for Phase 4) |
+| Supabase (downstream) | Reuse **`milestone5_inventory`** project |
+| Report auth (downstream) | `GET /telemetry/report` JWT-protected |
 
 ---
 
 ## Current codebase baseline (spec reconciliation)
 
-Exploration confirms the spec's reconciliation table is accurate:
-
 | Spec claim | Codebase state | Path |
 |------------|----------------|------|
 | `MedicalSupply` with `country` US/UK | Confirmed | `inventory/models.py` |
-| `SupplyConsumption.consumption_type` ∈ `{clinical_use, expiry_waste}` | Confirmed + validated | `inventory/schemas.py` validator |
-| No `emergency`, no `clinical_context` | Confirmed | — |
+| `SupplyConsumption.consumption_type` ∈ `{clinical_use, expiry_waste}` | Confirmed | `inventory/schemas.py` |
 | Stock computed, not stored | Confirmed | `inventory/router.compute_stock()` |
-| Insufficient stock → HTTP 400 | Confirmed | `create_outbound_order` detail message |
-| `POST /inventory/products` exists, no create UI | Confirmed | `inventory-api.ts` has GET + order POSTs only |
-| Products/orders lists not clinic-scoped | Confirmed | `list_products`, `list_orders` return all |
-| `clinic_id` is integer | Confirmed | models + `CLINICS` constants (ids 1–6; seed uses 10) |
-| Auth: login, `/auth/me`, JWT in localStorage | Confirmed | `auth/router.py`, `landing/lib/api.ts` |
-| No telemetry domain or docs | Confirmed | grep finds specs only |
+| Insufficient stock → HTTP 400 | Confirmed | `create_outbound_order` |
+| Outbound form dirty-state detectable | Confirmed | `use-outbound-form.ts` + `emptyOutbound()` |
+| Inventory has no list filters | Confirmed | filter event is Incident Manager |
+| Incident list filters (4 dropdowns) | Confirmed | `incident-list-filters.tsx` |
+| Auth: login, `/auth/me`, JWT | Confirmed | `auth/router.py`, `landing/lib/api.ts` |
 
-**Instrumentation call sites (for Phase 2 plan reference — document in Flow mapping):**
+**Instrumentation call sites (Phase 2 reference):**
 
-| Future `event_type` | Nearest code location |
-|---------------------|----------------------|
+| `event_type` | Code location |
+|--------------|---------------|
 | `supply_delivery_created` | `inventory/lib/inbound-form-logic.ts` → `submitInboundOrder` success |
 | `supply_consumption_created` | `inventory/lib/outbound-form-logic.ts` → `submitOutboundOrder` success |
-| `supply_consumption_failed` | `outbound-form-logic` catch path / `classifyOutboundError` |
-| `supply_list_viewed` | `inventory/hooks/use-products.ts` after `listProducts` resolves |
-| `orders_list_viewed` | `inventory/hooks/use-orders.ts` after `listOrders` resolves |
+| `supply_consumption_failed` | `use-outbound-form.ts` catch / `classifyOutboundError` |
+| **`supply_consumption_form_abandoned`** | **`inventory/hooks/use-outbound-form.ts`** — dirty form + navigation / `visibilitychange` |
+| `supply_list_viewed` | `inventory/hooks/use-products.ts` |
+| `orders_list_viewed` | `inventory/hooks/use-orders.ts` |
+| **`incident_list_filter_applied`** | **`incident-manager/components/incident-list-filters.tsx` `onChange`** |
 | `user_login_succeeded` | `landing/hooks/use-login-form.ts` after 200 |
 | `user_login_failed` | `use-login-form.ts` failure branches |
-| `session_expired` | `shared/lib/healthcore-api.ts` 401 redirect (and `landing/lib/api.ts` for non-inventory routes) |
+| `session_expired` | `shared/lib/healthcore-api.ts` + `landing/lib/api.ts` on 401 redirect |
 
 ---
 
@@ -110,125 +162,88 @@ Exploration confirms the spec's reconciliation table is accurate:
 mkdir -p docs/telemetry
 ```
 
-No other repo changes in this step.
-
 ### Step 2 — Write `telemetry-plan.md`
 
-Use the eight sections required by spec §7. Suggested outline with content guidance:
-
-#### 2.1 Executive summary
-
-State what ops cannot answer today: per-clinic consumption trends, US vs UK waste rates, stock-out rejection patterns by supply/clinic. Reference the inventory backoffice as the primary instrumentation surface.
-
-#### 2.2 KPI analysis (three KPIs)
-
-For each KPI from spec §4, use the template: **definition → data components → system touchpoint → why telemetry helps**.
-
-| KPI | Primary `event_type` sources |
-|-----|------------------------------|
-| Supply consumption rate | `supply_consumption_created` |
-| Supply waste rate | `supply_consumption_created` (`consumption_type`) |
-| Insufficient-stock rejection rate | `supply_consumption_failed` |
-
-#### 2.3 Reconciliation with CONTEXT (§4.1 — mandatory)
-
-Include the three-row mapping table from spec §4.1 verbatim (CONTEXT KPI → reconciled KPI → why re-grounded).
+Required sections (spec §7) **plus v1.1 events in §6 Event catalog and §3 Flow mapping**.
 
 #### 2.4 Flow mapping
 
-Mermaid or numbered flow: login → hub → inventory products → inbound/outbound forms → success/failure. Mark ≥5 inventory instrumentation points and note list views are global (no `clinic_id` on view events).
+Include abandon branch on outbound form and incident filter path:
+
+```mermaid
+flowchart TD
+  A[Login] --> B[Hub]
+  B --> C[Inventory outbound form]
+  C -->|submit 201| D[supply_consumption_created]
+  C -->|submit 400| E[supply_consumption_failed]
+  C -->|dirty + leave| F[supply_consumption_form_abandoned]
+  B --> G[Incident Manager list]
+  G --> H[incident_list_filter_applied]
+```
+
+Mark **≥6** inventory instrumentation points (5 original + abandon).
 
 #### 2.5 Backoffice opportunities
 
-Document the three auth events (`user_login_succeeded`, `user_login_failed`, `session_expired`) with stream/batch rationale.
-
-#### 2.6 Event Envelope
-
-Reproduce spec §5 table. Note `schemaVersion: "1.0.0"`.
+Auth events (`user_login_succeeded`, `user_login_failed`, `session_expired`) **plus** `incident_list_filter_applied`.
 
 #### 2.7 Event catalog
 
-For **every** event in spec §6:
-
-- Golden-rule sentence ("When X happens, we record Y so Z")
-- Property allowlist table
-- PII column (`false` for all)
-- Stream vs batch with business justification
-
-Include `product_created` as design-only / API-only.
+Document **all 11 events** (see full catalog table below). Include golden-rule, allowlist, PII, stream/batch for each.
 
 #### 2.8 High-frequency strategy
 
 - Auth failures + `session_expired` → stream
-- Inventory → batch
-- List views: document 30s debounce recommendation; Phase 2 batching (10s / 20 events) is primary guard
-
-#### 2.9 Risks and exclusions
-
-- HIPAA / UK GDPR: no patient identifiers
-- `userId` opaque string only
-- Three dropped events with reasons (spec §6 notes)
-- Self-reported `userId` on unauthenticated ingest endpoint (Phase 2 design note for downstream)
+- Inventory + incident filter → batch
+- List views → 30s debounce recommendation
+- **`supply_consumption_form_abandoned`** → at most once per mount; 30s dedupe
+- **`incident_list_filter_applied`** → 500ms debounce
 
 ### Step 3 — Write `event-schemas.json`
 
-Structure:
+**11 event definitions** (10 instrumentable + 1 design-only):
 
-```json
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "definitions": {
-    "eventEnvelope": { ... },
-    "supply_delivery_created": { ... },
-    ...
-  }
-}
-```
+| # | `event_type` | Instrumentable |
+|---|--------------|----------------|
+| 1 | `supply_delivery_created` | yes |
+| 2 | `supply_consumption_created` | yes |
+| 3 | `supply_consumption_failed` | yes |
+| 4 | **`supply_consumption_form_abandoned`** | **yes (v1.1)** |
+| 5 | `supply_list_viewed` | yes |
+| 6 | `orders_list_viewed` | yes |
+| 7 | `product_created` | design-only |
+| 8 | **`incident_list_filter_applied`** | **yes (v1.1)** |
+| 9 | `user_login_succeeded` | yes |
+| 10 | `user_login_failed` | yes |
+| 11 | `session_expired` | yes |
 
-**Envelope definition** must require: `eventId`, `timestamp`, `sessionId`, `userId`, `event_type`, `schemaVersion`, `requestId`, `service`, `properties`.
-
-**Per-event definitions:**
-
-- `event_type` as `const`
-- `properties` keys exactly match spec §6 allowlists
-- `additionalProperties: false` on `properties`
-- `x-pii: false` on each event definition
-
-Events to define (8 instrumentable + 1 design-only):
-
-1. `supply_delivery_created`
-2. `supply_consumption_created`
-3. `supply_consumption_failed`
-4. `supply_list_viewed`
-5. `orders_list_viewed`
-6. `product_created` (design-only annotation in plan; still schema-defined for completeness)
-7. `user_login_succeeded`
-8. `user_login_failed`
-9. `session_expired` (empty `properties` object)
-
-Property types (locked):
+**Property types (locked):**
 
 | Property | Type | Events |
 |----------|------|--------|
 | `supply_id` | integer | delivery, consumption, failed |
 | `quantity` | integer | delivery, consumption |
-| `clinic_id` | integer | delivery, consumption, failed |
-| `jurisdiction` | string enum `us` \| `uk` | delivery, consumption, failed, product_created, login_succeeded (optional) |
-| `consumption_type` | string enum `clinical_use` \| `expiry_waste` | consumption_created |
+| `clinic_id` | integer | delivery, consumption, failed, **form_abandoned** |
+| `jurisdiction` | `us` \| `uk` | delivery, consumption, failed, form_abandoned (optional), product_created, login_succeeded (optional) |
+| `consumption_type` | `clinical_use` \| `expiry_waste` | consumption_created |
 | `error_code` | string | consumption_failed |
 | `item_count` | integer | list views |
-| `reason` | string enum per event | login_failed |
+| **`had_supply_selected`** | boolean | **form_abandoned** |
+| **`had_quantity`** | boolean | **form_abandoned** |
+| **`abandon_trigger`** | `navigation` \| `tab_hidden` | **form_abandoned** |
+| **`filter_dimension`** | `status` \| `origin` \| `branch` \| `category` | **incident_list_filter_applied** |
+| **`filter_value`** | string | **incident_list_filter_applied** |
+| **`active_filter_count`** | integer 0–4 | **incident_list_filter_applied** |
+| `reason` | enum | login_failed |
 | `category` | string | product_created |
+
+Set `schemaVersion` const to **`1.1.0`** in envelope definition.
 
 ### Step 4 — Consistency pass
 
-Checklist:
-
-- [ ] Every `event_type` in plan appears in JSON with matching property keys
-- [ ] Envelope fields identical in plan §6 and JSON `eventEnvelope`
-- [ ] Stream/batch decisions match between plan and auth/inventory sections
-- [ ] PII strategy stated in plan matches `x-pii: false` on all JSON definitions
-- [ ] Reconciliation table present and matches spec §4.1
+- [ ] All **11** `event_type` values in plan match JSON definitions
+- [ ] v1.1 property keys match between plan §6 and JSON
+- [ ] `x-pii: false` on every event definition
 
 ### Step 5 — Verification
 
@@ -236,36 +251,54 @@ Checklist:
 python3 -m json.tool docs/telemetry/event-schemas.json > /dev/null
 ```
 
-Manual review against spec §12 Definition of done (all 7 items).
+---
+
+## Full event catalog (for `telemetry-plan.md` §6)
+
+Copy these entries into the design doc event catalog section.
+
+### `supply_consumption_form_abandoned` (v1.1)
+
+- **Golden rule:** When staff leave the outbound form with unsaved changes, we record partial progress so ops can separate abandon friction from stock-out failures.
+- **Properties:** `clinic_id`, `had_supply_selected`, `had_quantity`, `jurisdiction` (optional), `abandon_trigger`
+- **PII:** false | **Stream/batch:** batch
+
+### `incident_list_filter_applied` (v1.1)
+
+- **Golden rule:** When staff change an incident list filter, we record the dimension and active filter count for Patient Experience audit.
+- **Properties:** `filter_dimension`, `filter_value`, `active_filter_count`
+- **PII:** false | **Stream/batch:** batch (500ms debounce)
+
+*(Remaining 9 events: see spec §6 — `supply_delivery_created`, `supply_consumption_created`, `supply_consumption_failed`, `supply_list_viewed`, `orders_list_viewed`, `product_created`, `user_login_succeeded`, `user_login_failed`, `session_expired`.)*
 
 ---
 
 ## PR checklist
 
 - **Title:** `[W16D46] Telemetry Design Plan`
-- **Description must include:**
+- **Description:**
   - One line per reconciled KPI
-  - Count of events designed (8 instrumentable + 1 design-only)
-  - Hardest design decision: reconciling CONTEXT KPIs to observable code paths (no threshold/emergency fields)
+  - **11 events designed (10 instrumentable + 1 design-only)**
+  - v1.1: `supply_consumption_form_abandoned`, `incident_list_filter_applied`
+  - Hardest decision: reconciling CONTEXT KPIs to observable code paths
 
 ---
 
-## Definition of done (maps to spec §12)
+## Definition of done
 
-- [ ] 3 KPIs grounded in real entities with data sources
-- [ ] ≥5 inventory instrumentation points + ≥2 auth opportunities documented
+- [ ] 3 KPIs grounded in real entities
+- [ ] **≥6** inventory instrumentation points + **≥2** auth + **incident filter** documented
 - [ ] Consistent envelope with `requestId` and `service`
 - [ ] Every event: golden-rule + allowlist + PII note
-- [ ] `event-schemas.json` valid draft-07, consistent with plan
-- [ ] Stream/batch justified
-- [ ] Risks/exclusions: HIPAA/UK GDPR + three dropped events
+- [ ] **`supply_consumption_form_abandoned` and `incident_list_filter_applied` in plan + JSON**
+- [ ] `event-schemas.json` valid draft-07, `schemaVersion` 1.1.0
+- [ ] Stream/batch justified; risks/exclusions documented
 
 ---
 
 ## Handoff to Phase 2
 
-Phase 2 (`telemetry_frontend_implementation_plan.md`) consumes:
+Update `telemetry_frontend_implementation_plan.md` to instrument:
 
-- Event catalog and envelope from this phase (no renames)
-- `event-schemas.json` as validation reference for Pydantic model shape
-- Jurisdiction derivation rule documented in plan §6 notes
+- `supply_consumption_form_abandoned` in `use-outbound-form.ts`
+- `incident_list_filter_applied` in `incident-list-filters.tsx`
