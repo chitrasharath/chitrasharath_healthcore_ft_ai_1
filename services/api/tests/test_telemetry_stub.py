@@ -1,46 +1,24 @@
 from __future__ import annotations
 
-import logging
-
-import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
-
-logger = logging.getLogger(__name__)
+from tests.telemetry_helpers import sample_event
 
 
-@pytest.fixture
-def client() -> TestClient:
-    return TestClient(app)
-
-
-def _sample_event(event_type: str, **properties: object) -> dict:
-    return {
-        "eventId": "evt-001",
-        "timestamp": "2026-07-08T12:00:00Z",
-        "sessionId": "sess-001",
-        "userId": "42",
-        "event_type": event_type,
-        "schemaVersion": "1.1.0",
-        "requestId": "req-001",
-        "service": "backoffice",
-        "properties": properties,
-    }
-
-
-def test_telemetry_batch_accepts_events_without_auth(client: TestClient) -> None:
+def test_telemetry_batch_accepts_events_without_auth(telemetry_client: TestClient) -> None:
     payload = {
         "events": [
-            _sample_event("user_login_succeeded"),
-            _sample_event(
+            sample_event("user_login_succeeded"),
+            sample_event(
                 "incident_list_filter_applied",
+                event_id="evt-filter",
                 filter_dimension="status",
                 filter_value="open",
                 active_filter_count=1,
             ),
-            _sample_event(
+            sample_event(
                 "supply_consumption_form_abandoned",
+                event_id="evt-abandon",
                 clinic_id=1,
                 had_supply_selected=True,
                 had_quantity=False,
@@ -49,28 +27,28 @@ def test_telemetry_batch_accepts_events_without_auth(client: TestClient) -> None
         ],
     }
 
-    response = client.post("/api/v1/telemetry/events", json=payload)
+    response = telemetry_client.post("/api/v1/telemetry/events", json=payload)
 
     assert response.status_code == 200
-    assert response.json() == {"received": 3}
+    assert response.json() == {"received": 3, "stored": 3, "rejected": 0}
 
 
-def test_telemetry_batch_tolerates_malformed_item(client: TestClient) -> None:
+def test_telemetry_batch_tolerates_malformed_item(telemetry_client: TestClient) -> None:
     payload = {
         "events": [
-            _sample_event("supply_list_viewed", item_count=5),
+            sample_event("supply_list_viewed", item_count=5),
             {"event_type": "broken", "properties": {}},
         ],
     }
 
-    response = client.post("/api/v1/telemetry/events", json=payload)
+    response = telemetry_client.post("/api/v1/telemetry/events", json=payload)
 
     assert response.status_code == 200
-    assert response.json() == {"received": 2}
+    assert response.json() == {"received": 2, "stored": 1, "rejected": 1}
 
 
-def test_telemetry_empty_batch(client: TestClient) -> None:
-    response = client.post("/api/v1/telemetry/events", json={"events": []})
+def test_telemetry_empty_batch(telemetry_client: TestClient) -> None:
+    response = telemetry_client.post("/api/v1/telemetry/events", json={"events": []})
 
     assert response.status_code == 200
-    assert response.json() == {"received": 0}
+    assert response.json() == {"received": 0, "stored": 0, "rejected": 0}

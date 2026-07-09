@@ -194,10 +194,15 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
 - **Next:** Phase 3 storage per `telemetry_storage_implementation_plan.md` (plan updated for Phase 2 handoff).
 - Plan: `memory-bank/references/telemetry_ai_plan/telemetry_frontend_implementation_plan.md`.
 
-#### Telemetry Storage (Phase 3) (Next)
+#### Telemetry Storage (Phase 3) (Delivered — `W16D48`)
 
 - Goal: persist validated events to `telemetry_events` on `milestone5_inventory`; partial acceptance; `{ received, stored, rejected }`.
-- **Plan updated** for Phase 2 handoff (XOR abandon semantics, keepalive transport, stub migration).
+- **Delivered:**
+  - `TelemetryEventRow` SQLModel + idempotent B-tree/GIN indexes on startup
+  - `mapper.py` — allowlist validation, `map_event_to_row`, level/value derivation
+  - `POST /api/v1/telemetry/events` persists via bulk insert; zero frontend changes
+  - `tests/test_telemetry_storage.py` + updated stub tests (12 telemetry tests passing)
+- **Next:** Phase 4 report per `telemetry_report_implementation_plan.md`.
 - Plan: `memory-bank/references/telemetry_ai_plan/telemetry_storage_implementation_plan.md`.
 
 ## Future Feature Additions

@@ -39,7 +39,7 @@ isProject: false
 
 **Working directory:** `services/api/`
 
-**Status:** Blocked on Phase 3 — Phase 2 complete (`7ce0da5`); no `pandas` dependency or report endpoint yet.
+**Status:** Ready — Phase 3 persistence implemented; blocked on manual Supabase seed + report build.
 
 ---
 

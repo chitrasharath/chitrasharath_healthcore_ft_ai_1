@@ -7,19 +7,19 @@ todos:
     status: completed
   - id: step1-model
     content: Create app/domains/telemetry/models.py (TelemetryEventRow) with UUID PK + jsonb tags
-    status: pending
+    status: completed
   - id: step2-startup
     content: Import telemetry models in main.py; create_all + idempotent GIN/B-tree indexes
-    status: pending
+    status: completed
   - id: step3-mapper
     content: Add map_event_to_row() + per-event-type property allowlist validator (11 types from event-schemas.json)
-    status: pending
+    status: completed
   - id: step4-endpoint
     content: Replace stub with validate-loop, bulk insert, return received/stored/rejected
-    status: pending
+    status: completed
   - id: step5-tests
     content: Add tests/test_telemetry_storage.py — all event types incl. v1.1 abandon + incident filter
-    status: pending
+    status: completed
   - id: step6-e2e-verify
     content: Backoffice activity (incl. abandon + filter) + Supabase query; mixed curl batch
     status: pending
@@ -36,7 +36,7 @@ isProject: false
 
 **Working directory:** `services/api/`
 
-**Status:** Ready — Phase 2 stub at `app/domains/telemetry/` (`schemas.py`, `router.py`, `test_telemetry_stub.py`); replace ingest handler with persistence. No `telemetry_events` table yet.
+**Status:** Delivered — persistence live in `app/domains/telemetry/`; E2E Supabase verification pending manual run with `DATABASE_URL`.
 
 ### Phase 2 handoff (existing assets)
 

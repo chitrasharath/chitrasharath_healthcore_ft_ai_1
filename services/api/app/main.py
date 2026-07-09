@@ -10,6 +10,8 @@ from app.core.config import settings
 from app.core.db import supabase_engine
 from app.domains.inventory import models as inventory_models  # noqa: F401
 from app.domains.incidents import models as incident_models  # noqa: F401
+from app.domains.telemetry import models as telemetry_models  # noqa: F401
+from app.domains.telemetry.indexes import ensure_telemetry_indexes
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +47,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 def on_startup() -> None:
     if supabase_engine:
         SQLModel.metadata.create_all(supabase_engine)
+        ensure_telemetry_indexes(supabase_engine)
 
 
 @app.get("/health")

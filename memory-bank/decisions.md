@@ -324,3 +324,6 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 
 - Decision (downstream, locked at planning): telemetry ingest `POST /telemetry/events` unauthenticated (`fetch`/`keepalive`, no Bearer); `GET /telemetry/report` JWT-protected; `telemetry_events` on existing `milestone5_inventory` Supabase project.
 - Why: Stakeholder clarifications during implementation planning.
+
+- Decision (Phase 3 delivered): `telemetry_events.tags` uses PostgreSQL `jsonb` (SQLite `JSON` in tests); startup runs `ALTER COLUMN tags TYPE jsonb` + GIN index `idx_telemetry_events_tags`.
+- Why: Default SQLAlchemy `JSON` maps to `json` in Postgres, which cannot use GIN without an operator class; `jsonb` matches storage spec and enables tag containment queries.
