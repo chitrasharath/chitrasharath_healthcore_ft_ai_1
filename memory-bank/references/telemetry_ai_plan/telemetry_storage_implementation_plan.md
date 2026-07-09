@@ -1,27 +1,27 @@
 ---
 name: Telemetry Storage (Phase 3)
-overview: "Replace Phase 2 stub with persisting POST /api/v1/telemetry/events — SQLModel telemetry_events table on milestone5_inventory, per-event validation, partial acceptance, single bulk insert. Zero frontend changes."
+overview: "Replace Phase 2 stub with persisting POST /api/v1/telemetry/events — SQLModel telemetry_events on milestone5_inventory, per-event validation for all 10 instrumentable v1.1.0 events, partial acceptance, bulk insert. Zero frontend changes."
 todos:
   - id: step0-prereq
-    content: Confirm Phase 2 stub + TelemetryService on feature/telemetry; DATABASE_URL configured for milestone5_inventory
+    content: Confirm Phase 2 stub + TelemetryService on feature/telemetry; DATABASE_URL for milestone5_inventory
     status: pending
   - id: step1-model
-    content: Create app/domains/telemetry/models.py (TelemetryEventRow table) with UUID PK + jsonb tags
+    content: Create app/domains/telemetry/models.py (TelemetryEventRow) with UUID PK + jsonb tags
     status: pending
   - id: step2-startup
-    content: Import telemetry models in main.py; create_all + idempotent GIN/B-tree indexes on startup
+    content: Import telemetry models in main.py; create_all + idempotent GIN/B-tree indexes
     status: pending
   - id: step3-mapper
-    content: Add map_event_to_row() — level derivation, value from quantity, tags envelope+properties
+    content: Add map_event_to_row() + per-event-type property allowlist validator (11 types from event-schemas.json)
     status: pending
   - id: step4-endpoint
     content: Replace stub with validate-loop, bulk insert, return received/stored/rejected
     status: pending
   - id: step5-tests
-    content: Add tests/test_telemetry_storage.py — SQLite override, partial batch, immutability, tags shape
+    content: Add tests/test_telemetry_storage.py — all event types incl. v1.1 abandon + incident filter
     status: pending
   - id: step6-e2e-verify
-    content: Backoffice activity + Supabase query; mixed curl batch test
+    content: Backoffice activity (incl. abandon + filter) + Supabase query; mixed curl batch
     status: pending
 isProject: false
 ---
@@ -30,7 +30,7 @@ isProject: false
 
 **Plan file:** [`memory-bank/references/telemetry_ai_plan/telemetry_storage_implementation_plan.md`](telemetry_storage_implementation_plan.md)
 
-**Requirements source:** [`telemetry_storage_specs.md`](telemetry_storage_specs.md)
+**Requirements source:** [`telemetry_storage_specs.md`](telemetry_storage_specs.md), [`docs/telemetry/telemetry-plan.md`](../../../../docs/telemetry/telemetry-plan.md) (v1.1.0), [`docs/telemetry/event-schemas.json`](../../../../docs/telemetry/event-schemas.json)
 
 **Branch:** `feature/telemetry` (third commit on same branch)
 
@@ -42,9 +42,14 @@ isProject: false
 
 ## Executive summary
 
-Phase 3 upgrades `POST /api/v1/telemetry/events` from a log-only stub to a **persisting, append-only ingest pipeline**. Valid events are written to `telemetry_events` on the existing **`milestone5_inventory`** Supabase project in one bulk insert per request. Invalid events are counted in `rejected` without failing the batch.
+Phase 3 upgrades `POST /api/v1/telemetry/events` from a log-only stub to a **persisting, append-only ingest pipeline**. Valid events are written to `telemetry_events` on **`milestone5_inventory`** in one bulk insert per request.
 
-The frontend **does not change** — same URL, same request body, same `200` on success.
+Must persist all **10 instrumentable event types** from design v1.1.0, including:
+
+- `supply_consumption_form_abandoned` (v1.1)
+- `incident_list_filter_applied` (v1.1)
+
+Frontend **does not change** — same URL, body, and `200` on success.
 
 ---
 
@@ -52,79 +57,86 @@ The frontend **does not change** — same URL, same request body, same `200` on 
 
 | Topic | Decision |
 |-------|----------|
-| Database | Reuse **`milestone5_inventory`** via existing `DATABASE_URL` / `supabase_engine` |
-| ORM | SQLModel `table=True` model + `create_all` (matches inventory/incidents) |
-| Primary key | UUID with Postgres `gen_random_uuid()` via `sa_column` (first UUID table in repo) |
-| Indexes | B-tree on `timestamp`, `event_type`; GIN on `tags` — raw SQL `IF NOT EXISTS` in `on_startup` |
-| Auth on ingest | **Remain public** (no JWT) — `sendBeacon` compatibility from Phase 2 |
-| `TelemetryEvent` schema | **Unchanged** from Phase 2 `schemas.py` |
-| Immutability | No UPDATE/DELETE code paths — append-only |
-| Tests | pytest with in-memory SQLite override (same pattern as inventory/incidents) |
+| Design reference | [`docs/telemetry/telemetry-plan.md`](../../../../docs/telemetry/telemetry-plan.md) + `event-schemas.json` v1.1.0 |
+| `schemaVersion` in tags | Store client value (`1.1.0`); reject unknown versions in allowlist validator if desired |
+| Database | Reuse **`milestone5_inventory`** |
+| Auth on ingest | **Public** (sendBeacon compatibility) |
+| `TelemetryEvent` pydantic model | **Unchanged** from Phase 2 `schemas.py` |
+| Property allowlist | **Recommended** — reject events whose `properties` keys don't match `event-schemas.json` per `event_type` |
+| `level` column | `warn` for `*_failed` and `session_expired`; `info` for all others (incl. v1.1 abandon + filter) |
+| `value` column | `properties.quantity` as float when present (`supply_delivery_created`, `supply_consumption_created` only) |
 | Frontend diffs | **Zero** |
+
+---
+
+## Per-event property allowlists (storage validation)
+
+Align with `event-schemas.json` — reject unknown keys in `properties`:
+
+| `event_type` | Allowed `properties` keys |
+|--------------|---------------------------|
+| `supply_delivery_created` | `supply_id`, `quantity`, `clinic_id`, `jurisdiction` |
+| `supply_consumption_created` | `supply_id`, `quantity`, `consumption_type`, `clinic_id`, `jurisdiction` |
+| `supply_consumption_failed` | `error_code`, `supply_id`, `clinic_id`, `jurisdiction` |
+| `supply_consumption_form_abandoned` | `clinic_id`, `had_supply_selected`, `had_quantity`, `jurisdiction`, `abandon_trigger` |
+| `supply_list_viewed` | `item_count` |
+| `orders_list_viewed` | `item_count` |
+| `incident_list_filter_applied` | `filter_dimension`, `filter_value`, `active_filter_count` |
+| `user_login_succeeded` | `jurisdiction` (optional) |
+| `user_login_failed` | `reason` |
+| `session_expired` | *(empty)* |
+| `product_created` | `supply_id`, `category`, `jurisdiction` *(API-only; may appear if backend emits later)* |
+
+**Note:** `supply_consumption_form_abandoned` — `jurisdiction` is optional (omit when no supply selected). `had_supply_selected`/`had_quantity` are booleans, not `supply_id`.
 
 ---
 
 ## Table design
 
-### `app/domains/telemetry/models.py`
+Same as prior plan — `TelemetryEventRow` with `id`, `timestamp`, `service`, `event_type`, `level`, `value`, `message`, `tags` (JSONB).
 
-```python
-from sqlalchemy import Column
-from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlmodel import Field, SQLModel
-import uuid as uuid_pkg
+### `tags` composition
 
-class TelemetryEventRow(SQLModel, table=True):
-    __tablename__ = "telemetry_events"
+Envelope fields in `tags`: `eventId`, `sessionId`, `userId`, `schemaVersion`, `requestId`  
+Plus all allowlisted `properties`.
 
-    id: uuid_pkg.UUID = Field(
-        default=None,
-        sa_column=Column(UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-    )
-    timestamp: datetime  # timestamptz
-    service: str
-    event_type: str
-    level: str = "info"
-    value: float | None = None
-    message: str | None = None
-    tags: dict = Field(default_factory=dict, sa_column=Column(JSONB))
-```
-
-**SQLite test note:** For pytest, use `StaticPool` in-memory engine; JSONB maps acceptably in SQLite tests via SQLAlchemy JSON type fallback, or use `sa.JSON` for cross-dialect compatibility in tests only. Prefer same pattern as incident tests — verify JSON column round-trip.
-
-### Column mapping (`map_event_to_row`)
-
-| Row column | Source |
-|------------|--------|
-| `timestamp` | `event.timestamp` (UTC) |
-| `service` | `event.service` |
-| `event_type` | `event.event_type` |
-| `level` | `"warn"` if `event_type` ends with `_failed` or equals `session_expired`; else `"info"` |
-| `value` | `properties.get("quantity")` cast to float when present; else `None` |
-| `message` | `None` (v1 — optional short summary deferred) |
-| `tags` | See §3.1 below |
-
-### §3.1 `tags` composition
-
-Merge into one JSON object:
-
-**From envelope** (no dedicated columns):
-
-- `eventId`, `sessionId`, `userId`, `schemaVersion`, `requestId`
-
-**From `properties`** (allowlisted keys only — pass through as validated by `TelemetryEvent`):
-
-- Event-specific keys per Phase 1 catalog
-
-Example `supply_consumption_created` tags:
+**v1.1 example — `supply_consumption_form_abandoned`:**
 
 ```json
 {
   "eventId": "...",
   "sessionId": "...",
   "userId": "1",
-  "schemaVersion": "1.0.0",
+  "schemaVersion": "1.1.0",
   "requestId": "...",
+  "clinic_id": 1,
+  "had_supply_selected": true,
+  "had_quantity": true,
+  "jurisdiction": "us",
+  "abandon_trigger": "navigation"
+}
+```
+
+**v1.1 example — `incident_list_filter_applied`:**
+
+```json
+{
+  "eventId": "...",
+  "sessionId": "...",
+  "userId": "1",
+  "schemaVersion": "1.1.0",
+  "requestId": "...",
+  "filter_dimension": "status",
+  "filter_value": "open",
+  "active_filter_count": 1
+}
+```
+
+**Clinic-operation example — `supply_consumption_created`:**
+
+```json
+{
+  "schemaVersion": "1.1.0",
   "supply_id": 3,
   "quantity": 20,
   "consumption_type": "clinical_use",
@@ -135,125 +147,61 @@ Example `supply_consumption_created` tags:
 
 ---
 
-## Startup wiring
-
-### `app/main.py`
-
-```python
-from app.domains.telemetry import models as telemetry_models  # noqa: F401
-```
-
-In `on_startup()` after `create_all`:
-
-```python
-def _ensure_telemetry_indexes(engine) -> None:
-    with engine.connect() as conn:
-        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_telemetry_events_timestamp ON telemetry_events (timestamp)"))
-        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_telemetry_events_event_type ON telemetry_events (event_type)"))
-        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_telemetry_events_tags ON telemetry_events USING GIN (tags)"))
-        conn.commit()
-```
-
-Guard: only run when `supabase_engine` is not None (same as `create_all` guard).
-
----
-
 ## Endpoint implementation
 
-Replace stub in `router.py`:
+Same partial-acceptance loop as prior plan:
 
 ```python
-@router.post("/events")
-def ingest_events(
-    body: TelemetryBatch,
-    session: Session = Depends(get_supabase_db),
-) -> dict[str, int]:
-    valid_rows: list[TelemetryEventRow] = []
-    rejected = 0
-    for raw in body.events:
-        try:
-            event = TelemetryEvent.model_validate(raw)
-            valid_rows.append(map_event_to_row(event))
-        except ValidationError:
-            rejected += 1
-    stored = 0
-    if valid_rows:
-        session.add_all(valid_rows)
-        session.commit()
-        stored = len(valid_rows)
-    return {
-        "received": len(body.events),
-        "stored": stored,
-        "rejected": rejected,
-    }
+return {
+    "received": len(body.events),
+    "stored": stored,
+    "rejected": rejected,
+}
 ```
 
-**Behaviour locks:**
+After `TelemetryEvent.model_validate`, run **allowlist check** on `properties` for the `event_type`. Invalid → increment `rejected`.
 
-- Always `200` when handler completes (DB errors → global 500 handler)
-- Partial acceptance — one bad event does not reject the batch
-- Single transaction per request (`add_all` + one `commit`)
-- Still log `event_type` counts at INFO for ops visibility
+`map_event_to_row` rules:
 
-### Optional: property allowlist hardening (recommended)
-
-After `model_validate`, optionally reject events whose `properties` keys are not in the Phase 1 allowlist for that `event_type`. Count as `rejected`. This prevents tag pollution — document in tests.
+| `event_type` pattern | `level` | `value` |
+|---------------------|---------|---------|
+| ends with `_failed` | `warn` | null |
+| `session_expired` | `warn` | null |
+| `supply_delivery_created`, `supply_consumption_created` | `info` | `float(quantity)` |
+| `supply_consumption_form_abandoned` | `info` | null |
+| `incident_list_filter_applied` | `info` | null |
+| all others | `info` | null |
 
 ---
 
 ## Tests (`tests/test_telemetry_storage.py`)
 
-Use `conftest.py` SQLite `get_supabase_db` override (existing pattern).
+Add cases beyond original plan:
 
 | Case | Assert |
 |------|--------|
-| Single valid `supply_delivery_created` | `stored: 1`, row exists with `tags.jurisdiction` |
-| Batch 1 valid + 1 missing `eventId` | `received: 2, stored: 1, rejected: 1` |
-| `supply_consumption_failed` | `level == "warn"` |
-| `session_expired` | `level == "warn"`, empty properties in tags |
-| `value` column | Set from `quantity` on delivery event |
-| No delete endpoint | grep `delete` / `update` on telemetry domain — none |
-| Immutability | No PATCH/DELETE routes registered |
+| `supply_consumption_form_abandoned` without `jurisdiction` | `stored: 1` when supply not selected |
+| `supply_consumption_form_abandoned` with extra `supply_id` in properties | `rejected: 1` (allowlist) |
+| `incident_list_filter_applied` | `stored: 1`, `tags.filter_dimension`, `tags.active_filter_count` |
+| `schemaVersion` `1.1.0` in tags | preserved on row |
+| `incident_list_filter_applied` | `level == "info"` |
 
 ---
 
 ## End-to-end verification
 
-### 1. Generate real events
+Generate events via backoffice (Phase 2 must be live):
 
-With API + landing running and `DATABASE_URL` set:
+1. Login
+2. Products + orders lists
+3. Inbound + outbound orders; insufficient stock attempt
+4. **Abandon outbound form** with dirty fields
+5. **Change incident list filter**
 
-1. Login (auth events)
-2. View products + orders lists
-3. Create inbound order
-4. Create outbound order (clinical_use)
-5. Attempt outbound exceeding stock (failure event)
-
-### 2. Supabase query
+Supabase query — expect ≥7 distinct `event_type` values including v1.1:
 
 ```sql
-SELECT event_type, timestamp, level, value, tags
-FROM telemetry_events
-ORDER BY timestamp DESC
-LIMIT 20;
-```
-
-Expect ≥5 rows with populated `tags` including `jurisdiction` on clinic-operation events.
-
-### 3. Mixed curl test
-
-```bash
-curl -s -X POST http://localhost:8000/api/v1/telemetry/events \
-  -H "Content-Type: application/json" \
-  -d '{"events": [<valid>, {"event_type": "bad"}]}'
-```
-
-Expect `{"received":2,"stored":1,"rejected":1}`.
-
-### 4. Frontend unchanged
-
-```bash
-git diff uis/backoffice/  # should be empty for Phase 3 commit
+SELECT event_type, count(*) FROM telemetry_events GROUP BY event_type;
 ```
 
 ---
@@ -261,23 +209,24 @@ git diff uis/backoffice/  # should be empty for Phase 3 commit
 ## PR checklist
 
 - **Title:** `[W16D48] Telemetry Storage`
-- **Description:** Supabase screenshot (≥5 rows), mixed-batch JSON response, explicit "frontend unchanged"
+- **Description:** Supabase screenshot with v1.1 rows, mixed-batch JSON, frontend unchanged
 
 ---
 
-## Definition of done (maps to spec §8)
+## Definition of done
 
-- [ ] `telemetry_events`: 8 columns + 3 indexes, write-only
-- [ ] Per-event validation, partial acceptance, single bulk insert
-- [ ] Returns `{ received, stored, rejected }`, still `200`
-- [ ] `TelemetryEvent` unchanged from Phase 2
+- [ ] `telemetry_events` table + indexes, write-only
+- [ ] All **10 instrumentable** event types store correctly in `tags`
+- [ ] v1.1 events: abandon booleans + filter dimensions persisted
+- [ ] `schemaVersion` **1.1.0** in tags
+- [ ] Partial acceptance; `{ received, stored, rejected }`
 - [ ] Zero frontend diffs
-- [ ] Rows show correct `tags` with jurisdiction/clinic_id on clinic events
-- [ ] No UPDATE/DELETE; no patient data
 - [ ] pytest passing
 
 ---
 
 ## Handoff to Phase 4
 
-Phase 4 reads `telemetry_events` via SQLModel/SQLAlchemy session — `tags` JSONB is the dimension source for `clinic_id`, `jurisdiction`, `consumption_type`, `error_code`. Report endpoint will be **JWT-protected** (stakeholder decision).
+Report metrics use existing KPI event types. v1.1 events (`supply_consumption_form_abandoned`, `incident_list_filter_applied`) are **stored and queryable** but **not** in default report response unless Phase 4 adds optional supplementary metrics (out of scope per `telemetry_report_specs.md`).
+
+`tags` dimensions for future use: `abandon_trigger`, `had_quantity`, `filter_dimension`, `filter_value`, `active_filter_count`.

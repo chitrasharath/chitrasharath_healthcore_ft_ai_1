@@ -1,9 +1,9 @@
 ---
 name: Telemetry Frontend Capture (Phase 2)
-overview: "Stub POST /api/v1/telemetry/events, shared TelemetryService (queue/batch/sendBeacon), and track() instrumentation across inventory forms/lists and auth flows — no persistence."
+overview: "Stub POST /api/v1/telemetry/events, shared TelemetryService (queue/batch/sendBeacon), and track() instrumentation across inventory, incident-manager filters, and auth — schemaVersion 1.1.0, 10 instrumentable events."
 todos:
   - id: step0-prereq
-    content: Confirm Phase 1 docs/telemetry/ deliverables exist on feature/telemetry; read telemetry-plan.md + event-schemas.json
+    content: Confirm Phase 1 docs/telemetry/ on feature/telemetry (telemetry-plan.md v1.1.0 + event-schemas.json)
     status: pending
   - id: step1-backend-domain
     content: Create app/domains/telemetry/ (schemas.py, router.py); wire in api/v1/router.py without auth
@@ -15,21 +15,24 @@ todos:
     content: Add tests/test_telemetry_stub.py — batch accept, log count, no DB, malformed item tolerance
     status: pending
   - id: step4-telemetry-service
-    content: Create uis/backoffice/shared/lib/telemetry.ts with queue, flush, sendBeacon, retry, track()
+    content: Create uis/backoffice/shared/lib/telemetry.ts — schemaVersion 1.1.0, queue, flush, sendBeacon, stream flush for auth failures
     status: pending
   - id: step5-jest-telemetry
-    content: Add Jest tests for TelemetryService queue/flush/retry behaviour (mock fetch + sendBeacon)
+    content: Add Jest tests for TelemetryService queue/flush/retry/stream behaviour (mock fetch + sendBeacon)
     status: pending
   - id: step6-inventory-instrument
-    content: Instrument inbound/outbound logic + use-products/use-orders with allowlist-only track() calls
+    content: Instrument inbound/outbound logic, use-products/use-orders, use-outbound-form abandon (v1.1)
     status: pending
-  - id: step7-auth-instrument
+  - id: step7-incident-instrument
+    content: Instrument incident-list-filters.tsx onChange for incident_list_filter_applied (v1.1, 500ms debounce)
+    status: pending
+  - id: step8-auth-instrument
     content: Instrument use-login-form (sessionId, login events) and healthcore-api + api.ts (session_expired)
     status: pending
-  - id: step8-env
+  - id: step9-env
     content: Add NEXT_PUBLIC_TELEMETRY_ENDPOINT to landing/.example.env and root .example.env
     status: pending
-  - id: step9-verify
+  - id: step10-verify
     content: Manual DevTools batch 200; uv run pytest; landing Jest; grep no stray telemetry fetch
     status: pending
 isProject: false
@@ -39,11 +42,11 @@ isProject: false
 
 **Plan file:** [`memory-bank/references/telemetry_ai_plan/telemetry_frontend_implementation_plan.md`](telemetry_frontend_implementation_plan.md)
 
-**Requirements source:** [`telemetry_frontend_specs.md`](telemetry_frontend_specs.md), design docs from Phase 1
+**Requirements source:** [`telemetry_frontend_specs.md`](telemetry_frontend_specs.md), [`docs/telemetry/telemetry-plan.md`](../../../../docs/telemetry/telemetry-plan.md) (v1.1.0), [`docs/telemetry/event-schemas.json`](../../../../docs/telemetry/event-schemas.json)
 
 **Branch:** `feature/telemetry` (second commit on same branch)
 
-**Working directories:** `services/api/`, `uis/backoffice/shared/`, `uis/backoffice/inventory/`, `uis/backoffice/landing/`
+**Working directories:** `services/api/`, `uis/backoffice/shared/`, `uis/backoffice/inventory/`, `uis/backoffice/incident-manager/`, `uis/backoffice/landing/`
 
 **Status:** Not started — no telemetry domain or `telemetry.ts` exists
 
@@ -53,7 +56,15 @@ isProject: false
 
 Phase 2 adds **client-side event capture** and a **backend stub** that validates shape and logs counts without persisting. A single `track()` entry point in `@backoffice/shared/lib/telemetry` batches events to `POST /api/v1/telemetry/events` using standalone `fetch` / `sendBeacon` (never `healthcoreFetch`).
 
-Inventory inbound/outbound, list views, and auth flows are instrumented per the Phase 1 event catalog.
+Instrument **10 events** per [`telemetry-plan.md`](../../../../docs/telemetry/telemetry-plan.md) v1.1.0:
+
+| Module | Events |
+|--------|--------|
+| Inventory | `supply_delivery_created`, `supply_consumption_created`, `supply_consumption_failed`, `supply_consumption_form_abandoned`, `supply_list_viewed`, `orders_list_viewed` |
+| Incident manager | `incident_list_filter_applied` |
+| Auth | `user_login_succeeded`, `user_login_failed`, `session_expired` |
+
+`product_created` is **design-only** — no UI, do not instrument.
 
 ---
 
@@ -61,17 +72,37 @@ Inventory inbound/outbound, list views, and auth flows are instrumented per the 
 
 | Topic | Decision |
 |-------|----------|
-| Service location | `uis/backoffice/shared/lib/telemetry.ts` (not `uis/backoffice/src/services/`) |
-| Endpoint auth | **None** on `POST /telemetry/events` — identity in envelope; CORS allowlist protection |
+| Design doc version | **`schemaVersion: "1.1.0"`** in envelope (matches `event-schemas.json`) |
+| Service location | `uis/backoffice/shared/lib/telemetry.ts` |
+| Endpoint auth | **None** on `POST /telemetry/events` — identity in envelope; CORS allowlist |
 | Transport | Standalone `fetch` + `sendBeacon`; no Bearer header |
-| `userId` | `String((await fetchCurrentUser())?.id ?? "")` via existing `landing/lib/api.ts` pattern; cache in module scope after login |
-| `sessionId` | UUID in `sessionStorage`; generated on login success in `use-login-form.ts` |
-| Instrumentation placement | **Logic files** for order events (access to `products[]` for jurisdiction); **hooks** for list views |
-| `error_code` | `INSUFFICIENT_STOCK` when `isInsufficientStockError(message)`; `VALIDATION_ERROR` for other outbound failures |
-| `session_expired` | Instrument **both** `healthcore-api.ts` (inventory) and `landing/lib/api.ts` (hub/auth pages) on 401 redirect |
-| Env vars | `NEXT_PUBLIC_TELEMETRY_ENDPOINT`, `TELEMETRY_ENDPOINT` (backend placeholder) |
-| Tests | **pytest** stub tests + **Jest** TelemetryService unit tests (stakeholder locked) |
-| Branch | `feature/telemetry` sequential commit |
+| `userId` | `String((await fetchCurrentUser())?.id ?? "")`; cache after login |
+| `sessionId` | UUID in `sessionStorage`; generated on login success |
+| Instrumentation placement | Logic files for order events; hooks for lists + form abandon; incident filter wrapper |
+| `error_code` | `INSUFFICIENT_STOCK` / `VALIDATION_ERROR` for `supply_consumption_failed` |
+| Form abandon (v1.1) | Dirty = any field differs from `emptyOutbound()`; fire on unmount + `visibilitychange` when `hidden` |
+| Incident filter (v1.1) | 500ms debounce; `active_filter_count` = count of non-empty filter keys |
+| Stream events | `user_login_failed`, `session_expired` — **immediate flush** after queue (do not wait 10s/20) |
+| Batch events | All inventory + incident filter + `user_login_succeeded` |
+| `session_expired` | Both `healthcore-api.ts` and `landing/lib/api.ts` |
+| Tests | pytest stub + Jest TelemetryService (stakeholder locked) |
+
+---
+
+## Event → code location map (instrument all 10)
+
+| `event_type` | File | Properties (allowlist only) |
+|--------------|------|----------------------------|
+| `supply_delivery_created` | `inventory/lib/inbound-form-logic.ts` | `supply_id`, `quantity`, `clinic_id`, `jurisdiction` |
+| `supply_consumption_created` | `inventory/lib/outbound-form-logic.ts` | `supply_id`, `quantity`, `consumption_type`, `clinic_id`, `jurisdiction` |
+| `supply_consumption_failed` | `inventory/hooks/use-outbound-form.ts` catch | `error_code`, `supply_id`, `clinic_id`, `jurisdiction` |
+| `supply_consumption_form_abandoned` | `inventory/hooks/use-outbound-form.ts` | `clinic_id`, `had_supply_selected`, `had_quantity`, `jurisdiction`?, `abandon_trigger` |
+| `supply_list_viewed` | `inventory/hooks/use-products.ts` | `item_count` |
+| `orders_list_viewed` | `inventory/hooks/use-orders.ts` | `item_count` |
+| `incident_list_filter_applied` | `incident-manager/components/incident-list-filters.tsx` | `filter_dimension`, `filter_value`, `active_filter_count` |
+| `user_login_succeeded` | `landing/hooks/use-login-form.ts` | `jurisdiction` optional (omit) |
+| `user_login_failed` | `use-login-form.ts` | `reason` |
+| `session_expired` | `healthcore-api.ts`, `landing/lib/api.ts` | *(envelope only)* |
 
 ---
 
@@ -84,22 +115,19 @@ sequenceDiagram
   participant API as POST /telemetry/events
 
   UI->>TS: track(eventType, properties)
-  TS->>TS: enrich envelope + queue
-  alt queue >= 20 or 10s elapsed
+  TS->>TS: enrich envelope (schemaVersion 1.1.0) + queue
+  alt stream event OR queue >= 20 OR 10s elapsed
     TS->>API: fetch POST batch
   end
   Note over UI,TS: visibilitychange hidden
   TS->>API: sendBeacon flush
-  API-->>TS: 200 received N
 ```
 
 ---
 
 ## Step 1 — Backend telemetry domain (stub)
 
-### 1.1 Create `services/api/app/domains/telemetry/schemas.py`
-
-Per spec §3 — `TelemetryEvent` and loose `TelemetryBatch`:
+### 1.1 `services/api/app/domains/telemetry/schemas.py`
 
 ```python
 class TelemetryEvent(BaseModel):
@@ -117,263 +145,164 @@ class TelemetryBatch(BaseModel):
     events: list[dict[str, Any]]
 ```
 
-This model is **frozen for Phase 3** — do not rename fields.
+Frozen for Phase 3 — do not rename fields. Accept `schemaVersion: "1.1.0"` from client.
 
-### 1.2 Create `services/api/app/domains/telemetry/router.py`
+### 1.2 `router.py` — stub `POST /events`
 
-```python
-router = APIRouter(prefix="/telemetry", tags=["telemetry"])
+- Log count + each `event_type`
+- Return `{ "received": len(body.events) }`
+- No DB; partial validation for logging only
 
-@router.post("/events")
-def ingest_events(body: TelemetryBatch) -> dict[str, int]:
-    # log len + each event_type; try model_validate per item for logging only
-    return {"received": len(body.events)}
-```
+### 1.3 Register without `get_current_user` in `app/api/v1/router.py`
 
-- No database session
-- Do not fail entire batch if one item fails validation (log warning, still count in `received`)
-
-### 1.3 Register router
-
-In `app/api/v1/router.py`:
-
-```python
-from app.domains.telemetry.router import router as telemetry_router
-api_v1_router.include_router(telemetry_router)  # NO get_current_user
-```
-
-Final path: `/api/v1/telemetry/events`.
-
-### 1.4 Config
-
-`app/core/config.py`:
-
-```python
-telemetry_endpoint: str = ""
-```
-
-`services/api/.example.env`:
-
-```
-TELEMETRY_ENDPOINT=http://localhost:8000/api/v1/telemetry/events
-```
+### 1.4 Config — `telemetry_endpoint` in Settings + `.example.env`
 
 ---
 
 ## Step 2 — Backend tests (`tests/test_telemetry_stub.py`)
 
-| Case | Assert |
-|------|--------|
-| Valid batch of 2 events | 200, `received: 2` |
-| Empty batch | 200, `received: 0` |
-| Mixed valid/invalid dicts | 200, `received: 2` (stub does not reject) |
-| No DB side effects | No `get_supabase_db` usage; table count unchanged |
-
-Use `TestClient` + caplog for `event_type` log lines.
+Include a fixture event with `schemaVersion: "1.1.0"` and v1.1 `event_type` values (`supply_consumption_form_abandoned`, `incident_list_filter_applied`).
 
 ---
 
 ## Step 3 — `TelemetryService` (`shared/lib/telemetry.ts`)
 
-### 3.1 Constants (spec §4)
+### Constants
 
 ```ts
-const SCHEMA_VERSION = "1.0.0";
+const SCHEMA_VERSION = "1.1.0";
 const SERVICE = "backoffice";
 const FLUSH_INTERVAL_MS = 10_000;
 const MAX_QUEUE_SIZE = 20;
 const MAX_RETRIES = 3;
+
+const STREAM_EVENT_TYPES = new Set([
+  "user_login_failed",
+  "session_expired",
+]);
 ```
 
-### 3.2 Public API
+### Stream vs batch behaviour
+
+- **Batch (default):** queue until 10s or 20 events, then `fetch` POST.
+- **Stream:** after `track()` for `user_login_failed` or `session_expired`, call `flush()` immediately (still uses same batch endpoint — urgency is client-side, not a separate API).
+
+### Public API
 
 ```ts
 export function track(eventType: string, properties: Record<string, unknown>): void
-export function setTelemetryUserId(userId: string): void  // called after login / auth/me
-export function initTelemetrySession(sessionId: string): void  // called on login success
+export function setTelemetryUserId(userId: string): void
+export function initTelemetrySession(sessionId: string): void
 ```
 
-Keep `track` as the only capture export; helper exports for login hook only.
-
-### 3.3 Enrichment
-
-On `track()`:
-
-- `eventId`: `crypto.randomUUID()`
-- `timestamp`: `new Date().toISOString()`
-- `sessionId`: from `sessionStorage.getItem("telemetry_session_id")` or `""`
-- `userId`: cached module variable (set by login flow)
-- `schemaVersion`, `service`
-- `requestId`: new UUID per event (or per flush — spec allows per event; use per event)
-- `event_type`: from `eventType` argument
-- `properties`: caller-supplied allowlist only
-
-### 3.4 Flush logic
-
-- `setInterval` 10s flush
-- Push to queue; if `queue.length >= 20`, flush immediately
-- `flush()`: POST `{ events: queue }` to `process.env.NEXT_PUBLIC_TELEMETRY_ENDPOINT` with `Content-Type: application/json`
-- On success, clear queue; on failure, exponential backoff retry up to 3, then discard silently
-
-### 3.5 `sendBeacon` on tab close
-
-```ts
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "hidden") flushBeacon();
-});
-```
-
-Blob with `application/json` body.
-
-### 3.6 Never use `healthcoreFetch`
-
-Grep guard: no `track` or telemetry POST outside `telemetry.ts`.
+Never use `healthcoreFetch` for telemetry POSTs.
 
 ---
 
-## Step 4 — Jest tests (`uis/backoffice/landing` or shared test location)
+## Step 4 — Jest tests
 
-Add test file e.g. `uis/backoffice/landing/__tests__/telemetry.test.ts` (or colocated under shared if landing test config resolves `@backoffice/shared`):
+Add cases for:
 
-| Case | Assert |
-|------|--------|
-| `track` queues without immediate fetch | `fetch` not called until flush threshold |
-| Queue size 20 triggers flush | One POST with 20 events |
-| Retry on network failure | 3 attempts with backoff (fake timers) |
-| `sendBeacon` called on visibility hidden | mock `navigator.sendBeacon` |
-| Envelope fields present | `eventId`, `service`, `schemaVersion`, etc. |
-
-Mock `global.fetch`, `navigator.sendBeacon`, `crypto.randomUUID`.
-
-**Note:** Landing already has Jest from website pattern — verify `landing/package.json` test script; add if missing mirroring inventory/website setup.
+- `schemaVersion` is `"1.1.0"` on enriched events
+- Stream events trigger immediate flush
+- Batch events wait for threshold
 
 ---
 
 ## Step 5 — Jurisdiction helper
 
-Create `uis/backoffice/inventory/lib/jurisdiction.ts`:
+`uis/backoffice/inventory/lib/jurisdiction.ts`:
 
 ```ts
 export const countryToJurisdiction = (country: string): "us" | "uk" =>
   country === "UK" ? "uk" : "us";
 ```
 
-Used by inbound/outbound instrumentation to derive jurisdiction from selected supply's `country`.
-
 ---
 
 ## Step 6 — Inventory instrumentation
 
-### 6.1 `inbound-form-logic.ts`
+### 6.1–6.4 — Original events (inbound, outbound, failed, list views)
 
-After successful `createInboundOrder`:
+Unchanged from prior plan; use `countryToJurisdiction` for clinic-operation events.
 
-```ts
-const supply = products.find((p) => p.id === fields.supplyId);
-track("supply_delivery_created", {
-  supply_id: fields.supplyId,
-  quantity: qty,
-  clinic_id: fields.clinicId,
-  jurisdiction: countryToJurisdiction(supply?.country ?? "US"),
-});
-```
+List views: optional 30s debounce at call site.
 
-Pass `products` into `submitInboundOrder` or resolve supply inside hook after success — **prefer extending `submitInboundOrder` signature** to accept products array already loaded in hook.
+### 6.5 — `supply_consumption_form_abandoned` (v1.1)
 
-### 6.2 `outbound-form-logic.ts`
-
-Success path: `supply_consumption_created` with `consumption_type: fields.consumptionType` (exact form value).
-
-Catch in `use-outbound-form.ts` after `classifyOutboundError`:
+In `use-outbound-form.ts`:
 
 ```ts
-track("supply_consumption_failed", {
-  error_code: isInsufficientStockError(msg) ? "INSUFFICIENT_STOCK" : "VALIDATION_ERROR",
-  supply_id: fields.supplyId,
-  clinic_id: fields.clinicId,
-  jurisdiction: countryToJurisdiction(supply?.country ?? "US"),
-});
+const isDirty = (fields: ReturnType<typeof emptyOutbound>) =>
+  fields.supplyId !== null ||
+  fields.quantity !== "" ||
+  fields.consumptionType !== CONSUMPTION_TYPES[0].value ||
+  fields.clinicId !== 1;
+
+const emitAbandon = (trigger: "navigation" | "tab_hidden") => {
+  if (!dirtyRef.current || submittedRef.current || abandonEmittedRef.current) return;
+  const props: Record<string, unknown> = {
+    clinic_id: fields.clinicId,
+    had_supply_selected: fields.supplyId !== null,
+    had_quantity: fields.quantity !== "",
+    abandon_trigger: trigger,
+  };
+  if (fields.supplyId) {
+    const supply = products.find((p) => p.id === fields.supplyId);
+    if (supply) props.jurisdiction = countryToJurisdiction(supply.country);
+  }
+  track("supply_consumption_form_abandoned", props);
+  abandonEmittedRef.current = true;
+};
 ```
 
-### 6.3 `use-products.ts`
+- `useEffect` cleanup on unmount → `emitAbandon("navigation")`
+- `visibilitychange` when `hidden` → `emitAbandon("tab_hidden")`
+- Set `submittedRef.current = true` on successful submit
+- 30s dedupe via `abandonEmittedRef` per mount
 
-After successful load:
-
-```ts
-track("supply_list_viewed", { item_count: data.length });
-```
-
-Optional: 30s debounce via ref `{ lastPath, lastAt }` — document if implemented.
-
-### 6.4 `use-orders.ts`
-
-```ts
-track("orders_list_viewed", { item_count: data.length });
-```
+**Do not** include `supply_id` or raw `quantity`.
 
 ---
 
-## Step 7 — Auth instrumentation
+## Step 7 — Incident manager instrumentation (v1.1)
 
-### 7.1 `use-login-form.ts`
-
-On 200 success:
+Wrap `onChange` in `incident-list-filters.tsx` (or debounce in `use-incident-list.ts`):
 
 ```ts
-const sessionId = crypto.randomUUID();
-sessionStorage.setItem("telemetry_session_id", sessionId);
-initTelemetrySession(sessionId);
-const user = await fetchCurrentUser();
-if (user) setTelemetryUserId(String(user.id));
-track("user_login_succeeded", {}); // omit jurisdiction — unknown at login
+const handleFilterChange = (dimension: FilterDimension, value: string, next: IncidentFilters) => {
+  const active = [next.status, next.origin, next.branch, next.category].filter(Boolean).length;
+  debouncedTrack(() =>
+    track("incident_list_filter_applied", {
+      filter_dimension: dimension,
+      filter_value: value,
+      active_filter_count: active,
+    }),
+  );
+  onChange(next);
+};
 ```
 
-On `!response.ok` with status 401:
+`filter_value` is the selected enum string or `""` when cleared to All.
 
-```ts
-track("user_login_failed", { reason: "invalid_credentials" });
-```
-
-On catch with `NETWORK_ERROR_MESSAGE` or `TypeError`:
-
-```ts
-track("user_login_failed", { reason: "network_error" });
-```
-
-Refactor login to distinguish 401 from other errors (currently generic message on all `!response.ok`).
-
-### 7.2 `healthcore-api.ts`
-
-When `response.status === 401` and redirecting to `/login` from protected route:
-
-```ts
-track("session_expired", {});
-```
-
-Import `track` from telemetry — ensure no circular import (telemetry must not import healthcore-api).
-
-### 7.3 `landing/lib/api.ts`
-
-Same `session_expired` track on 401 redirect in `apiFetch` and when `fetchCurrentUser` gets 401 — covers hub/profile routes not using `healthcoreFetch`.
+Import `track` from `@backoffice/shared/lib/telemetry` — incident-manager compiles through landing like inventory.
 
 ---
 
-## Step 8 — Environment
+## Step 8 — Auth instrumentation
 
-**`uis/backoffice/landing/.example.env`:**
+Same as prior plan:
 
-```
-NEXT_PUBLIC_TELEMETRY_ENDPOINT=http://localhost:8000/api/v1/telemetry/events
-```
+- `use-login-form.ts` — sessionId, login success/failure
+- `healthcore-api.ts` + `landing/lib/api.ts` — `session_expired` on 401 redirect
 
-**Root `.example.env`** (Docker):
+`user_login_failed` and `session_expired` use stream flush.
 
-```
-NEXT_PUBLIC_TELEMETRY_ENDPOINT=http://localhost:8000/api/v1/telemetry/events
-TELEMETRY_ENDPOINT=http://localhost:8000/api/v1/telemetry/events
-```
+---
 
-Document in `services/api/README.md` telemetry stub section (brief).
+## Step 9 — Environment
+
+`NEXT_PUBLIC_TELEMETRY_ENDPOINT` and `TELEMETRY_ENDPOINT` in landing `.example.env` and root `.example.env`.
 
 ---
 
@@ -381,12 +310,13 @@ Document in `services/api/README.md` telemetry stub section (brief).
 
 ### Manual
 
-1. Start API `:8000`, landing `:3001`
-2. Login → check Network for batched POST (may need 10s or 20 events)
-3. Create inbound + outbound orders; trigger insufficient stock
-4. Visit products + orders lists
-5. Confirm API logs show `event_type` values
-6. Close tab → confirm `sendBeacon` request in DevTools
+1. Login → `user_login_succeeded` in batch
+2. View products/orders lists
+3. Inbound + outbound orders; trigger insufficient stock
+4. **Start outbound form, enter data, navigate away** → `supply_consumption_form_abandoned`
+5. **Incident Manager list → change a filter** → `incident_list_filter_applied`
+6. DevTools: batched POST to `/api/v1/telemetry/events` with `schemaVersion: "1.1.0"`
+7. Tab close → `sendBeacon` flush
 
 ### Automated
 
@@ -395,36 +325,27 @@ cd services/api && uv run pytest tests/test_telemetry_stub.py -v
 cd uis/backoffice/landing && npm test -- --testPathPattern=telemetry
 ```
 
-### Grep guard
-
-```bash
-rg "telemetry/events" uis/backoffice --glob '!**/telemetry.ts'
-# should return no direct fetch calls outside telemetry.ts
-```
-
 ---
 
 ## PR checklist
 
 - **Title:** `[W16D47] Telemetry Frontend`
-- **Description:** event→file mapping table, DevTools screenshot note, auth instrumentation confirmed
+- **Description:** 10-event mapping table, v1.1 abandon + filter noted, DevTools screenshot
 
 ---
 
-## Definition of done (maps to spec §9)
+## Definition of done
 
-- [ ] Stub endpoint returns `{ received: N }`, no DB
-- [ ] `TelemetryEvent` model matches envelope; reusable in Phase 3
-- [ ] Env vars established; no hardcoded URL
-- [ ] TelemetryService: queue, 10s/20 flush, sendBeacon, retry
-- [ ] `track()` auto-fills envelope fields
-- [ ] Single `track()` entry point; no stray telemetry fetch
-- [ ] Inventory + auth events with allowlist properties
-- [ ] No PII in properties
+- [ ] Stub returns `{ received: N }`, no DB
+- [ ] `schemaVersion` **1.1.0** in client envelope
+- [ ] All **10 instrumentable** events wired with allowlist-only properties
+- [ ] Stream flush for `user_login_failed` / `session_expired`
+- [ ] Form abandon + incident filter (v1.1)
+- [ ] No PII; single `track()` entry point
 - [ ] pytest + Jest passing
 
 ---
 
 ## Handoff to Phase 3
 
-Phase 3 replaces stub body only — same `schemas.py`, same URL, same frontend. Response gains `stored`/`rejected`; frontend ignores extra fields.
+Same URL and body; response gains `stored`/`rejected`. Storage must accept all v1.1 property keys in `tags` per [`telemetry-plan.md`](../../../../docs/telemetry/telemetry-plan.md).
