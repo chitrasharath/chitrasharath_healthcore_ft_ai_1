@@ -202,8 +202,17 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
   - `mapper.py` — allowlist validation, `map_event_to_row`, level/value derivation
   - `POST /api/v1/telemetry/events` persists via bulk insert; zero frontend changes
   - `tests/test_telemetry_storage.py` + updated stub tests (12 telemetry tests passing)
-- **Next:** Phase 4 report per `telemetry_report_implementation_plan.md`.
 - Plan: `memory-bank/references/telemetry_ai_plan/telemetry_storage_implementation_plan.md`.
+
+#### Telemetry Report (Phase 4) (Delivered — `W17D49`)
+
+- Goal: Pandas KPI pipeline + JWT-protected `GET /api/v1/telemetry/report` with 60s cache.
+- **Delivered:**
+  - `repository.py`, `analysis.py` (4 metrics), `cache.py`
+  - Report returns `{ period, metrics }` with consumption/waste/stock-out/auth_failure_rate arrays
+  - v1.1 stored events excluded from default metrics; ingest unchanged
+  - `tests/test_telemetry_report.py` (6 tests); telemetry suite 140 tests passing
+- Plan: `memory-bank/references/telemetry_ai_plan/telemetry_report_implementation_plan.md`.
 
 ## Future Feature Additions
 
