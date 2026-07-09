@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     email_api_key: str = ""
     frontend_url: str = "http://localhost:3001"
     database_url: str = ""
+    telemetry_endpoint: str = ""
 
     @property
     def cors_origin_list(self) -> list[str]:

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { fetchCurrentUser, getStoredToken, type UserProfile } from "@/lib/api";
+import { setTelemetryUserId } from "@backoffice/shared/lib/telemetry";
 
 export const useLandingSession = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -24,6 +25,7 @@ export const useLandingSession = () => {
       try {
         const profile = await fetchCurrentUser();
         if (!active) return;
+        if (profile) setTelemetryUserId(String(profile.id));
         setUser(profile ?? null);
       } catch {
         if (active) setUser(null);

@@ -1,7 +1,9 @@
 import { createOutboundOrder, listProducts } from "@backoffice/inventory/lib/inventory-api";
 import { CONSUMPTION_TYPES } from "@backoffice/inventory/lib/constants";
+import { countryToJurisdiction } from "@backoffice/inventory/lib/jurisdiction";
 import { isInsufficientStockError, parseSupplyId } from "@backoffice/inventory/lib/form-helpers";
 import type { MedicalSupply } from "@backoffice/inventory/types/inventory";
+import { track } from "@backoffice/shared/lib/telemetry";
 
 export const emptyOutbound = () => ({
   supplyId: null as number | null,
@@ -19,7 +21,10 @@ export const loadOutboundProducts = async (
   return { products, supplyId };
 };
 
-export const submitOutboundOrder = async (fields: ReturnType<typeof emptyOutbound>) => {
+export const submitOutboundOrder = async (
+  fields: ReturnType<typeof emptyOutbound>,
+  products: MedicalSupply[],
+) => {
   if (!fields.supplyId) throw new Error("Please select a medical supply.");
   const qty = Number(fields.quantity);
   if (!Number.isInteger(qty) || qty < 1) throw new Error("Quantity must be a positive integer.");
@@ -28,6 +33,14 @@ export const submitOutboundOrder = async (fields: ReturnType<typeof emptyOutboun
     quantity: qty,
     consumption_type: fields.consumptionType,
     clinic_id: fields.clinicId,
+  });
+  const supply = products.find((product) => product.id === fields.supplyId);
+  track("supply_consumption_created", {
+    supply_id: fields.supplyId,
+    quantity: qty,
+    consumption_type: fields.consumptionType,
+    clinic_id: fields.clinicId,
+    jurisdiction: countryToJurisdiction(supply?.country ?? "US"),
   });
 };
 

@@ -13,6 +13,12 @@ from app.domains.incidents import models as incident_models  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s %(name)s: %(message)s",
+)
+logging.getLogger("app.domains.telemetry").setLevel(logging.INFO)
+
 app = FastAPI(title="HealthCore API", version="0.1.0")
 
 app.add_middleware(

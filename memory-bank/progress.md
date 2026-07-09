@@ -179,8 +179,19 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
   - `docs/telemetry/telemetry-plan.md` — 3 reconciled KPIs, flow mapping, envelope (`schemaVersion` 1.1.0), 11-event catalog (10 instrumentable + 1 design-only).
   - `docs/telemetry/event-schemas.json` — JSON Schema draft-07 with `eventEnvelope` + per-event definitions (`x-pii: false` on all).
   - v1.1 events: `supply_consumption_form_abandoned`, `incident_list_filter_applied`.
-- **Next:** Phase 2 frontend capture + stub endpoint per `telemetry_frontend_implementation_plan.md`.
 - Plan: `memory-bank/references/telemetry_ai_plan/telemetry_design_implementation_plan.md`.
+
+#### Telemetry Frontend Capture (Phase 2) (Delivered — uncommitted)
+
+- Goal: client-side `track()` instrumentation and unauthenticated stub `POST /api/v1/telemetry/events`.
+- **Delivered:**
+  - Backend stub: `services/api/app/domains/telemetry/` — accepts batches, logs event types, returns `{ "received": N }`, no DB.
+  - `uis/backoffice/shared/lib/telemetry.ts` — queue, 10s/20-event batch, `sendBeacon`, stream flush for auth failures, `schemaVersion` 1.1.0.
+  - All 10 instrumentable events wired (inventory, incident filters, auth).
+  - `services/api/tests/test_telemetry_stub.py` + `uis/backoffice/landing/__tests__/telemetry.test.ts` passing.
+  - Env documented: `NEXT_PUBLIC_TELEMETRY_ENDPOINT`, `TELEMETRY_ENDPOINT`.
+- **Next:** Phase 3 storage per `telemetry_storage_implementation_plan.md`.
+- Plan: `memory-bank/references/telemetry_ai_plan/telemetry_frontend_implementation_plan.md`.
 
 ## Future Feature Additions
 
