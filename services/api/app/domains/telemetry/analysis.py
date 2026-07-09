@@ -99,21 +99,42 @@ def insufficient_stock_failures_per_day(
     start_date: datetime,
     end_date: datetime,
 ) -> list[dict[str, Any]]:
-    """KPI 3 (telemetry-plan.md §2): insufficient-stock outbound rejections per day.
+    """KPI 3 (telemetry-plan.md §2): insufficient-stock rejections and rejection rate.
+
+    ``count`` = failed outbound attempts; ``attempts`` = created + failed;
+    ``rejection_rate`` = count / attempts per supply/clinic/jurisdiction/day.
 
     Replaces CONTEXT stock-out observability via the HTTP 400 rejection signal.
     """
-    df = load_events(session, ["supply_consumption_failed"], start_date, end_date)
+    df = load_events(
+        session,
+        ["supply_consumption_created", "supply_consumption_failed"],
+        start_date,
+        end_date,
+    )
     if df.empty:
         return []
 
-    df = _ensure_columns(_expand_tags(_prepare_timestamps(df)), ["jurisdiction"])
-    df = df.dropna(subset=["jurisdiction"])
+    group_cols = ["date", "clinic_id", "jurisdiction", "supply_id"]
+    df = _ensure_columns(
+        _expand_tags(_prepare_timestamps(df)),
+        ["clinic_id", "jurisdiction", "supply_id"],
+    )
+    df = df.dropna(subset=["clinic_id", "jurisdiction", "supply_id"])
     if df.empty:
         return []
 
-    grouped = df.groupby(["date", "jurisdiction"], as_index=False).agg(count=("id", "count"))
-    return _records(grouped, ["date", "jurisdiction", "count"])
+    df["is_failure"] = df["event_type"] == "supply_consumption_failed"
+    grouped = df.groupby(group_cols, as_index=False).agg(
+        attempts=("id", "count"),
+        count=("is_failure", "sum"),
+    )
+    grouped["count"] = grouped["count"].astype(int)
+    grouped["rejection_rate"] = grouped["count"] / grouped["attempts"]
+    return _records(
+        grouped,
+        ["date", "clinic_id", "jurisdiction", "supply_id", "count", "attempts", "rejection_rate"],
+    )
 
 
 def auth_failure_rate(
@@ -142,7 +163,9 @@ def auth_failure_rate(
         succeeded=("succeeded", "sum"),
     )
     grouped["failure_rate"] = grouped["failed"] / (grouped["failed"] + grouped["succeeded"])
-    return _records(grouped, ["date", "failure_rate"])
+    grouped["failed"] = grouped["failed"].astype(int)
+    grouped["succeeded"] = grouped["succeeded"].astype(int)
+    return _records(grouped, ["date", "failed", "succeeded", "failure_rate"])
 
 
 def build_metrics(

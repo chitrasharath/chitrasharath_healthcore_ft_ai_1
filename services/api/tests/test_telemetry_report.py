@@ -178,10 +178,27 @@ def test_kpi_metrics_exclude_v1_1_noise(
         {"date": "2026-07-08", "jurisdiction": "us", "waste_rate": 0.5, "total": 2},
     ]
     assert metrics["insufficient_stock_failures_per_day"] == [
-        {"date": "2026-07-08", "jurisdiction": "us", "count": 1},
+        {
+            "date": "2026-07-08",
+            "clinic_id": 1,
+            "jurisdiction": "us",
+            "supply_id": 1,
+            "count": 1,
+            "attempts": 2,
+            "rejection_rate": 0.5,
+        },
+        {
+            "date": "2026-07-08",
+            "clinic_id": 1,
+            "jurisdiction": "us",
+            "supply_id": 2,
+            "count": 0,
+            "attempts": 1,
+            "rejection_rate": 0.0,
+        },
     ]
     assert metrics["auth_failure_rate"] == [
-        {"date": "2026-07-08", "failure_rate": 0.5},
+        {"date": "2026-07-08", "failed": 1, "succeeded": 1, "failure_rate": 0.5},
     ]
 
 
@@ -247,5 +264,5 @@ def test_auth_failure_rate_ignores_jurisdiction(
         rows = telemetry_analysis.auth_failure_rate(session, WINDOW_START, WINDOW_END)
 
     assert rows == [
-        {"date": "2026-07-08", "failure_rate": 0.5},
+        {"date": "2026-07-08", "failed": 1, "succeeded": 1, "failure_rate": 0.5},
     ]

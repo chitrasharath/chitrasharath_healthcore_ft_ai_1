@@ -285,7 +285,7 @@ Expect `{ "received": 3, "stored": 1, "rejected": 2 }` — only `supply_list_vie
 ### Phase 4 — Report
 
 ```bash
-git checkout c6fba5b  # [W17D49] Telemetry Report
+git checkout feature/telemetry  # [W17D49] Telemetry Report — KPI 3 rejection_rate + auth counts (HEAD)
 ```
 
 Seed **KPI-relevant** events via backoffice (at minimum: successful outbound consumptions, expiry-waste outbound, insufficient-stock failures, and login success/failure). v1.1 events (abandon, filter) should appear in the DB but **not** change report metric counts.
@@ -307,7 +307,7 @@ curl -s "http://localhost:8000/api/v1/telemetry/report" \
   -H "Authorization: Bearer $TOKEN" | jq .
 ```
 
-3. Confirm response shape: `period.from` / `period.to` and **four** metric arrays — `consumption_volume_per_day`, `waste_rate_per_day`, `insufficient_stock_failures_per_day`, `auth_failure_rate`.
+3. Confirm response shape: `period.from` / `period.to` and **four** metric arrays — `consumption_volume_per_day` (count/day/clinic), `waste_rate_per_day` (`waste_rate` + `total`), `insufficient_stock_failures_per_day` (`count`, `attempts`, `rejection_rate` per supply/clinic), `auth_failure_rate` (`failed`, `succeeded`, `failure_rate`).
 4. Optional date window:
 
 ```bash
