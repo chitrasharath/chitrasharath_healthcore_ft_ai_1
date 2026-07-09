@@ -3,7 +3,7 @@ name: Telemetry Report (Phase 4)
 overview: "Pandas analysis pipeline + JWT-protected GET /api/v1/telemetry/report — three reconciled KPI metrics + auth_failure_rate; reads v1.1.0 stored events; supplementary v1.1 metrics out of scope."
 todos:
   - id: step0-prereq
-    content: Confirm Phase 3 persistence; seed ≥20 telemetry_events incl. v1.1 abandon + filter via backoffice
+    content: Confirm Phase 3 persistence on feature/telemetry; seed ≥20 telemetry_events incl. XOR abandon + filter via backoffice
     status: pending
   - id: step1-pandas-dep
     content: Add pandas to services/api/pyproject.toml; uv sync + re-lock root dev group if needed
@@ -39,7 +39,7 @@ isProject: false
 
 **Working directory:** `services/api/`
 
-**Status:** Not started — no `pandas` dependency, no report endpoint
+**Status:** Blocked on Phase 3 — Phase 2 complete (`7ce0da5`); no `pandas` dependency or report endpoint yet.
 
 ---
 
@@ -91,7 +91,7 @@ GROUP BY event_type;
 | Auth on report | JWT required |
 | Auth on ingest | Public |
 | Cache | 60s TTL |
-| Tests | Seed rows with `schemaVersion: "1.1.0"` in tags for realism |
+| Tests | Seed rows with `schemaVersion: "1.1.0"` in tags; include XOR abandon rows (supply-only + quantity-only) |
 
 ---
 
@@ -150,6 +150,7 @@ Each docstring must reference:
 
 - **Events:** `user_login_succeeded`, `user_login_failed`
 - Group: `['date', 'jurisdiction']`; drop rows without jurisdiction
+- **Phase 2 note:** Login events omit `jurisdiction` in properties — metric may return `[]` until jurisdiction is added at login. Accept empty array; do not fail report.
 
 ### Function rules
 
@@ -189,7 +190,7 @@ Default window: 7 days; inclusive start, exclusive end.
 Seed fixture should include:
 
 - Standard KPI events with `schemaVersion: "1.1.0"` in tags
-- Optional v1.1 rows (`supply_consumption_form_abandoned`, `incident_list_filter_applied`) — assert they **do not** affect KPI metric counts
+- v1.1 rows — **both XOR abandon variants** (`had_supply_selected` only; `had_quantity` only) plus `incident_list_filter_applied` — assert they **do not** affect KPI metric counts
 
 | Case | Assert |
 |------|--------|
@@ -206,7 +207,7 @@ Seed fixture should include:
 
 Backoffice flows per Phase 2 + storage plan, **including**:
 
-- Abandon outbound form
+- Abandon outbound form — supply-only **and** quantity-only cases
 - Change incident filter
 
 ### Authenticated curl
@@ -240,11 +241,11 @@ Confirm 4 metric arrays; v1.1 events visible in DB but not in response.
 
 ## Full milestone completion
 
-| Phase | Deliverable |
-|-------|-------------|
-| 1 | `telemetry-plan.md` v1.1.0, `event-schemas.json` (11 events) |
-| 2 | TelemetryService + 10 instrumentable events |
-| 3 | `telemetry_events` persistence (incl. v1.1) |
-| 4 | Report API — 4 metrics over KPI event types |
+| Phase | Deliverable | Status |
+|-------|-------------|--------|
+| 1 | `telemetry-plan.md` v1.1.0, `event-schemas.json` (11 events) | Delivered (`52d141e`) |
+| 2 | TelemetryService + 10 instrumentable events | Delivered (`7ce0da5`) |
+| 3 | `telemetry_events` persistence (incl. v1.1) | Next |
+| 4 | Report API — 4 metrics over KPI event types | Blocked on Phase 3 |
 
 **Future extension (not Phase 4):** optional `form_abandon_per_day` or `incident_filter_activity_per_day` metrics from v1.1 events.

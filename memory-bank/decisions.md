@@ -313,11 +313,14 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision: `jurisdiction` derived client-side from `MedicalSupply.country` (`US`→`us`, `UK`→`uk`); not a database column.
 - Why: No jurisdiction field on inventory entities; CCO audit segmentation still required on clinic-operation events.
 
-- Decision: v1.1 events — `supply_consumption_form_abandoned` (outbound form dirty + leave) and `incident_list_filter_applied` (Incident Manager filters; not inventory — no filter UI there).
-- Why: Stakeholder additions for form-friction and Patient Experience filter audit.
+- Decision: v1.1 events — `supply_consumption_form_abandoned` (outbound **partial form** XOR: supply **or** quantity, not both) and `incident_list_filter_applied` (Incident Manager filters; not inventory — no filter UI there).
+- Why: Stakeholder additions for form-friction and Patient Experience filter audit; abandon refined during Phase 2 implementation.
 
 - Decision: `product_created` event designed but **not** instrumented in Phase 2 — no create-product UI.
 - Why: Phase 2 captures only at frontend `track()` call sites.
 
-- Decision (downstream, locked at planning): telemetry ingest `POST /telemetry/events` unauthenticated (sendBeacon); `GET /telemetry/report` JWT-protected; `telemetry_events` on existing `milestone5_inventory` Supabase project.
+- Decision (Phase 2 delivered, `7ce0da5`): Client transport uses `fetch` with `keepalive: true` on tab-close flush (not `sendBeacon` — cross-origin JSON body failed FastAPI parse). Form abandon uses immediate `void flush()`.
+- Why: Verified in manual testing; `sendBeacon` without reliable `Content-Type` returned 422.
+
+- Decision (downstream, locked at planning): telemetry ingest `POST /telemetry/events` unauthenticated (`fetch`/`keepalive`, no Bearer); `GET /telemetry/report` JWT-protected; `telemetry_events` on existing `milestone5_inventory` Supabase project.
 - Why: Stakeholder clarifications during implementation planning.

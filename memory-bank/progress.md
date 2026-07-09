@@ -181,17 +181,24 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
   - v1.1 events: `supply_consumption_form_abandoned`, `incident_list_filter_applied`.
 - Plan: `memory-bank/references/telemetry_ai_plan/telemetry_design_implementation_plan.md`.
 
-#### Telemetry Frontend Capture (Phase 2) (Delivered — uncommitted)
+#### Telemetry Frontend Capture (Phase 2) (Delivered)
 
 - Goal: client-side `track()` instrumentation and unauthenticated stub `POST /api/v1/telemetry/events`.
-- **Delivered:**
+- **Delivered** (`7ce0da5` on `feature/telemetry`):
   - Backend stub: `services/api/app/domains/telemetry/` — accepts batches, logs event types, returns `{ "received": N }`, no DB.
-  - `uis/backoffice/shared/lib/telemetry.ts` — queue, 10s/20-event batch, `sendBeacon`, stream flush for auth failures, `schemaVersion` 1.1.0.
+  - `uis/backoffice/shared/lib/telemetry.ts` — queue, 10s/20-event batch, `fetch` + `keepalive` tab-close flush, stream flush for auth failures, `schemaVersion` 1.1.0.
   - All 10 instrumentable events wired (inventory, incident filters, auth).
-  - `services/api/tests/test_telemetry_stub.py` + `uis/backoffice/landing/__tests__/telemetry.test.ts` passing.
+  - Form abandon: XOR partial form (supply **or** quantity, not both); `outbound-abandon.ts` + `use-outbound-abandon-telemetry.ts`.
+  - `services/api/tests/test_telemetry_stub.py` + `uis/backoffice/landing/__tests__/telemetry.test.ts` + `outbound-abandon.test.ts` passing.
   - Env documented: `NEXT_PUBLIC_TELEMETRY_ENDPOINT`, `TELEMETRY_ENDPOINT`.
-- **Next:** Phase 3 storage per `telemetry_storage_implementation_plan.md`.
+- **Next:** Phase 3 storage per `telemetry_storage_implementation_plan.md` (plan updated for Phase 2 handoff).
 - Plan: `memory-bank/references/telemetry_ai_plan/telemetry_frontend_implementation_plan.md`.
+
+#### Telemetry Storage (Phase 3) (Next)
+
+- Goal: persist validated events to `telemetry_events` on `milestone5_inventory`; partial acceptance; `{ received, stored, rejected }`.
+- **Plan updated** for Phase 2 handoff (XOR abandon semantics, keepalive transport, stub migration).
+- Plan: `memory-bank/references/telemetry_ai_plan/telemetry_storage_implementation_plan.md`.
 
 ## Future Feature Additions
 

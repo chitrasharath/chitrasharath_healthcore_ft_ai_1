@@ -1,40 +1,40 @@
 ---
 name: Telemetry Frontend Capture (Phase 2)
-overview: "Stub POST /api/v1/telemetry/events, shared TelemetryService (queue/batch/sendBeacon), and track() instrumentation across inventory, incident-manager filters, and auth — schemaVersion 1.1.0, 10 instrumentable events."
+overview: "Delivered — stub POST /api/v1/telemetry/events, shared TelemetryService (queue/batch/keepalive fetch), track() across inventory, incident-manager filters, and auth — schemaVersion 1.1.0, 10 instrumentable events."
 todos:
   - id: step0-prereq
     content: Confirm Phase 1 docs/telemetry/ on feature/telemetry (telemetry-plan.md v1.1.0 + event-schemas.json)
-    status: pending
+    status: completed
   - id: step1-backend-domain
     content: Create app/domains/telemetry/ (schemas.py, router.py); wire in api/v1/router.py without auth
-    status: pending
+    status: completed
   - id: step2-backend-config
     content: Add telemetry_endpoint to Settings + services/api/.example.env TELEMETRY_ENDPOINT
-    status: pending
+    status: completed
   - id: step3-backend-tests
     content: Add tests/test_telemetry_stub.py — batch accept, log count, no DB, malformed item tolerance
-    status: pending
+    status: completed
   - id: step4-telemetry-service
-    content: Create uis/backoffice/shared/lib/telemetry.ts — schemaVersion 1.1.0, queue, flush, sendBeacon, stream flush for auth failures
-    status: pending
+    content: Create uis/backoffice/shared/lib/telemetry.ts — schemaVersion 1.1.0, queue, flush, keepalive fetch, stream flush for auth failures
+    status: completed
   - id: step5-jest-telemetry
-    content: Add Jest tests for TelemetryService queue/flush/retry/stream behaviour (mock fetch + sendBeacon)
-    status: pending
+    content: Add Jest tests for TelemetryService queue/flush/retry/stream behaviour (mock fetch)
+    status: completed
   - id: step6-inventory-instrument
-    content: Instrument inbound/outbound logic, use-products/use-orders, use-outbound-form abandon (v1.1)
-    status: pending
+    content: Instrument inbound/outbound logic, use-products/use-orders, outbound abandon XOR (v1.1)
+    status: completed
   - id: step7-incident-instrument
     content: Instrument incident-list-filters.tsx onChange for incident_list_filter_applied (v1.1, 500ms debounce)
-    status: pending
+    status: completed
   - id: step8-auth-instrument
     content: Instrument use-login-form (sessionId, login events) and healthcore-api + api.ts (session_expired)
-    status: pending
+    status: completed
   - id: step9-env
     content: Add NEXT_PUBLIC_TELEMETRY_ENDPOINT to landing/.example.env and root .example.env
-    status: pending
+    status: completed
   - id: step10-verify
     content: Manual DevTools batch 200; uv run pytest; landing Jest; grep no stray telemetry fetch
-    status: pending
+    status: completed
 isProject: false
 ---
 
@@ -48,13 +48,13 @@ isProject: false
 
 **Working directories:** `services/api/`, `uis/backoffice/shared/`, `uis/backoffice/inventory/`, `uis/backoffice/incident-manager/`, `uis/backoffice/landing/`
 
-**Status:** Not started — no telemetry domain or `telemetry.ts` exists
+**Status:** Delivered — commit `7ce0da5` on `feature/telemetry`
 
 ---
 
 ## Executive summary
 
-Phase 2 adds **client-side event capture** and a **backend stub** that validates shape and logs counts without persisting. A single `track()` entry point in `@backoffice/shared/lib/telemetry` batches events to `POST /api/v1/telemetry/events` using standalone `fetch` / `sendBeacon` (never `healthcoreFetch`).
+Phase 2 adds **client-side event capture** and a **backend stub** that validates shape and logs counts without persisting. A single `track()` entry point in `@backoffice/shared/lib/telemetry` batches events to `POST /api/v1/telemetry/events` using standalone `fetch` with `keepalive: true` on tab-close flush (never `healthcoreFetch`).
 
 Instrument **10 events** per [`telemetry-plan.md`](../../../../docs/telemetry/telemetry-plan.md) v1.1.0:
 
@@ -75,12 +75,12 @@ Instrument **10 events** per [`telemetry-plan.md`](../../../../docs/telemetry/te
 | Design doc version | **`schemaVersion: "1.1.0"`** in envelope (matches `event-schemas.json`) |
 | Service location | `uis/backoffice/shared/lib/telemetry.ts` |
 | Endpoint auth | **None** on `POST /telemetry/events` — identity in envelope; CORS allowlist |
-| Transport | Standalone `fetch` + `sendBeacon`; no Bearer header |
+| Transport | Standalone `fetch` (+ `keepalive: true` on tab-close); no Bearer header |
 | `userId` | `String((await fetchCurrentUser())?.id ?? "")`; cache after login |
 | `sessionId` | UUID in `sessionStorage`; generated on login success |
-| Instrumentation placement | Logic files for order events; hooks for lists + form abandon; incident filter wrapper |
+| Instrumentation placement | Logic files for order events; hooks for lists + abandon; incident filter wrapper |
 | `error_code` | `INSUFFICIENT_STOCK` / `VALIDATION_ERROR` for `supply_consumption_failed` |
-| Form abandon (v1.1) | Dirty = any field differs from `emptyOutbound()`; fire on unmount + `visibilitychange` when `hidden` |
+| Form abandon (v1.1) | **XOR partial form** — supply **or** quantity filled, not both; `outbound-abandon.ts` + `use-outbound-abandon-telemetry.ts`; immediate `fetch` flush |
 | Incident filter (v1.1) | 500ms debounce; `active_filter_count` = count of non-empty filter keys |
 | Stream events | `user_login_failed`, `session_expired` — **immediate flush** after queue (do not wait 10s/20) |
 | Batch events | All inventory + incident filter + `user_login_succeeded` |
@@ -96,7 +96,7 @@ Instrument **10 events** per [`telemetry-plan.md`](../../../../docs/telemetry/te
 | `supply_delivery_created` | `inventory/lib/inbound-form-logic.ts` | `supply_id`, `quantity`, `clinic_id`, `jurisdiction` |
 | `supply_consumption_created` | `inventory/lib/outbound-form-logic.ts` | `supply_id`, `quantity`, `consumption_type`, `clinic_id`, `jurisdiction` |
 | `supply_consumption_failed` | `inventory/hooks/use-outbound-form.ts` catch | `error_code`, `supply_id`, `clinic_id`, `jurisdiction` |
-| `supply_consumption_form_abandoned` | `inventory/hooks/use-outbound-form.ts` | `clinic_id`, `had_supply_selected`, `had_quantity`, `jurisdiction`?, `abandon_trigger` |
+| `supply_consumption_form_abandoned` | `inventory/lib/outbound-abandon.ts` + `inventory/hooks/use-outbound-abandon-telemetry.ts` | `clinic_id`, `had_supply_selected`, `had_quantity`, `jurisdiction`?, `abandon_trigger` |
 | `supply_list_viewed` | `inventory/hooks/use-products.ts` | `item_count` |
 | `orders_list_viewed` | `inventory/hooks/use-orders.ts` | `item_count` |
 | `incident_list_filter_applied` | `incident-manager/components/incident-list-filters.tsx` | `filter_dimension`, `filter_value`, `active_filter_count` |
@@ -120,7 +120,7 @@ sequenceDiagram
     TS->>API: fetch POST batch
   end
   Note over UI,TS: visibilitychange hidden
-  TS->>API: sendBeacon flush
+  TS->>API: keepalive fetch flush
 ```
 
 ---
@@ -228,38 +228,21 @@ Unchanged from prior plan; use `countryToJurisdiction` for clinic-operation even
 
 List views: optional 30s debounce at call site.
 
-### 6.5 — `supply_consumption_form_abandoned` (v1.1)
+### 6.5 — `supply_consumption_form_abandoned` (v1.1, delivered)
 
-In `use-outbound-form.ts`:
+In `inventory/lib/outbound-abandon.ts` + `inventory/hooks/use-outbound-abandon-telemetry.ts`:
 
 ```ts
-const isDirty = (fields: ReturnType<typeof emptyOutbound>) =>
-  fields.supplyId !== null ||
-  fields.quantity !== "" ||
-  fields.consumptionType !== CONSUMPTION_TYPES[0].value ||
-  fields.clinicId !== 1;
+// XOR partial form — exactly one of supply or quantity, not both
+const isOutboundDirty = (fields: OutboundFields): boolean =>
+  (fields.supplyId !== null) !== (fields.quantity !== "");
 
-const emitAbandon = (trigger: "navigation" | "tab_hidden") => {
-  if (!dirtyRef.current || submittedRef.current || abandonEmittedRef.current) return;
-  const props: Record<string, unknown> = {
-    clinic_id: fields.clinicId,
-    had_supply_selected: fields.supplyId !== null,
-    had_quantity: fields.quantity !== "",
-    abandon_trigger: trigger,
-  };
-  if (fields.supplyId) {
-    const supply = products.find((p) => p.id === fields.supplyId);
-    if (supply) props.jurisdiction = countryToJurisdiction(supply.country);
-  }
-  track("supply_consumption_form_abandoned", props);
-  abandonEmittedRef.current = true;
-};
+// trackOutboundAbandon → track() + void flush() (immediate delivery)
 ```
 
-- `useEffect` cleanup on unmount → `emitAbandon("navigation")`
-- `visibilitychange` when `hidden` → `emitAbandon("tab_hidden")`
-- Set `submittedRef.current = true` on successful submit
-- 30s dedupe via `abandonEmittedRef` per mount
+- Link-click capture (capture phase) + unmount cleanup + `visibilitychange` / `pagehide`
+- Set `submitted` on successful submit; only set `abandonEmittedRef` when event actually tracked
+- At most once per form mount per abandon episode
 
 **Do not** include `supply_id` or raw `quantity`.
 

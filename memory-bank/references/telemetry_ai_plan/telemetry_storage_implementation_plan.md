@@ -3,8 +3,8 @@ name: Telemetry Storage (Phase 3)
 overview: "Replace Phase 2 stub with persisting POST /api/v1/telemetry/events — SQLModel telemetry_events on milestone5_inventory, per-event validation for all 10 instrumentable v1.1.0 events, partial acceptance, bulk insert. Zero frontend changes."
 todos:
   - id: step0-prereq
-    content: Confirm Phase 2 stub + TelemetryService on feature/telemetry; DATABASE_URL for milestone5_inventory
-    status: pending
+    content: Confirm Phase 2 stub + TelemetryService on feature/telemetry (commit 7ce0da5); DATABASE_URL for milestone5_inventory
+    status: completed
   - id: step1-model
     content: Create app/domains/telemetry/models.py (TelemetryEventRow) with UUID PK + jsonb tags
     status: pending
@@ -36,7 +36,27 @@ isProject: false
 
 **Working directory:** `services/api/`
 
-**Status:** Not started — no `telemetry_events` table or persistence layer
+**Status:** Ready — Phase 2 stub at `app/domains/telemetry/` (`schemas.py`, `router.py`, `test_telemetry_stub.py`); replace ingest handler with persistence. No `telemetry_events` table yet.
+
+### Phase 2 handoff (existing assets)
+
+| Asset | Location | Phase 3 action |
+|-------|----------|----------------|
+| Pydantic envelope | `app/domains/telemetry/schemas.py` | **Unchanged** |
+| Stub ingest | `app/domains/telemetry/router.py` | **Replace** body; keep route + logging |
+| Stub tests | `tests/test_telemetry_stub.py` | **Extend or migrate** when response gains `stored`/`rejected` |
+| App logging | `app/main.py` (`logging.basicConfig`) | **Preserve** — logs `telemetry instrumentation: {event_type}` |
+| Router registration | `app/api/v1/router.py` | **Unchanged** (no auth on ingest) |
+
+**Response shape change:**
+
+```json
+// Phase 2 (current)
+{ "received": 3 }
+
+// Phase 3
+{ "received": 3, "stored": 2, "rejected": 1 }
+```
 
 ---
 
@@ -60,7 +80,7 @@ Frontend **does not change** — same URL, body, and `200` on success.
 | Design reference | [`docs/telemetry/telemetry-plan.md`](../../../../docs/telemetry/telemetry-plan.md) + `event-schemas.json` v1.1.0 |
 | `schemaVersion` in tags | Store client value (`1.1.0`); reject unknown versions in allowlist validator if desired |
 | Database | Reuse **`milestone5_inventory`** |
-| Auth on ingest | **Public** (sendBeacon compatibility) |
+| Auth on ingest | **Public** — no Bearer; client uses `fetch` (+ `keepalive: true` on tab-close flush); abandon uses immediate `fetch` flush |
 | `TelemetryEvent` pydantic model | **Unchanged** from Phase 2 `schemas.py` |
 | Property allowlist | **Recommended** — reject events whose `properties` keys don't match `event-schemas.json` per `event_type` |
 | `level` column | `warn` for `*_failed` and `session_expired`; `info` for all others (incl. v1.1 abandon + filter) |
@@ -89,6 +109,15 @@ Align with `event-schemas.json` — reject unknown keys in `properties`:
 
 **Note:** `supply_consumption_form_abandoned` — `jurisdiction` is optional (omit when no supply selected). `had_supply_selected`/`had_quantity` are booleans, not `supply_id`.
 
+**Phase 2 abandon trigger (XOR partial form):** Client emits abandon only when **exactly one** of supply or quantity is filled (not both, not neither). Expected stored combinations:
+
+| `had_supply_selected` | `had_quantity` | `jurisdiction` |
+|---------------------|------------------|----------------|
+| `true` | `false` | present (`us`/`uk`) |
+| `false` | `true` | omitted |
+
+Storage does **not** re-validate XOR — allowlist keys only. Both booleans `true` should not arrive from Phase 2 client but would pass allowlist if sent manually.
+
 ---
 
 ## Table design
@@ -100,7 +129,7 @@ Same as prior plan — `TelemetryEventRow` with `id`, `timestamp`, `service`, `e
 Envelope fields in `tags`: `eventId`, `sessionId`, `userId`, `schemaVersion`, `requestId`  
 Plus all allowlisted `properties`.
 
-**v1.1 example — `supply_consumption_form_abandoned`:**
+**v1.1 example — `supply_consumption_form_abandoned` (supply only):**
 
 ```json
 {
@@ -111,8 +140,24 @@ Plus all allowlisted `properties`.
   "requestId": "...",
   "clinic_id": 1,
   "had_supply_selected": true,
-  "had_quantity": true,
+  "had_quantity": false,
   "jurisdiction": "us",
+  "abandon_trigger": "navigation"
+}
+```
+
+**v1.1 example — `supply_consumption_form_abandoned` (quantity only):**
+
+```json
+{
+  "eventId": "...",
+  "sessionId": "...",
+  "userId": "1",
+  "schemaVersion": "1.1.0",
+  "requestId": "...",
+  "clinic_id": 1,
+  "had_supply_selected": false,
+  "had_quantity": true,
   "abandon_trigger": "navigation"
 }
 ```
@@ -180,23 +225,29 @@ Add cases beyond original plan:
 
 | Case | Assert |
 |------|--------|
-| `supply_consumption_form_abandoned` without `jurisdiction` | `stored: 1` when supply not selected |
+| `supply_consumption_form_abandoned` supply-only (no `jurisdiction` omitted incorrectly) | `stored: 1`, `tags.had_supply_selected == true`, `tags.jurisdiction` present |
+| `supply_consumption_form_abandoned` quantity-only | `stored: 1`, `tags.had_quantity == true`, no `jurisdiction` in tags |
 | `supply_consumption_form_abandoned` with extra `supply_id` in properties | `rejected: 1` (allowlist) |
 | `incident_list_filter_applied` | `stored: 1`, `tags.filter_dimension`, `tags.active_filter_count` |
 | `schemaVersion` `1.1.0` in tags | preserved on row |
 | `incident_list_filter_applied` | `level == "info"` |
+| Mixed batch (valid + invalid) | `{ received, stored, rejected }` counts correct |
 
 ---
 
 ## End-to-end verification
 
-Generate events via backoffice (Phase 2 must be live):
+Generate events via backoffice (Phase 2 on `feature/telemetry`, commit `7ce0da5`):
 
 1. Login
 2. Products + orders lists
 3. Inbound + outbound orders; insufficient stock attempt
-4. **Abandon outbound form** with dirty fields
+4. **Abandon outbound form** — two cases:
+   - Select supply only → navigate away (`had_supply_selected: true`)
+   - Enter quantity only → navigate away (`had_quantity: true`)
 5. **Change incident list filter**
+
+Abandon code: `inventory/lib/outbound-abandon.ts`, `inventory/hooks/use-outbound-abandon-telemetry.ts`.
 
 Supabase query — expect ≥7 distinct `event_type` values including v1.1:
 

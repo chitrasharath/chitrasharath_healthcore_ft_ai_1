@@ -86,7 +86,7 @@ flowchart TD
   L --> M{POST /orders/outbound}
   M -->|201| N[supply_consumption_created]
   M -->|400| O[supply_consumption_failed]
-  L -->|dirty + leave| P[supply_consumption_form_abandoned]
+  L -->|partial form + leave| P[supply_consumption_form_abandoned]
   C --> Q[Incident Manager list]
   Q --> R[incident_list_filter_applied]
   S[Any protected API 401] --> T[session_expired]
@@ -101,7 +101,7 @@ flowchart TD
 | 3 | `supply_delivery_created` | Inbound POST 201 | `inventory/lib/inbound-form-logic.ts` |
 | 4 | `supply_consumption_created` | Outbound POST 201 | `inventory/lib/outbound-form-logic.ts` |
 | 5 | `supply_consumption_failed` | Outbound POST 400 / validation error | `inventory/hooks/use-outbound-form.ts` catch |
-| 6 | `supply_consumption_form_abandoned` | Dirty outbound form left without submit | `inventory/hooks/use-outbound-form.ts` |
+| 6 | `supply_consumption_form_abandoned` | Partial outbound form left without submit | `inventory/lib/outbound-abandon.ts` + `inventory/hooks/use-outbound-abandon-telemetry.ts` |
 
 **Note:** `list_products` and `list_orders` return **all clinics** (not clinic-scoped). List-view events carry `item_count` only — no `clinic_id` or `jurisdiction`.
 
@@ -116,14 +116,20 @@ flowchart TD
 
 Products are loaded via `listProducts()` (`MedicalSupplyRead` includes `country`).
 
-### Outbound form dirty definition (v1.1)
+### Outbound form abandon trigger (v1.1, Phase 2 implemented)
 
-Form is **dirty** when any field differs from `emptyOutbound()` in `outbound-form-logic.ts`:
+Abandon fires when the outbound form is a **partial completion** — exactly **one** of supply or quantity is filled, **not both**:
 
-- `supplyId !== null` OR
-- `quantity !== ""` OR
-- `consumptionType !== CONSUMPTION_TYPES[0].value` OR
-- `clinicId !== 1`
+- `supplyId !== null` XOR `quantity !== ""`
+
+| Supply selected | Quantity entered | Abandon on leave? |
+|-----------------|------------------|-------------------|
+| Yes | No | Yes — `had_supply_selected: true`, `jurisdiction` from supply |
+| No | Yes | Yes — `had_quantity: true`, no `jurisdiction` |
+| Yes | Yes | No — treated as ready to submit (user may still fail validation) |
+| No | No | No |
+
+Implementation: `isOutboundDirty()` in `inventory/lib/outbound-abandon.ts`; delivery via immediate `fetch` flush + link-click / unmount hooks in `use-outbound-abandon-telemetry.ts`.
 
 ---
 
