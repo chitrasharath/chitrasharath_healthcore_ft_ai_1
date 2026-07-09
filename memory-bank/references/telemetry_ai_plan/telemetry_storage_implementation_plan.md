@@ -276,6 +276,14 @@ SELECT event_type, count(*) FROM telemetry_events GROUP BY event_type;
 
 ---
 
+## Eval criteria partials
+
+| Eval item | Status | Note |
+|-----------|--------|------|
+| Rows in Supabase with populated `tags` | **Manual** | Code + pytest satisfied; grader evidence = step 6 E2E + PR Supabase screenshot / mixed-batch curl JSON (step 6 still pending). |
+
+---
+
 ## Handoff to Phase 4
 
 Report metrics use existing KPI event types. v1.1 events (`supply_consumption_form_abandoned`, `incident_list_filter_applied`) are **stored and queryable** but **not** in default report response unless Phase 4 adds optional supplementary metrics (out of scope per `telemetry_report_specs.md`).

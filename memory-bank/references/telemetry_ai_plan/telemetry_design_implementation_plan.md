@@ -296,6 +296,14 @@ Copy these entries into the design doc event catalog section.
 
 ---
 
+## Eval criteria partials
+
+| Eval item | Status | Note |
+|-----------|--------|------|
+| KPIs justified from `CONTEXT-company.md` | **Partial** | No `CONTEXT-company.md` in repo; justification lives in [`telemetry-plan.md`](../../../../docs/telemetry/telemetry-plan.md) §2 + **Reconciliation with CONTEXT** table. |
+
+---
+
 ## Handoff to Phase 2
 
 Update `telemetry_frontend_implementation_plan.md` to instrument:

@@ -299,7 +299,7 @@ Same as prior plan:
 4. **Start outbound form, enter data, navigate away** → `supply_consumption_form_abandoned`
 5. **Incident Manager list → change a filter** → `incident_list_filter_applied`
 6. DevTools: batched POST to `/api/v1/telemetry/events` with `schemaVersion: "1.1.0"`
-7. Tab close → `sendBeacon` flush
+7. Tab close → `keepalive` fetch flush (not `sendBeacon` — cross-origin JSON; see `memory-bank/decisions.md`)
 
 ### Automated
 
@@ -326,6 +326,17 @@ cd uis/backoffice/landing && npm test -- --testPathPattern=telemetry
 - [ ] Form abandon + incident filter (v1.1)
 - [ ] No PII; single `track()` entry point
 - [ ] pytest + Jest passing
+
+---
+
+## Eval criteria partials
+
+| Eval item | Status | Note |
+|-----------|--------|------|
+| Stub returns `{ "received": N }` only | **Partial** | True at Phase 2 commit (`7ce0da5`); after Phase 3 the same endpoint returns `{ received, stored, rejected }` (frontend unchanged; checks `response.ok` only). |
+| Flush uses `sendBeacon` | **Partial** | Delivered: `fetch` + `keepalive: true` on tab-close; eval criteria wording is stale. |
+| `TELEMETRY_ENDPOINT` in backend config | **Partial** | Declared in `Settings` + `.example.env` but not read by server code (pattern-only per spec). |
+| DevTools batched 200 responses | **Manual** | PR screenshot; not automatable. |
 
 ---
 

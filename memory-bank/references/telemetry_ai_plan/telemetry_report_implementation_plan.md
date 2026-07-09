@@ -39,7 +39,7 @@ isProject: false
 
 **Working directory:** `services/api/`
 
-**Status:** Ready — Phase 3 persistence implemented; blocked on manual Supabase seed + report build.
+**Status:** Delivered — `c6fba5b` on `feature/telemetry`.
 
 ---
 
@@ -149,8 +149,9 @@ Each docstring must reference:
 ### 2.4 `auth_failure_rate`
 
 - **Events:** `user_login_succeeded`, `user_login_failed`
-- Group: `['date', 'jurisdiction']`; drop rows without jurisdiction
-- **Phase 2 note:** Login events omit `jurisdiction` in properties — metric may return `[]` until jurisdiction is added at login. Accept empty array; do not fail report.
+- Group: `['date']` only — **does not use `jurisdiction`** (login capture omits it; grouping by date avoids empty metric)
+- Rows: `{ "date", "failure_rate" }`
+- **Not a §2 KPI** — supplementary auth instrumentation metric (fourth report key)
 
 ### Function rules
 
@@ -239,13 +240,22 @@ Confirm 4 metric arrays; v1.1 events visible in DB but not in response.
 
 ---
 
+## Eval criteria partials
+
+| Eval item | Status | Note |
+|-----------|--------|------|
+| `services/telemetry/analysis.py` path | **Partial** | Eval uses course layout path; monorepo deliverable is `services/api/app/domains/telemetry/analysis.py`. |
+| Metrics justified from `CONTEXT-company.md` | **Partial** | Three §2 KPI functions docstring-map to `telemetry-plan.md` + CONTEXT metric names; no `CONTEXT-company.md` file in repo. `auth_failure_rate` is auth instrumentation, not a §2 KPI. |
+
+---
+
 ## Full milestone completion
 
 | Phase | Deliverable | Status |
 |-------|-------------|--------|
 | 1 | `telemetry-plan.md` v1.1.0, `event-schemas.json` (11 events) | Delivered (`52d141e`) |
 | 2 | TelemetryService + 10 instrumentable events | Delivered (`7ce0da5`) |
-| 3 | `telemetry_events` persistence (incl. v1.1) | Next |
-| 4 | Report API — 4 metrics over KPI event types | Blocked on Phase 3 |
+| 3 | `telemetry_events` persistence (incl. v1.1) | Delivered (`e429c2a`) |
+| 4 | Report API — 4 metrics over KPI event types | Delivered (`c6fba5b`) |
 
 **Future extension (not Phase 4):** optional `form_abandon_per_day` or `incident_filter_activity_per_day` metrics from v1.1 events.
