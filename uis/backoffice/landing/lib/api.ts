@@ -1,3 +1,5 @@
+import { track } from "@backoffice/shared/lib/telemetry";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 
 const PUBLIC_AUTH_ROUTES = ["/", "/login", "/register", "/forgot-password", "/reset-password"];
@@ -34,6 +36,7 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
   if (response.status === 401) {
     localStorage.removeItem("token");
     if (shouldRedirectOnUnauthorized()) {
+      track("session_expired", {});
       window.location.href = "/login";
     }
     throw new Error("Unauthorized");

@@ -37,7 +37,7 @@ export const useInboundForm = () => {
     setError(null);
     setSuccess(null);
     try {
-      await submitInboundOrder(fields);
+      await submitInboundOrder(fields, products);
       setFields(emptyInbound());
       setSuccess("Delivery logged successfully.");
     } catch (err) {

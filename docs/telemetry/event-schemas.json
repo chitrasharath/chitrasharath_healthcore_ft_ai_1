@@ -1,0 +1,321 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://healthcore.local/docs/telemetry/event-schemas.json",
+  "title": "HealthCore Backoffice Telemetry Event Schemas",
+  "description": "JSON Schema draft-07 definitions for backoffice telemetry events. schemaVersion 1.1.0. See telemetry-plan.md for KPI and flow context.",
+  "definitions": {
+    "jurisdiction": {
+      "type": "string",
+      "enum": ["us", "uk"],
+      "description": "Derived from MedicalSupply.country: US→us, UK→uk"
+    },
+    "consumptionType": {
+      "type": "string",
+      "enum": ["clinical_use", "expiry_waste"]
+    },
+    "loginFailureReason": {
+      "type": "string",
+      "enum": ["invalid_credentials", "session_expired", "network_error"]
+    },
+    "abandonTrigger": {
+      "type": "string",
+      "enum": ["navigation", "tab_hidden"]
+    },
+    "filterDimension": {
+      "type": "string",
+      "enum": ["status", "origin", "branch", "category"]
+    },
+    "eventEnvelope": {
+      "type": "object",
+      "required": [
+        "eventId",
+        "timestamp",
+        "sessionId",
+        "userId",
+        "event_type",
+        "schemaVersion",
+        "requestId",
+        "service",
+        "properties"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "eventId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Client-generated at capture; dedup/idempotency"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 UTC; moment of capture, not of send"
+        },
+        "sessionId": {
+          "type": "string",
+          "description": "Opaque session id; generated at login"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Opaque TinyDB user id as string; never name or email"
+        },
+        "event_type": {
+          "type": "string",
+          "description": "Snake-case entity_action taxonomy"
+        },
+        "schemaVersion": {
+          "type": "string",
+          "const": "1.1.0"
+        },
+        "requestId": {
+          "type": "string",
+          "description": "Correlates frontend, API, and logs"
+        },
+        "service": {
+          "type": "string",
+          "const": "backoffice"
+        },
+        "properties": {
+          "type": "object",
+          "description": "Event-specific allowlist keys only"
+        }
+      }
+    },
+    "supply_delivery_created": {
+      "x-pii": false,
+      "allOf": [
+        { "$ref": "#/definitions/eventEnvelope" },
+        {
+          "properties": {
+            "event_type": { "const": "supply_delivery_created" },
+            "properties": {
+              "type": "object",
+              "required": ["supply_id", "quantity", "clinic_id", "jurisdiction"],
+              "additionalProperties": false,
+              "properties": {
+                "supply_id": { "type": "integer" },
+                "quantity": { "type": "integer", "minimum": 1 },
+                "clinic_id": { "type": "integer" },
+                "jurisdiction": { "$ref": "#/definitions/jurisdiction" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "supply_consumption_created": {
+      "x-pii": false,
+      "allOf": [
+        { "$ref": "#/definitions/eventEnvelope" },
+        {
+          "properties": {
+            "event_type": { "const": "supply_consumption_created" },
+            "properties": {
+              "type": "object",
+              "required": [
+                "supply_id",
+                "quantity",
+                "consumption_type",
+                "clinic_id",
+                "jurisdiction"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "supply_id": { "type": "integer" },
+                "quantity": { "type": "integer", "minimum": 1 },
+                "consumption_type": { "$ref": "#/definitions/consumptionType" },
+                "clinic_id": { "type": "integer" },
+                "jurisdiction": { "$ref": "#/definitions/jurisdiction" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "supply_consumption_failed": {
+      "x-pii": false,
+      "allOf": [
+        { "$ref": "#/definitions/eventEnvelope" },
+        {
+          "properties": {
+            "event_type": { "const": "supply_consumption_failed" },
+            "properties": {
+              "type": "object",
+              "required": ["error_code", "supply_id", "clinic_id", "jurisdiction"],
+              "additionalProperties": false,
+              "properties": {
+                "error_code": { "type": "string" },
+                "supply_id": { "type": "integer" },
+                "clinic_id": { "type": "integer" },
+                "jurisdiction": { "$ref": "#/definitions/jurisdiction" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "supply_consumption_form_abandoned": {
+      "x-pii": false,
+      "description": "v1.1 — outbound form left with unsaved changes",
+      "allOf": [
+        { "$ref": "#/definitions/eventEnvelope" },
+        {
+          "properties": {
+            "event_type": { "const": "supply_consumption_form_abandoned" },
+            "properties": {
+              "type": "object",
+              "required": [
+                "clinic_id",
+                "had_supply_selected",
+                "had_quantity",
+                "abandon_trigger"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "clinic_id": { "type": "integer" },
+                "had_supply_selected": { "type": "boolean" },
+                "had_quantity": { "type": "boolean" },
+                "jurisdiction": { "$ref": "#/definitions/jurisdiction" },
+                "abandon_trigger": { "$ref": "#/definitions/abandonTrigger" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "supply_list_viewed": {
+      "x-pii": false,
+      "allOf": [
+        { "$ref": "#/definitions/eventEnvelope" },
+        {
+          "properties": {
+            "event_type": { "const": "supply_list_viewed" },
+            "properties": {
+              "type": "object",
+              "required": ["item_count"],
+              "additionalProperties": false,
+              "properties": {
+                "item_count": { "type": "integer", "minimum": 0 }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "orders_list_viewed": {
+      "x-pii": false,
+      "allOf": [
+        { "$ref": "#/definitions/eventEnvelope" },
+        {
+          "properties": {
+            "event_type": { "const": "orders_list_viewed" },
+            "properties": {
+              "type": "object",
+              "required": ["item_count"],
+              "additionalProperties": false,
+              "properties": {
+                "item_count": { "type": "integer", "minimum": 0 }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "product_created": {
+      "x-pii": false,
+      "description": "Design-only: POST /inventory/products has no backoffice UI in Phase 2",
+      "allOf": [
+        { "$ref": "#/definitions/eventEnvelope" },
+        {
+          "properties": {
+            "event_type": { "const": "product_created" },
+            "properties": {
+              "type": "object",
+              "required": ["supply_id", "category", "jurisdiction"],
+              "additionalProperties": false,
+              "properties": {
+                "supply_id": { "type": "integer" },
+                "category": { "type": "string" },
+                "jurisdiction": { "$ref": "#/definitions/jurisdiction" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "incident_list_filter_applied": {
+      "x-pii": false,
+      "description": "v1.1 — Incident Manager list filter dropdown change",
+      "allOf": [
+        { "$ref": "#/definitions/eventEnvelope" },
+        {
+          "properties": {
+            "event_type": { "const": "incident_list_filter_applied" },
+            "properties": {
+              "type": "object",
+              "required": ["filter_dimension", "filter_value", "active_filter_count"],
+              "additionalProperties": false,
+              "properties": {
+                "filter_dimension": { "$ref": "#/definitions/filterDimension" },
+                "filter_value": { "type": "string" },
+                "active_filter_count": { "type": "integer", "minimum": 0, "maximum": 4 }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "user_login_succeeded": {
+      "x-pii": false,
+      "allOf": [
+        { "$ref": "#/definitions/eventEnvelope" },
+        {
+          "properties": {
+            "event_type": { "const": "user_login_succeeded" },
+            "properties": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "jurisdiction": { "$ref": "#/definitions/jurisdiction" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "user_login_failed": {
+      "x-pii": false,
+      "allOf": [
+        { "$ref": "#/definitions/eventEnvelope" },
+        {
+          "properties": {
+            "event_type": { "const": "user_login_failed" },
+            "properties": {
+              "type": "object",
+              "required": ["reason"],
+              "additionalProperties": false,
+              "properties": {
+                "reason": { "$ref": "#/definitions/loginFailureReason" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "session_expired": {
+      "x-pii": false,
+      "allOf": [
+        { "$ref": "#/definitions/eventEnvelope" },
+        {
+          "properties": {
+            "event_type": { "const": "session_expired" },
+            "properties": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {}
+            }
+          }
+        }
+      ]
+    }
+  }
+}

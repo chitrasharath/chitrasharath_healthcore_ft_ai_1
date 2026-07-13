@@ -301,3 +301,29 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 
 - Decision: Add Compose **`test` profile** service reusing API image/volumes; default command `uv run pytest`. Does not start with `docker compose up`.
 - Why: One-shot pytest without requiring the dev stack to be running; `docker compose exec api uv run pytest` retained for iterative dev.
+
+## Telemetry (design phase)
+
+- Decision: Reconcile stakeholder CONTEXT KPIs to three observable metrics — supply consumption rate, supply waste rate, insufficient-stock rejection rate — because `min_stock_threshold`, `emergency` clinical context, and persisted stock levels do not exist in the delivered inventory model.
+- Why: Codebase wins over context docs; metrics must be computable from real API paths and event properties.
+
+- Decision: Standard event envelope includes **both** `requestId` and `service: "backoffice"`; `userId` is opaque TinyDB user id as string (`str(user.id)`), not email/name; `schemaVersion` **1.1.0** with v1.1 events.
+- Why: Resolves doc conflict across phases; matches inventory `user_uuid` convention.
+
+- Decision: `jurisdiction` derived client-side from `MedicalSupply.country` (`US`→`us`, `UK`→`uk`); not a database column.
+- Why: No jurisdiction field on inventory entities; CCO audit segmentation still required on clinic-operation events.
+
+- Decision: v1.1 events — `supply_consumption_form_abandoned` (outbound **partial form** XOR: supply **or** quantity, not both) and `incident_list_filter_applied` (Incident Manager filters; not inventory — no filter UI there).
+- Why: Stakeholder additions for form-friction and Patient Experience filter audit; abandon refined during Phase 2 implementation.
+
+- Decision: `product_created` event designed but **not** instrumented in Phase 2 — no create-product UI.
+- Why: Phase 2 captures only at frontend `track()` call sites.
+
+- Decision (Phase 2 delivered, `7ce0da5`): Client transport uses `fetch` with `keepalive: true` on tab-close flush (not `sendBeacon` — cross-origin JSON body failed FastAPI parse). Form abandon uses immediate `void flush()`.
+- Why: Verified in manual testing; `sendBeacon` without reliable `Content-Type` returned 422.
+
+- Decision (downstream, locked at planning): telemetry ingest `POST /telemetry/events` unauthenticated (`fetch`/`keepalive`, no Bearer); `GET /telemetry/report` JWT-protected; `telemetry_events` on existing `milestone5_inventory` Supabase project.
+- Why: Stakeholder clarifications during implementation planning.
+
+- Decision (Phase 3 delivered): `telemetry_events.tags` uses PostgreSQL `jsonb` (SQLite `JSON` in tests); startup runs `ALTER COLUMN tags TYPE jsonb` + GIN index `idx_telemetry_events_tags`.
+- Why: Default SQLAlchemy `JSON` maps to `json` in Postgres, which cannot use GIN without an operator class; `jsonb` matches storage spec and enables tag containment queries.

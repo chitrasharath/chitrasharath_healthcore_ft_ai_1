@@ -172,6 +172,48 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
   - Proactive `npm ci` for six UI apps in the UI image; `scripts/check_ui_dep_versions.py`; `TESTING.md` guardrails.
 - Plan: `memory-bank/references/docker_ai_plan/docker_implementation_plan.md`.
 
+#### Telemetry Design (Phase 1) (Delivered)
+
+- Goal: design documentation for backoffice inventory, incident filters, and auth telemetry (no instrumentation code).
+- **Delivered:**
+  - `docs/telemetry/telemetry-plan.md` — 3 reconciled KPIs, flow mapping, envelope (`schemaVersion` 1.1.0), 11-event catalog (10 instrumentable + 1 design-only).
+  - `docs/telemetry/event-schemas.json` — JSON Schema draft-07 with `eventEnvelope` + per-event definitions (`x-pii: false` on all).
+  - v1.1 events: `supply_consumption_form_abandoned`, `incident_list_filter_applied`.
+- Plan: `memory-bank/references/telemetry_ai_plan/telemetry_design_implementation_plan.md`.
+
+#### Telemetry Frontend Capture (Phase 2) (Delivered)
+
+- Goal: client-side `track()` instrumentation and unauthenticated stub `POST /api/v1/telemetry/events`.
+- **Delivered** (`7ce0da5` on `feature/telemetry`):
+  - Backend stub: `services/api/app/domains/telemetry/` — accepts batches, logs event types, returns `{ "received": N }`, no DB.
+  - `uis/backoffice/shared/lib/telemetry.ts` — queue, 10s/20-event batch, `fetch` + `keepalive` tab-close flush, stream flush for auth failures, `schemaVersion` 1.1.0.
+  - All 10 instrumentable events wired (inventory, incident filters, auth).
+  - Form abandon: XOR partial form (supply **or** quantity, not both); `outbound-abandon.ts` + `use-outbound-abandon-telemetry.ts`.
+  - `services/api/tests/test_telemetry_stub.py` + `uis/backoffice/landing/__tests__/telemetry.test.ts` + `outbound-abandon.test.ts` passing.
+  - Env documented: `NEXT_PUBLIC_TELEMETRY_ENDPOINT`, `TELEMETRY_ENDPOINT`.
+- **Next:** Phase 3 storage per `telemetry_storage_implementation_plan.md` (plan updated for Phase 2 handoff).
+- Plan: `memory-bank/references/telemetry_ai_plan/telemetry_frontend_implementation_plan.md`.
+
+#### Telemetry Storage (Phase 3) (Delivered — `W16D48`)
+
+- Goal: persist validated events to `telemetry_events` on `milestone5_inventory`; partial acceptance; `{ received, stored, rejected }`.
+- **Delivered:**
+  - `TelemetryEventRow` SQLModel + idempotent B-tree/GIN indexes on startup
+  - `mapper.py` — allowlist validation, `map_event_to_row`, level/value derivation
+  - `POST /api/v1/telemetry/events` persists via bulk insert; zero frontend changes
+  - `tests/test_telemetry_storage.py` + updated stub tests (12 telemetry tests passing)
+- Plan: `memory-bank/references/telemetry_ai_plan/telemetry_storage_implementation_plan.md`.
+
+#### Telemetry Report (Phase 4) (Delivered — `W17D49`)
+
+- Goal: Pandas KPI pipeline + JWT-protected `GET /api/v1/telemetry/report` with 60s cache.
+- **Delivered:**
+  - `repository.py`, `analysis.py` (4 metrics), `cache.py`
+  - Report returns `{ period, metrics }` with consumption/waste/stock-out/auth_failure_rate arrays
+  - v1.1 stored events excluded from default metrics; ingest unchanged
+  - `tests/test_telemetry_report.py` (6 tests); telemetry suite 140 tests passing
+- Plan: `memory-bank/references/telemetry_ai_plan/telemetry_report_implementation_plan.md`.
+
 ## Future Feature Additions
 
 - Expand `services/api` per architecture proposal (remaining domains in doc §12); opaque session tokens for HIPAA (SPECS follow-up).

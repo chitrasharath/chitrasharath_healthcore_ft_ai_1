@@ -173,6 +173,156 @@ See [TESTING.md](./TESTING.md) for coverage and pre-commit guardrails.
 
 ---
 
+## Telemetry
+
+Backoffice telemetry spans four phases: design docs, client capture, Supabase persistence, and a JWT-protected report API (**Milestone 6 pipeline scope** — dashboard UI is out of scope for these phases). Design reference: [`docs/telemetry/telemetry-plan.md`](./docs/telemetry/telemetry-plan.md) and [`docs/telemetry/event-schemas.json`](./docs/telemetry/event-schemas.json).
+
+**Prerequisites for Phases 2–4:** API on port 8000, backoffice landing on port 3001, and `DATABASE_URL` set (Phases 3–4 persist to `telemetry_events`). In `uis/backoffice/landing/.env.local`, set `NEXT_PUBLIC_TELEMETRY_ENDPOINT=http://localhost:8000/api/v1/telemetry/events`.
+
+| Endpoint | Auth | Purpose |
+|----------|------|---------|
+| `POST /api/v1/telemetry/events` | None | Ingest batched events |
+| `GET /api/v1/telemetry/report` | Bearer JWT | KPI metrics (7-day default window) |
+
+### Phase 1 — Design (docs only)
+
+```bash
+git checkout 52d141e  # [W16D46] Telemetry Design Plan
+```
+
+No running stack required.
+
+1. Open [`docs/telemetry/telemetry-plan.md`](./docs/telemetry/telemetry-plan.md) and confirm §2 lists three reconciled KPIs plus instrumentation scope (inventory, auth, incident filters).
+2. Confirm §6 catalogs **11** event types (10 instrumentable + 1 design-only) including v1.1 `supply_consumption_form_abandoned` and `incident_list_filter_applied`.
+3. Validate the JSON schema:
+
+```bash
+python3 -m json.tool docs/telemetry/event-schemas.json > /dev/null
+```
+
+4. Spot-check that every `event_type` in the plan appears in `event-schemas.json` with matching property allowlists and `schemaVersion` **1.1.0**.
+
+### Phase 2 — Frontend capture
+
+```bash
+git checkout 7ce0da5  # [W16D47] Telemetry Frontend Capture
+```
+
+Stub ingest only (no DB writes until Phase 3). Use DevTools → **Network** filtered by `telemetry/events`.
+
+1. Log in at http://localhost:3001 — expect `user_login_succeeded` in a batched POST.
+2. Open **Inventory** → products list and orders list — `supply_list_viewed`, `orders_list_viewed`.
+3. Create an inbound delivery and a successful outbound consumption — `supply_delivery_created`, `supply_consumption_created`.
+4. Submit an outbound order that fails for insufficient stock — `supply_consumption_failed`.
+5. Start an outbound form, enter data, then navigate away — `supply_consumption_form_abandoned` (try supply-only and quantity-only cases).
+6. Open **Incident Manager** list and change a filter — `incident_list_filter_applied`.
+7. Confirm request bodies use `schemaVersion: "1.1.0"` and batched envelopes (`events` array).
+8. Close the tab after activity — a `keepalive` fetch should flush the queue (not `sendBeacon`).
+
+Failed login and session expiry use immediate (stream) flush: wrong password → `user_login_failed`; let JWT expire or force 401 → `session_expired`.
+
+### Phase 3 — Storage
+
+```bash
+git checkout e429c2a  # [W16D48] Telemetry Storage
+```
+
+Requires `DATABASE_URL`. Phase 2 UI flows should return `{ "received", "stored", "rejected" }` instead of `{ "received" }` only.
+
+1. Repeat the Phase 2 backoffice flows (login, lists, inbound/outbound, insufficient stock, form abandon ×2, incident filter).
+2. In Supabase SQL editor (or any Postgres client on the same DB), run:
+
+```sql
+SELECT event_type, count(*) FROM telemetry_events GROUP BY event_type ORDER BY event_type;
+```
+
+Expect multiple event types with populated `tags` JSON (including v1.1 abandon booleans and filter dimensions).
+
+3. **Mixed-batch partial acceptance** — one valid event, one malformed envelope, one allowlist violation:
+
+```bash
+curl -s -X POST http://localhost:8000/api/v1/telemetry/events \
+  -H "Content-Type: application/json" \
+  -d '{
+    "events": [
+      {
+        "eventId": "evt-valid",
+        "timestamp": "2026-07-08T12:00:00Z",
+        "sessionId": "sess-001",
+        "userId": "42",
+        "event_type": "supply_list_viewed",
+        "schemaVersion": "1.1.0",
+        "requestId": "req-001",
+        "service": "backoffice",
+        "properties": { "item_count": 5 }
+      },
+      { "event_type": "broken", "properties": {} },
+      {
+        "eventId": "evt-extra",
+        "timestamp": "2026-07-08T12:00:00Z",
+        "sessionId": "sess-001",
+        "userId": "42",
+        "event_type": "supply_consumption_form_abandoned",
+        "schemaVersion": "1.1.0",
+        "requestId": "req-002",
+        "service": "backoffice",
+        "properties": {
+          "clinic_id": 1,
+          "had_supply_selected": true,
+          "had_quantity": false,
+          "supply_id": 99,
+          "abandon_trigger": "navigation"
+        }
+      }
+    ]
+  }' | jq .
+```
+
+Expect `{ "received": 3, "stored": 1, "rejected": 2 }` — only `supply_list_viewed` is persisted (`supply_id` is not allowlisted on abandon events).
+
+4. Optional index check: `uv run python scripts/verify_telemetry_indexes.py` (from repo root, with `DATABASE_URL` set).
+
+### Phase 4 — Report
+
+```bash
+git checkout feature/telemetry  # [W17D49] Telemetry Report — KPI 3 rejection_rate + auth counts (HEAD)
+```
+
+Seed **KPI-relevant** events via backoffice (at minimum: successful outbound consumptions, expiry-waste outbound, insufficient-stock failures, and login success/failure). v1.1 events (abandon, filter) should appear in the DB but **not** change report metric counts.
+
+1. Obtain a JWT:
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alice@example.com","password":"password123"}' | jq -r .access_token)
+```
+
+(Use a registered user from seed or register via `/api/v1/auth/register`.)
+
+2. Request the default 7-day report:
+
+```bash
+curl -s "http://localhost:8000/api/v1/telemetry/report" \
+  -H "Authorization: Bearer $TOKEN" | jq .
+```
+
+3. Confirm response shape: `period.from` / `period.to` and **four** metric arrays — `consumption_volume_per_day` (count/day/clinic), `waste_rate_per_day` (`waste_rate` + `total`), `insufficient_stock_failures_per_day` (`count`, `attempts`, `rejection_rate` per supply/clinic), `auth_failure_rate` (`failed`, `succeeded`, `failure_rate`).
+4. Optional date window:
+
+```bash
+curl -s "http://localhost:8000/api/v1/telemetry/report?start_date=2026-07-01T00:00:00Z&end_date=2026-07-09T00:00:00Z" \
+  -H "Authorization: Bearer $TOKEN" | jq .
+```
+
+5. Without a token, expect **401** on `GET /api/v1/telemetry/report`. `POST /api/v1/telemetry/events` stays public.
+
+**Note:** If KPI arrays are empty, the DB likely lacks `supply_consumption_created`, `supply_consumption_failed`, or login events in the selected window — list views and filters alone do not populate consumption metrics.
+
+Further detail: [`memory-bank/references/telemetry_ai_plan/`](./memory-bank/references/telemetry_ai_plan/).
+
+---
+
 ## Milestones (course roadmap)
 
 | Milestone | Focus | Typical deliverables | Status |
@@ -183,13 +333,13 @@ See [TESTING.md](./TESTING.md) for coverage and pre-commit guardrails.
 | 3 | AI-driven UI | AI-generated interfaces | **Implementation complete** |
 | 4 | Next.js | Portals, loyalty app, operations UI | **Implementation complete** |
 | 5 | Backend | Central API (locations, menus, sales, etc.) | **Implementation complete** |
-| 6 | Telemetry | Data pipeline, dashboards | Not started |
+| 6 | Telemetry | Data pipeline, dashboards | **Partially complete** (pipeline: Phases 1–4 on `feature/telemetry`; dashboards not built) |
 | 7 | RAG & Memory | Semantic knowledge base, search | Not started |
 | 8 | Agents | Support, onboarding, training agents | Not started |
 | 9 | Workflows | n8n automations | Not started |
 | 10 | Real-time | Live dashboards, alerts, streaming | Not started |
 
-**HealthCore mapping (M0–M5):** M1/M4 → `uis/website`; M2 → `apps/src` + `/backoffice-functions`; M3 → `/talent-tracker`; M5 → `services/api` + backoffice platform. Detail: [memory-bank/progress.md](./memory-bank/progress.md).
+**HealthCore mapping (M0–M6):** M1/M4 → `uis/website`; M2 → `apps/src` + `/backoffice-functions`; M3 → `/talent-tracker`; M5 → `services/api` + backoffice platform; **M6 (partial)** → telemetry pipeline on `feature/telemetry` (see [Telemetry](#telemetry) — no ops dashboard UI yet). Detail: [memory-bank/progress.md](./memory-bank/progress.md).
 
 ---
 
@@ -228,6 +378,7 @@ healthcore-monorepo/
 | [uis/backoffice/README.md](./uis/backoffice/README.md) | Backoffice routes, modules, inventory/incident-manager setup |
 | [uis/incident_analyzer/README.md](./uis/incident_analyzer/README.md) | Incident CSV CLI and analysis module |
 | [TESTING.md](./TESTING.md) | pytest, Jest, pre-commit guardrails, Docker test commands |
+| [docs/telemetry/telemetry-plan.md](./docs/telemetry/telemetry-plan.md) | Telemetry design, KPIs, event catalog |
 | [memory-bank/](./memory-bank/) | Project brief, tech context, progress, decisions, conventions |
 | [AGENTS.md](./AGENTS.md) | Mandatory agent bootstrap and commit workflow |
 
