@@ -51,7 +51,7 @@ Materialize HealthCore’s clinic- and jurisdiction-segmented supply consumption
 | --- | --- |
 | **Source** | `telemetry_events` (append-only / immutable) |
 | **Payload shape** | Operational dimensions live in JSONB `tags` (`clinic_id` int, `jurisdiction ∈ {us, uk}`, `consumption_type`, `supply_id`, etc.) plus envelope keys from ingest |
-| **Cadence** | Nightly batch **and** on-demand (CLI + HTTP trigger) |
+| **Cadence** | Nightly batch via CLI cron **and** on-demand (CLI or Reporting UI trigger button) |
 | **Volume (rough)** | 12 clinics × 2 jurisdictions; inventory/auth staff actions — thousands of events/day at full rollout, not high-frequency streaming |
 | **Windowing** | **Watermark on `timestamp`** (event time). Do not full-table scan on every run |
 | **Event filter** | KPI-only types listed in §8 Interfaces (`PipelineConfig.event_types`) |
@@ -199,7 +199,7 @@ Same auth (`get_current_user`) and report JSON conventions as today.
 | `GET /api/v1/telemetry/report` | Reads `reporting_*` (materialized); frontend URL/shape unchanged |
 | `GET /api/v1/telemetry/raw-report` | Live `build_metrics` from `telemetry_events` (preserved former report) |
 | `GET /api/v1/telemetry/pipelines/runs/latest` | Newest `pipeline_runs` metadata (`status`, `started_at`, `finished_at`, `rows_loaded`, …) |
-| `POST /api/v1/telemetry/pipelines/runs/trigger` | Imports `telemetry_etl_flow` (BackgroundTasks); returns `{ message, run_id }` |
+| `POST /api/v1/telemetry/pipelines/runs/trigger` | Imports `telemetry_etl_flow` (BackgroundTasks); returns `{ message, run_id }`. Build 2 Reporting → Pipeline health **Run pipeline** button calls this; cron uses CLI only |
 
 ### 8.6 Batch / transaction tradeoff
 
@@ -297,18 +297,39 @@ Each item: **(a)** failure scenario, **(b)** rationale, **(c)** tag.
 
 ## 12. Run command and schedule
 
-**CLI (Build 1 — implemented):**
+**Canonical ops / cron command (one command — no shorter alias):**
 
 ```bash
-# From repo root; DATABASE_URL must point at milestone5_inventory Postgres
+# From repository root; DATABASE_URL must point at milestone5_inventory Postgres
 uv run python data/pipelines/pipeline.py
 ```
 
 Requires `DATABASE_URL` (process env or `services/api/.env`). If missing/empty, exits `1` with a one-line stderr message (no false success). To force the fail-fast check when `.env` still has a URL: `DATABASE_URL= uv run python data/pipelines/pipeline.py`.
 
-**Intended schedule:** nightly cron `0 2 * * *` (02:00) invoking the same CLI. On-demand: `POST /api/v1/telemetry/pipelines/runs/trigger` (BackgroundTasks) or CLI.
+**Intended schedule:** nightly cron `0 2 * * *` (02:00) invoking **only** that CLI command (working directory = repo root; env provides `DATABASE_URL`).
 
-Build 1/2 must keep this section accurate when the entrypoint changes.
+**On-demand (Backoffice UI):** the Reporting → **Pipeline health** tab exposes a **Run pipeline** button that calls authenticated `POST /api/v1/telemetry/pipelines/runs/trigger` (same `telemetry_etl_flow`, BackgroundTasks). Cron must not depend on this endpoint.
+
+Build 1 delivered CLI + trigger API; Build 2 keeps the CLI documentation authoritative for ops and wires the trigger button in the dashboard.
+
+---
+
+## 12.1 Reporting dashboard (Build 2)
+
+Authenticated backoffice surface for the four materialized KPIs plus pipeline health.
+
+| Concern | Design |
+| --- | --- |
+| **Module** | `uis/backoffice/reporting/` aliased into landing (`@backoffice/reporting`), same hybrid pattern as inventory / incident-manager |
+| **Route** | `/reporting` (hub nav card **Reporting**) |
+| **Auth** | Protected routes + `healthcoreFetch` Bearer JWT |
+| **Data** | `GET /api/v1/telemetry/report` only (materialized `reporting_*`). Do **not** use `/raw-report` in this UI |
+| **Tabs** | Five tabs via query (e.g. `?tab=consumption\|waste\|stock\|auth\|health`): **Consumption volume**, **Waste rate**, **Stock failures**, **Auth failure rate**, **Pipeline health** |
+| **Grain UX** | Default: **last 12 calendar months** as **monthly** aggregates (UI rollup from daily rows). Selecting a month opens **daily** rows for **that month only**. No free-form day range in v1 |
+| **Monthly rollup (client)** | Consume daily metrics from `/report` over a window covering ≥12 months. Aggregate in the UI: **consumption** = sum `count` by month·clinic·jurisdiction; **waste** = sum waste counts / sum `total` (from daily `waste_rate * total` and `total`) by month·jurisdiction; **stock** = sum `count` / sum `attempts`, recompute `rejection_rate`; **auth** = sum `failed` / sum `succeeded`, recompute `failure_rate`. Do **not** average daily rates |
+| **Per-KPI tab content** | (1) Short plain-language definition aligned with `telemetry-plan.md`; (2) headline summary for the current view; (3) table of grain rows; (4) simple custom chart (no third-party chart library) |
+| **Pipeline health tab** | Show **latest** run from `GET /api/v1/telemetry/pipelines/runs/latest` (status, watermarks, `rows_*`, `error_summary`, timestamps). **Run pipeline** button → `POST …/pipelines/runs/trigger`; then refresh latest. No run-history list in Build 2 (follow-up) |
+| **Frontend constraints** | Custom components only; Tailwind; ≤80 lines per component file; ToolToolbar layout consistent with other tools |
 
 ---
 
@@ -316,29 +337,30 @@ Build 1/2 must keep this section accurate when the entrypoint changes.
 
 Shared vocabulary: flows/tasks/tables/states in §§7–9. **Do not rename** between builds.
 
-### Build 1 — Resilient pipeline (implement)
+### Build 1 — Resilient pipeline (delivered)
 
-- `data/pipelines/pipeline.py` + `config.py`; stage packages `extract/`, `transform/`, `load/` (upserts + run log in `load/repository.py`)
+- `data/pipelines/pipeline.py` + `config.py`; stage packages `extract/`, `transform/`, `load/`
 - Four `reporting_*` tables + `pipeline_runs`; indexes; register models in `main.py`
 - Watermark, reprocess-window, transactional upsert, PHI guard, quarantine counts
 - Extract retries; transform cache; **`export_snapshot_optional` with `return_state=True`**
 - CLI fail-fast; thin `backfill_flow`
 - `GET /telemetry/report` → reporting tables; `GET /telemetry/raw-report` → live; latest + trigger endpoints
 - Commit: `feat: implement resilient prefect pipeline`
-- **Pause for review** before Build 2
 
-### Build 2 — Subflows & tests (refactor only)
+### Build 2 — Subflows, tests, and Reporting UI
 
 - ≥3 typed subflows wrapping existing tasks; main flow = coordinator
 - Promote `analysis.py` helpers; DB-free tests in `tests/pipelines/test_pipeline.py`
-- Fix root pytest collection; re-verify CLI
-- Commit: `feat: refactor pipeline into subflows and add unit tests`; **open PR → `main`**
+- Fix root pytest collection; re-verify CLI (`uv run python data/pipelines/pipeline.py`)
+- Backoffice **Reporting** dashboard at `/reporting` (§12.1) with 4 KPI tabs + Pipeline health (latest run + trigger button)
+- Document CLI + cron + UI trigger in this design file (keep current)
+- **One commit:** `feat: refactor pipeline into subflows, add reporting UI and unit tests`; **open PR → `main`**
 
 ---
 
 ## 14. Definition of done (Design)
 
-- [x] This file exists under `docs/data_pipelines/`; design only (no orchestration code in this phase)
+- [x] This file exists under `docs/data_pipelines/`; design only (no orchestration code in Design phase)
 - [x] Purpose is one concrete HealthCore sentence
 - [x] Diagram shows extract → transform → load with real names
 - [x] Update/dedup uses upsert on named grains + reprocess-window
@@ -348,4 +370,5 @@ Shared vocabulary: flows/tasks/tables/states in §§7–9. **Do not rename** bet
 - [x] Watermark, reporting tables, run states, Build 1 vs Roadmap resilience tags
 - [x] Consistent with telemetry-plan KPIs and `analysis.py` grains
 - [x] Build roadmap / handoff for Build 1 and Build 2
-- [x] Run command + schedule documented here for Build 1/2 reference
+- [x] Run command + schedule documented here for Build 1/2 / cron reference
+- [x] Reporting dashboard (§12.1) specified for Build 2 (monthly UI rollup, tabs, health + trigger)
