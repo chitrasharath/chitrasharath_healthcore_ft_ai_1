@@ -9,7 +9,7 @@ from sqlmodel import Session
 from app.domains.telemetry.repository import load_events
 
 
-def _prepare_timestamps(df: pd.DataFrame) -> pd.DataFrame:
+def prepare_timestamps(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
     prepared = df.copy()
@@ -22,14 +22,14 @@ def _prepare_timestamps(df: pd.DataFrame) -> pd.DataFrame:
     return prepared
 
 
-def _expand_tags(df: pd.DataFrame) -> pd.DataFrame:
+def expand_tags(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
     tags = pd.json_normalize(df["tags"])
     return pd.concat([df.drop(columns=["tags"]), tags], axis=1)
 
 
-def _ensure_columns(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
+def ensure_columns(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
     prepared = df.copy()
     for column in columns:
         if column not in prepared.columns:
@@ -37,13 +37,32 @@ def _ensure_columns(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
     return prepared
 
 
-def _records(frame: pd.DataFrame, columns: list[str]) -> list[dict[str, Any]]:
+def records(frame: pd.DataFrame, columns: list[str]) -> list[dict[str, Any]]:
     if frame.empty:
         return []
     output = frame[columns].copy()
     if "date" in output.columns:
         output["date"] = output["date"].astype(str)
     return output.to_dict(orient="records")
+
+
+# Stable public names; underscore aliases kept for any residual private imports.
+_prepare_timestamps = prepare_timestamps
+_expand_tags = expand_tags
+_ensure_columns = ensure_columns
+_records = records
+
+__all__ = [
+    "prepare_timestamps",
+    "expand_tags",
+    "ensure_columns",
+    "records",
+    "consumption_volume_per_day",
+    "waste_rate_per_day",
+    "insufficient_stock_failures_per_day",
+    "auth_failure_rate",
+    "build_metrics",
+]
 
 
 def consumption_volume_per_day(
@@ -59,7 +78,7 @@ def consumption_volume_per_day(
     if df.empty:
         return []
 
-    df = _ensure_columns(_expand_tags(_prepare_timestamps(df)), ["clinic_id", "jurisdiction"])
+    df = ensure_columns(expand_tags(prepare_timestamps(df)), ["clinic_id", "jurisdiction"])
     df = df.dropna(subset=["clinic_id", "jurisdiction"])
     if df.empty:
         return []
@@ -68,7 +87,7 @@ def consumption_volume_per_day(
         df.groupby(["date", "clinic_id", "jurisdiction"], as_index=False)
         .agg(count=("id", "count"))
     )
-    return _records(grouped, ["date", "clinic_id", "jurisdiction", "count"])
+    return records(grouped, ["date", "clinic_id", "jurisdiction", "count"])
 
 
 def waste_rate_per_day(
@@ -84,7 +103,7 @@ def waste_rate_per_day(
     if df.empty:
         return []
 
-    df = _ensure_columns(_expand_tags(_prepare_timestamps(df)), ["jurisdiction", "consumption_type"])
+    df = ensure_columns(expand_tags(prepare_timestamps(df)), ["jurisdiction", "consumption_type"])
     df = df.dropna(subset=["jurisdiction", "consumption_type"])
     if df.empty:
         return []
@@ -95,7 +114,7 @@ def waste_rate_per_day(
         waste=("is_waste", "sum"),
     )
     grouped["waste_rate"] = grouped["waste"] / grouped["total"]
-    return _records(grouped, ["date", "jurisdiction", "waste_rate", "total"])
+    return records(grouped, ["date", "jurisdiction", "waste_rate", "total"])
 
 
 def insufficient_stock_failures_per_day(
@@ -120,8 +139,8 @@ def insufficient_stock_failures_per_day(
         return []
 
     group_cols = ["date", "clinic_id", "jurisdiction", "supply_id"]
-    df = _ensure_columns(
-        _expand_tags(_prepare_timestamps(df)),
+    df = ensure_columns(
+        expand_tags(prepare_timestamps(df)),
         ["clinic_id", "jurisdiction", "supply_id"],
     )
     df = df.dropna(subset=["clinic_id", "jurisdiction", "supply_id"])
@@ -135,7 +154,7 @@ def insufficient_stock_failures_per_day(
     )
     grouped["count"] = grouped["count"].astype(int)
     grouped["rejection_rate"] = grouped["count"] / grouped["attempts"]
-    return _records(
+    return records(
         grouped,
         ["date", "clinic_id", "jurisdiction", "supply_id", "count", "attempts", "rejection_rate"],
     )
@@ -159,7 +178,7 @@ def auth_failure_rate(
     if df.empty:
         return []
 
-    df = _prepare_timestamps(df)
+    df = prepare_timestamps(df)
     df["failed"] = df["event_type"] == "user_login_failed"
     df["succeeded"] = df["event_type"] == "user_login_succeeded"
     grouped = df.groupby(["date"], as_index=False).agg(
@@ -169,7 +188,7 @@ def auth_failure_rate(
     grouped["failure_rate"] = grouped["failed"] / (grouped["failed"] + grouped["succeeded"])
     grouped["failed"] = grouped["failed"].astype(int)
     grouped["succeeded"] = grouped["succeeded"].astype(int)
-    return _records(grouped, ["date", "failed", "succeeded", "failure_rate"])
+    return records(grouped, ["date", "failed", "succeeded", "failure_rate"])
 
 
 def build_metrics(

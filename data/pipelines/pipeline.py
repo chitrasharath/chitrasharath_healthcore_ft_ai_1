@@ -16,8 +16,10 @@ import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 from uuid import UUID
 
+import pandas as pd
 from prefect import flow
 from sqlmodel import Session
 
@@ -50,6 +52,30 @@ def _ensure_engine():
     if supabase_engine is None:
         raise RuntimeError("DATABASE_URL is not set — refusing to run against no database.")
     return supabase_engine
+
+
+@flow(name="extract-telemetry-events")
+def extract_telemetry_subflow(
+    event_types: list[str],
+    start: datetime,
+    end: datetime,
+) -> pd.DataFrame:
+    return extract_telemetry_events(event_types, start, end)
+
+
+@flow(name="transform-kpi-aggregates")
+def transform_kpi_subflow(start: datetime, end: datetime) -> dict[str, list[dict[str, Any]]]:
+    return transform_kpi_aggregates(start, end)
+
+
+@flow(name="load-reporting-tables")
+def load_reporting_subflow(metrics: dict[str, list[dict[str, Any]]], run_id: str) -> int:
+    return load_reporting_tables(metrics, run_id)
+
+
+@flow(name="export-snapshot")
+def export_snapshot_subflow(metrics: dict[str, list[dict[str, Any]]]) -> str | None:
+    return export_snapshot_optional(metrics)
 
 
 @flow(name="telemetry-etl")
@@ -86,7 +112,7 @@ def telemetry_etl_flow(
     checkpoint = None
 
     try:
-        df = extract_telemetry_events(KPI_EVENT_TYPES, w_from, w_to)
+        df = extract_telemetry_subflow(KPI_EVENT_TYPES, w_from, w_to)
         rows_extracted = 0 if df is None else len(df)
         checkpoint = "extract"
 
@@ -118,17 +144,17 @@ def telemetry_etl_flow(
                 )
             return 0
 
-        metrics = transform_kpi_aggregates(w_from, w_to)
+        metrics = transform_kpi_subflow(w_from, w_to)
         checkpoint = "transform"
         with Session(engine) as session:
             run = load_run(session, run_id)
             run.checkpoint = checkpoint
             repo.update_pipeline_run(session, run)
 
-        rows_loaded = load_reporting_tables(metrics, run_id_str)
+        rows_loaded = load_reporting_subflow(metrics, run_id_str)
         checkpoint = "load"
 
-        snapshot_state = export_snapshot_optional(metrics, return_state=True)
+        snapshot_state = export_snapshot_subflow(metrics, return_state=True)
         partial = bool(snapshot_state is not None and snapshot_state.is_failed())
         if partial:
             logger.warning("optional snapshot export failed; continuing (run_id=%s)", run_id_str)

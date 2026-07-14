@@ -38,7 +38,7 @@ isProject: false
 
 **Branch:** `feature/data_pipeline` (continue — do not rewrite Build 1 ETL)
 
-**Status:** Planned — implement after stakeholder Go. Ends with **one commit** + **PR → `main`**.
+**Status:** Implemented on `feature/data_pipeline` — pending one commit + PR → `main`.
 
 **Rule:** Build on Build 1. Subflows wrap existing tasks; dashboard reads materialized report only.
 

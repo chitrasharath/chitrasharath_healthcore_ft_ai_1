@@ -302,7 +302,8 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision: Add Compose **`test` profile** service reusing API image/volumes; default command `uv run pytest`. Does not start with `docker compose up`.
 - Why: One-shot pytest without requiring the dev stack to be running; `docker compose exec api uv run pytest` retained for iterative dev.
 
-## Telemetry (design phase)
+- Decision (Milestone 6 Build 2): Reporting jurisdiction filter for clinic-grain KPIs uses **clinic catalog location** (`CLINICS[].jurisdiction`), not supply-derived telemetry `jurisdiction` alone; UK clinic names added (ids 7–9).
+- Why: Supply-country tags can pair UK jurisdiction with US clinics (e.g. San Antonio); filter UX must not show US clinics under UK.
 
 - Decision: Reconcile stakeholder CONTEXT KPIs to three observable metrics — supply consumption rate, supply waste rate, insufficient-stock rejection rate — because `min_stock_threshold`, `emergency` clinical context, and persisted stock levels do not exist in the delivered inventory model.
 - Why: Codebase wins over context docs; metrics must be computable from real API paths and event properties.

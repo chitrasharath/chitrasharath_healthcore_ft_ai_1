@@ -219,8 +219,8 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
 - Goal: auditable Prefect ETL from `telemetry_events` → materialized `reporting_*` KPI tables; replace request-path Pandas recompute.
 - **Part 1 — Design (delivered on branch):** `docs/data_pipelines/pipeline-design.md` on `feature/data_pipeline`. Plans under `memory-bank/references/data_pipelines_ai_plan/`.
 - **Part 2 — Build 1 (delivered on branch):** Prefect ETL under `data/pipelines/{extract,transform,load}/`, `reporting_*` + `pipeline_runs`, PHI guard, CLI, `GET /telemetry/report` (materialized) + `/raw-report` + pipeline endpoints.
-- **Part 3 — Build 2 (planned):** Subflows + unit tests + `/reporting` dashboard (monthly→daily KPI tabs, pipeline health + trigger). Specs/plan/design §12.1 updated.
-- **Next:** Implement Build 2 on `feature/data_pipeline` → one commit → PR to `main`.
+- **Part 3 — Build 2 (implemented on branch):** Subflows; analysis helpers + `tests/pipelines/`; pytest path fix; `/reporting` dashboard (summary + KPI tabs, filters on consumption/waste/stock, clinic names by location). Pending PR to `main`.
+- **Next:** Build 2 commit + PR to `main`.
 
 ## Future Feature Additions
 

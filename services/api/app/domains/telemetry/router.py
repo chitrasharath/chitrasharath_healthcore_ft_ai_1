@@ -128,10 +128,14 @@ def get_latest_pipeline_run_endpoint(
         "status": run.status,
         "started_at": run.started_at.isoformat() if run.started_at else None,
         "finished_at": run.finished_at.isoformat() if run.finished_at else None,
+        "watermark_from": run.watermark_from.isoformat() if run.watermark_from else None,
+        "watermark_to": run.watermark_to.isoformat() if run.watermark_to else None,
         "rows_extracted": run.rows_extracted,
         "rows_loaded": run.rows_loaded,
         "rows_quarantined": run.rows_quarantined,
         "error_summary": run.error_summary,
+        "checkpoint": run.checkpoint,
+        "pipeline_version": run.pipeline_version,
     }
 
 

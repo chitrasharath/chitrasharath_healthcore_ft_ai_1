@@ -39,6 +39,14 @@ export const NAV_APPS: NavApp[] = [
     protected: true,
   },
   {
+    title: "Reporting",
+    description: "Materialized telemetry KPIs and pipeline health",
+    url: "/reporting",
+    protected: true,
+    tag: "New",
+    tagVariant: "new",
+  },
+  {
     title: "Talent Pipeline Tracker",
     description: "Track recruitment and hiring pipeline",
     url: "/talent-tracker",
