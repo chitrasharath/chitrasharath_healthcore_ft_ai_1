@@ -2,7 +2,7 @@
 
 ## Current Status Summary
 
-The project is organized into milestone-based delivery (M1–M5 **delivered**).
+The project is organized into milestone-based delivery (M1–M5 **delivered**; **M6 Data Pipeline in progress** — Design authored on `feature/data_pipeline`).
 Milestone 4 public portal migration is **delivered** at `uis/website`. Milestone 5 backend and internal ops platform is **delivered** (`services/api`, backoffice landing on :3001, Docker Compose). Legacy `apps/healthcore_web_portal/` and `apps/src` remain unchanged.
 
 ## Major Milestones
@@ -213,6 +213,12 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
   - v1.1 stored events excluded from default metrics; ingest unchanged
   - `tests/test_telemetry_report.py` (6 tests); telemetry suite 140 tests passing
 - Plan: `memory-bank/references/telemetry_ai_plan/telemetry_report_implementation_plan.md`.
+
+### Milestone 6: Data Pipeline (In progress)
+
+- Goal: auditable Prefect ETL from `telemetry_events` → materialized `reporting_*` KPI tables; replace request-path Pandas recompute.
+- **Part 1 — Design (delivered on branch):** `docs/data_pipelines/pipeline-design.md` on `feature/data_pipeline`. Plans under `memory-bank/references/data_pipelines_ai_plan/`.
+- **Next:** Stakeholder design sign-off → Build 1 (Prefect flow + tables + endpoints) → pause → Build 2 (subflows + tests + PR).
 
 ## Future Feature Additions
 
