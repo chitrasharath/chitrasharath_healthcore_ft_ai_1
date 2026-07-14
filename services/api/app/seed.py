@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from app.domains.procurement.suppliers import store
 from app.domains.procurement.suppliers.seed_data import SUPPLIERS_SEED
 from app.domains.inventory.seed import seed_inventory
+from app.domains.telemetry.seed_reporting import seed_reporting_demo
 
 
 def run_seed() -> tuple[int, int]:
@@ -26,6 +27,7 @@ def main() -> None:
     inserted, skipped = run_seed()
     print(f"Inserted {inserted} supplier(s). Skipped {skipped} existing.")
     seed_inventory()
+    seed_reporting_demo()
 
 
 if __name__ == "__main__":

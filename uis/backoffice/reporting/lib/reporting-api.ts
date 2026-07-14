@@ -2,6 +2,7 @@ import { healthcoreFetch } from "@backoffice/shared/lib/healthcore-api";
 
 import type {
   PipelineRunLatest,
+  PipelineRunsList,
   TelemetryReport,
 } from "@backoffice/reporting/types/reporting";
 
@@ -35,6 +36,9 @@ export const fetchTelemetryReport = (
 
 export const fetchLatestPipelineRun = (): Promise<PipelineRunLatest> =>
   reportingFetch<PipelineRunLatest>("/telemetry/pipelines/runs/latest");
+
+export const fetchRecentPipelineRuns = (limit = 14): Promise<PipelineRunsList> =>
+  reportingFetch<PipelineRunsList>(`/telemetry/pipelines/runs?limit=${limit}`);
 
 export const triggerPipelineRun = (): Promise<{ message: string; run_id: string }> =>
   reportingFetch("/telemetry/pipelines/runs/trigger", { method: "POST" });

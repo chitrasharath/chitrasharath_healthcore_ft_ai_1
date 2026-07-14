@@ -4,9 +4,12 @@ import { listProducts } from "@backoffice/inventory/lib/inventory-api";
 export const formatClinicName = inventoryClinicName;
 
 export const formatSupplyName = (
-  supplyId: number,
+  supplyId: number | string,
   names: Record<number, string> | undefined,
-): string => (names ?? {})[supplyId] ?? `Unknown supply (${supplyId})`;
+): string => {
+  const id = Number(supplyId);
+  return (names ?? {})[id] ?? `Unknown supply (${Number.isNaN(id) ? supplyId : id})`;
+};
 
 export const loadSupplyNameMap = async (): Promise<Record<number, string>> => {
   const products = await listProducts();
@@ -17,7 +20,7 @@ export const loadSupplyNameMap = async (): Promise<Record<number, string>> => {
 
 export type NameLabels = {
   clinicName: (id: number) => string;
-  supplyName: (id: number) => string;
+  supplyName: (id: number | string) => string;
 };
 
 export const defaultLabels = (supplyNames: Record<number, string> = {}): NameLabels => ({

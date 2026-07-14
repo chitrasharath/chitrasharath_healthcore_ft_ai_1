@@ -32,8 +32,11 @@ const matchesTagJurisdiction = (value: string, filter: string | null): boolean =
 const matchesClinic = (value: number, filter: number | null): boolean =>
   filter === null || value === filter;
 
-const matchesSupply = (value: number, filter: number | null): boolean =>
-  filter === null || value === filter;
+/** API/reporting rows may encode supply_id as string; compare numerically. */
+const asSupplyId = (value: number | string): number => Number(value);
+
+const matchesSupply = (value: number | string, filter: number | null): boolean =>
+  filter === null || asSupplyId(value) === filter;
 
 /** Clinic catalog location wins over supply-derived telemetry jurisdiction. */
 const clinicFitsJurisdiction = (clinicId: number, filter: string | null): boolean => {
@@ -97,7 +100,7 @@ export const uniqueSupplies = (
       clinicFitsJurisdiction(row.clinic_id, jurisdiction) &&
       matchesTagJurisdiction(row.jurisdiction, jurisdiction)
     ) {
-      set.add(row.supply_id);
+      set.add(asSupplyId(row.supply_id));
     }
   }
   return [...set].sort((a, b) => a - b);

@@ -276,6 +276,17 @@ def get_latest_pipeline_run(session: Session) -> PipelineRun | None:
     ).first()
 
 
+def list_recent_pipeline_runs(session: Session, limit: int = 14) -> list[PipelineRun]:
+    capped = max(1, min(limit, 50))
+    return list(
+        session.exec(
+            select(PipelineRun)
+            .order_by(PipelineRun.started_at.desc())  # type: ignore[arg-type]
+            .limit(capped),
+        ).all(),
+    )
+
+
 def get_latest_success_watermark_to(session: Session) -> datetime | None:
     row = session.exec(
         select(PipelineRun)

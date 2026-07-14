@@ -4,12 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 
 import {
   fetchLatestPipelineRun,
+  fetchRecentPipelineRuns,
   triggerPipelineRun,
 } from "@backoffice/reporting/lib/reporting-api";
 import type { PipelineRunLatest } from "@backoffice/reporting/types/reporting";
 
 export const usePipelineHealth = () => {
   const [run, setRun] = useState<PipelineRunLatest | null>(null);
+  const [recent, setRecent] = useState<PipelineRunLatest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [triggering, setTriggering] = useState(false);
@@ -19,10 +21,16 @@ export const usePipelineHealth = () => {
     setLoading(true);
     setError(null);
     try {
-      setRun(await fetchLatestPipelineRun());
+      const [latest, list] = await Promise.all([
+        fetchLatestPipelineRun(),
+        fetchRecentPipelineRuns(14),
+      ]);
+      setRun(latest);
+      setRecent(list.runs);
     } catch (err) {
       setRun(null);
-      setError(err instanceof Error ? err.message : "Failed to load latest run");
+      setRecent([]);
+      setError(err instanceof Error ? err.message : "Failed to load pipeline health");
     } finally {
       setLoading(false);
     }
@@ -46,5 +54,5 @@ export const usePipelineHealth = () => {
     }
   }, [reload]);
 
-  return { run, loading, error, triggering, message, trigger, reload };
+  return { run, recent, loading, error, triggering, message, trigger, reload };
 };

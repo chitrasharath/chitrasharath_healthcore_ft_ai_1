@@ -24,7 +24,8 @@ export type StockDaily = {
   date: string;
   clinic_id: number;
   jurisdiction: string;
-  supply_id: number;
+  /** Reporting API may serialize as string; filters coerce with Number(). */
+  supply_id: number | string;
   count: number;
   attempts: number;
   rejection_rate: number;
@@ -64,6 +65,8 @@ export type PipelineRunLatest = {
   pipeline_version: string;
 };
 
+export type PipelineRunsList = { runs: PipelineRunLatest[] };
+
 export type ConsumptionMonthly = {
   month: string;
   clinic_id: number;
@@ -83,7 +86,7 @@ export type StockMonthly = {
   month: string;
   clinic_id: number;
   jurisdiction: string;
-  supply_id: number;
+  supply_id: number | string;
   count: number;
   attempts: number;
   rejection_rate: number;

@@ -55,8 +55,20 @@ After dependency changes (`package.json` / `pyproject.toml`): `docker compose up
 
 ### Optional seeding (post-first-up)
 
-- `docker compose exec api uv run seed` — TinyDB suppliers (+ inventory when `DATABASE_URL` is set).
-- Incident CSV seed (Supabase): `docker compose exec api uv run python /app/scripts/seed_incidents.py` when `DATABASE_URL` is configured.
+Requires `DATABASE_URL` in `.env` for Supabase tables (inventory, reporting KPIs, incidents).
+
+```bash
+# Suppliers (TinyDB) + inventory + Reporting demo KPIs / pipeline_runs
+docker compose exec api uv run seed
+
+# Reporting demo only (re-runnable; truncates reporting_* + pipeline_runs, then reloads)
+docker compose exec api uv run python -m app.domains.telemetry.seed_reporting
+
+# Incident CSV seed
+docker compose exec api uv run python /app/scripts/seed_incidents.py
+```
+
+See [Data pipeline (Build 2)](#data-pipeline-milestone-6--build-2) for what the reporting seed loads and how to run the ETL.
 
 ### Port conflicts
 
@@ -117,7 +129,9 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 - Swagger: http://localhost:8000/docs
-- Seed (optional): `uv run seed`
+- Seed (optional; needs `DATABASE_URL` for inventory + reporting demo): `uv run seed`
+  - Reporting demo only: `uv run python -m app.domains.telemetry.seed_reporting`
+  - Details: [Data pipeline (Build 2)](#data-pipeline-milestone-6--build-2)
 
 ### 2. Backoffice landing (hub + all tools) — port 3001
 
@@ -132,7 +146,7 @@ npm install
 npm run dev
 ```
 
-Hub: http://localhost:3001 — routes include `/incident-analyzer`, `/supplier-directory`, `/inventory`, `/talent-tracker`, `/backoffice-functions`, `/incident-manager/*`, `/account/*`. Full route table: [uis/backoffice/README.md](./uis/backoffice/README.md).
+Hub: http://localhost:3001 — routes include `/incident-analyzer`, `/supplier-directory`, `/inventory`, `/talent-tracker`, `/backoffice-functions`, `/incident-manager/*`, `/reporting`, `/account/*`. Full route table: [uis/backoffice/README.md](./uis/backoffice/README.md).
 
 ### 3. Public website — port 3000
 
@@ -169,20 +183,24 @@ See [TESTING.md](./TESTING.md) for coverage and pre-commit guardrails.
 | Backoffice env | **Landing only:** `uis/backoffice/landing/.example.env` → `.env.local` |
 | Website env | None — `uis/website` has no `NEXT_PUBLIC_*` vars |
 | Docker env | Root `cp .example.env .env` for `docker compose` only |
-| Supabase features | `DATABASE_URL` in `services/api/.env` for inventory and incident manager |
+| Supabase features | `DATABASE_URL` in `services/api/.env` for inventory, incident manager, telemetry, and reporting pipeline |
 
 ---
 
 ## Telemetry
 
-Backoffice telemetry spans four phases: design docs, client capture, Supabase persistence, and a JWT-protected report API (**Milestone 6 pipeline scope** — dashboard UI is out of scope for these phases). Design reference: [`docs/telemetry/telemetry-plan.md`](./docs/telemetry/telemetry-plan.md) and [`docs/telemetry/event-schemas.json`](./docs/telemetry/event-schemas.json).
+Backoffice telemetry spans four phases: design docs, client capture, Supabase persistence, and a JWT-protected report API. **Materialized KPI ETL + Reporting dashboard** are Milestone 6 Build 1–2 (see [Data pipeline (Build 2)](#data-pipeline-milestone-6--build-2)). Design reference: [`docs/telemetry/telemetry-plan.md`](./docs/telemetry/telemetry-plan.md) and [`docs/telemetry/event-schemas.json`](./docs/telemetry/event-schemas.json).
 
 **Prerequisites for Phases 2–4:** API on port 8000, backoffice landing on port 3001, and `DATABASE_URL` set (Phases 3–4 persist to `telemetry_events`). In `uis/backoffice/landing/.env.local`, set `NEXT_PUBLIC_TELEMETRY_ENDPOINT=http://localhost:8000/api/v1/telemetry/events`.
 
 | Endpoint | Auth | Purpose |
 |----------|------|---------|
 | `POST /api/v1/telemetry/events` | None | Ingest batched events |
-| `GET /api/v1/telemetry/report` | Bearer JWT | KPI metrics (7-day default window) |
+| `GET /api/v1/telemetry/report` | Bearer JWT | KPI metrics from materialized `reporting_*` (Build 1+) |
+| `GET /api/v1/telemetry/raw-report` | Bearer JWT | Live recompute from `telemetry_events` (debug / parity) |
+| `GET /api/v1/telemetry/pipelines/runs/latest` | Bearer JWT | Latest ETL run metadata |
+| `GET /api/v1/telemetry/pipelines/runs?limit=14` | Bearer JWT | Recent ETL runs (Reporting → Pipeline health) |
+| `POST /api/v1/telemetry/pipelines/runs/trigger` | Bearer JWT | Async on-demand ETL run |
 
 ### Phase 1 — Design (docs only)
 
@@ -323,6 +341,95 @@ Further detail: [`memory-bank/references/telemetry_ai_plan/`](./memory-bank/refe
 
 ---
 
+## Data pipeline (Milestone 6 — Build 2)
+
+Prefect ETL materializes clinic / jurisdiction KPIs from `telemetry_events` into `reporting_*` tables. Build 2 adds **subflows**, **unit tests**, and the authenticated **Reporting** dashboard at `/reporting`.
+
+Design (authoritative): [`docs/data_pipelines/pipeline-design.md`](./docs/data_pipelines/pipeline-design.md). Code layout: [`data/pipelines/README.md`](./data/pipelines/README.md).
+
+### What Build 2 delivers
+
+| Area | Attributes (as implemented) |
+|------|-----------------------------|
+| **Layout** | `data/pipelines/{extract,transform,load}/` + orchestrator `pipeline.py` |
+| **Main flow** | `telemetry_etl_flow` coordinates ≥3 **subflows** (`extract-telemetry-events`, `transform-kpi-aggregates`, `load-reporting-tables`; optional `export-snapshot`) |
+| **Also** | `backfill_flow(start, end)` — same tasks with an explicit event-time window |
+| **Extract** | Watermark on `timestamp`; KPI event types only; `retries=3` + backoff + transient-only `retry_condition_fn`; PHI / null-grain quarantine before load |
+| **Transform** | Reuses `build_metrics` in `analysis.py`; Prefect `cache_key_fn` + 1h `cache_expiration` on the window |
+| **Load** | Transactional upsert into four grains; watermark advances only after success; optional JSON snapshot with `return_state=True` (`partial` if snapshot fails) |
+| **Config** | `REPROCESS_WINDOW_DAYS=2`, `LOOKBACK_DAYS=7`, `PIPELINE_VERSION=1.0.0` (`data/pipelines/config.py`) |
+| **Run log** | `pipeline_runs`: `run_id`, times, watermarks, `rows_extracted` / `rows_loaded` / `rows_quarantined`, `status`, `error_summary`, `pipeline_version`, `checkpoint` |
+| **Statuses** | `running` → `success` \| `partial` \| `failed` \| `quarantined` |
+| **Tests** | `tests/pipelines/test_pipeline.py` — transform helpers + KPI value assertion; `uv run pytest tests/pipelines/test_pipeline.py` |
+| **Dashboard** | `uis/backoffice/reporting/` → http://localhost:3001/reporting (JWT). Tabs: Summary, Consumption, Waste, Stock, Auth, Pipeline health |
+
+### KPI grains (materialized tables)
+
+| Table | Grain (unique key) | Value columns |
+|-------|--------------------|---------------|
+| `reporting_consumption_volume_daily` | `(report_date, clinic_id, jurisdiction)` | `count` |
+| `reporting_waste_rate_daily` | `(report_date, jurisdiction)` | `waste_rate`, `total` |
+| `reporting_stock_failures_daily` | `(report_date, clinic_id, jurisdiction, supply_id)` | `count`, `attempts`, `rejection_rate` |
+| `reporting_auth_failure_daily` | `(report_date)` | `failed`, `succeeded`, `failure_rate` |
+
+Dashboard filters: **waste** is jurisdiction-level (no clinic grain); **supply** applies on the Stock tab only.
+
+### Run the ETL (CLI)
+
+Requires `DATABASE_URL` (process env or `services/api/.env`). From **repository root**:
+
+```bash
+uv run python data/pipelines/pipeline.py
+```
+
+Fail-fast if `DATABASE_URL` is missing (exit `1`, no false success). Intended cron: `0 2 * * *` with cwd = repo root.
+
+On-demand from the UI: Reporting → **Pipeline health** → **Run pipeline** (`POST /api/v1/telemetry/pipelines/runs/trigger`).
+
+### Seed the database
+
+`DATABASE_URL` must point at the Supabase project used for inventory / telemetry (same DB as `milestone5_inventory`).
+
+#### Full platform seed (recommended once)
+
+Seeds TinyDB **suppliers**, Supabase **inventory** (if empty), and the **Reporting demo** (`reporting_*` + `pipeline_runs`).
+
+```bash
+# Manual API workflow
+cd services/api
+uv sync --extra dev
+uv run seed
+
+# Docker (stack up)
+docker compose exec api uv run seed
+```
+
+#### Reporting demo only (dashboard charts / health)
+
+Idempotent demo loader: truncates `reporting_*` and `pipeline_runs`, then inserts ~12 months of KPI grains (clinics 1–9, US/UK) plus ~14 mixed-status pipeline runs (latest = full success).
+
+```bash
+# Manual
+cd services/api
+uv run python -m app.domains.telemetry.seed_reporting
+
+# Docker
+docker compose exec api uv run python -m app.domains.telemetry.seed_reporting
+```
+
+Then open http://localhost:3001/reporting (logged in). Pipeline health shows the latest run and a recent-runs table.
+
+#### Other seeds
+
+| Seed | Command | Notes |
+|------|---------|-------|
+| Incidents CSV | `uv run python scripts/seed_incidents.py` (repo root) or `docker compose exec api uv run python /app/scripts/seed_incidents.py` | Needs `DATABASE_URL` |
+| Live KPI path | Capture real telemetry in backoffice, then `uv run python data/pipelines/pipeline.py` | Materializes from `telemetry_events` instead of demo grains |
+
+Plans: [`memory-bank/references/data_pipelines_ai_plan/`](./memory-bank/references/data_pipelines_ai_plan/).
+
+---
+
 ## Milestones (course roadmap)
 
 | Milestone | Focus | Typical deliverables | Status |
@@ -333,13 +440,13 @@ Further detail: [`memory-bank/references/telemetry_ai_plan/`](./memory-bank/refe
 | 3 | AI-driven UI | AI-generated interfaces | **Implementation complete** |
 | 4 | Next.js | Portals, loyalty app, operations UI | **Implementation complete** |
 | 5 | Backend | Central API (locations, menus, sales, etc.) | **Implementation complete** |
-| 6 | Telemetry | Data pipeline, dashboards | **Partially complete** (pipeline: Phases 1–4 on `feature/telemetry`; dashboards not built) |
+| 6 | Telemetry | Data pipeline, dashboards | **In progress** (Build 1–2 on `feature/data_pipeline`: ETL + `/reporting`) |
 | 7 | RAG & Memory | Semantic knowledge base, search | Not started |
 | 8 | Agents | Support, onboarding, training agents | Not started |
 | 9 | Workflows | n8n automations | Not started |
 | 10 | Real-time | Live dashboards, alerts, streaming | Not started |
 
-**HealthCore mapping (M0–M6):** M1/M4 → `uis/website`; M2 → `apps/src` + `/backoffice-functions`; M3 → `/talent-tracker`; M5 → `services/api` + backoffice platform; **M6 (partial)** → telemetry pipeline on `feature/telemetry` (see [Telemetry](#telemetry) — no ops dashboard UI yet). Detail: [memory-bank/progress.md](./memory-bank/progress.md).
+**HealthCore mapping (M0–M6):** M1/M4 → `uis/website`; M2 → `apps/src` + `/backoffice-functions`; M3 → `/talent-tracker`; M5 → `services/api` + backoffice platform; **M6** → telemetry + Prefect ETL (`data/pipelines/`) + Reporting UI (`/reporting`) — see [Telemetry](#telemetry) and [Data pipeline (Build 2)](#data-pipeline-milestone-6--build-2). Detail: [memory-bank/progress.md](./memory-bank/progress.md).
 
 ---
 
@@ -352,6 +459,7 @@ healthcore-monorepo/
 ├── AGENTS.md                  # Agent workflow policy
 ├── .example.env               # Docker env template → copy to .env
 ├── docker-compose.yml
+├── data/pipelines/            # Prefect KPI ETL (Milestone 6)
 ├── services/api/              # FastAPI backend
 ├── uis/
 │   ├── website/               # Public portal (port 3000)
@@ -359,12 +467,14 @@ healthcore-monorepo/
 │       ├── landing/           # Backoffice hub (port 3001)
 │       ├── inventory/
 │       ├── incident-manager/
+│       ├── reporting/         # KPI dashboard → /reporting
 │       └── talent-tracker/
 ├── apps/                      # Legacy M1 portal, M2 utils, frozen M3 copy
 ├── packages/shared/           # Shared TypeScript and Python types/validation
 ├── memory-bank/               # Agent bootstrap and milestone records
-├── docs/                      # Architecture and cross-cutting docs
+├── docs/                      # Architecture, telemetry, data pipeline design
 ├── scripts/
+├── tests/pipelines/           # ETL unit tests
 └── TESTING.md
 ```
 
@@ -379,6 +489,8 @@ healthcore-monorepo/
 | [uis/incident_analyzer/README.md](./uis/incident_analyzer/README.md) | Incident CSV CLI and analysis module |
 | [TESTING.md](./TESTING.md) | pytest, Jest, pre-commit guardrails, Docker test commands |
 | [docs/telemetry/telemetry-plan.md](./docs/telemetry/telemetry-plan.md) | Telemetry design, KPIs, event catalog |
+| [docs/data_pipelines/pipeline-design.md](./docs/data_pipelines/pipeline-design.md) | KPI ETL design, run command, Reporting UI (§12.1) |
+| [data/pipelines/README.md](./data/pipelines/README.md) | Pipeline package layout and CLI entry |
 | [memory-bank/](./memory-bank/) | Project brief, tech context, progress, decisions, conventions |
 | [AGENTS.md](./AGENTS.md) | Mandatory agent bootstrap and commit workflow |
 

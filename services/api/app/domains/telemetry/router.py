@@ -14,7 +14,11 @@ from app.domains.telemetry.analysis import build_metrics
 from app.domains.telemetry.cache import get_cached_or_compute, report_cache_key
 from app.domains.telemetry.mapper import map_event_to_row, properties_are_allowlisted
 from app.domains.telemetry.schemas import TelemetryBatch, TelemetryEvent
-from data.pipelines.load.repository import get_latest_pipeline_run, read_reporting_metrics
+from data.pipelines.load.repository import (
+    get_latest_pipeline_run,
+    list_recent_pipeline_runs,
+    read_reporting_metrics,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -115,14 +119,7 @@ def get_telemetry_raw_report(
     return get_cached_or_compute(cache_key, compute)
 
 
-@router.get("/pipelines/runs/latest")
-def get_latest_pipeline_run_endpoint(
-    session: Session = Depends(get_supabase_db),
-    _user: dict = Depends(get_current_user),
-) -> dict:
-    run = get_latest_pipeline_run(session)
-    if run is None:
-        raise HTTPException(status_code=404, detail="No pipeline runs found")
+def _serialize_pipeline_run(run) -> dict:
     return {
         "run_id": str(run.run_id),
         "status": run.status,
@@ -137,6 +134,27 @@ def get_latest_pipeline_run_endpoint(
         "checkpoint": run.checkpoint,
         "pipeline_version": run.pipeline_version,
     }
+
+
+@router.get("/pipelines/runs/latest")
+def get_latest_pipeline_run_endpoint(
+    session: Session = Depends(get_supabase_db),
+    _user: dict = Depends(get_current_user),
+) -> dict:
+    run = get_latest_pipeline_run(session)
+    if run is None:
+        raise HTTPException(status_code=404, detail="No pipeline runs found")
+    return _serialize_pipeline_run(run)
+
+
+@router.get("/pipelines/runs")
+def list_pipeline_runs_endpoint(
+    limit: int = 14,
+    session: Session = Depends(get_supabase_db),
+    _user: dict = Depends(get_current_user),
+) -> dict:
+    runs = list_recent_pipeline_runs(session, limit=limit)
+    return {"runs": [_serialize_pipeline_run(run) for run in runs]}
 
 
 @router.post("/pipelines/runs/trigger")

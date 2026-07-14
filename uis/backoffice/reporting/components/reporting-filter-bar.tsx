@@ -12,7 +12,9 @@ type Props = {
   clinics: number[];
   supplies: number[];
   supplyNames: Record<number, string>;
+  showClinic?: boolean;
   showSupply?: boolean;
+  hint?: string;
 };
 
 export const ReportingFilterBar = ({
@@ -21,7 +23,9 @@ export const ReportingFilterBar = ({
   clinics,
   supplies,
   supplyNames,
+  showClinic = true,
   showSupply = true,
+  hint = "Month and jurisdiction apply across KPI tabs. Clinic applies to consumption and stock; supply to stock only.",
 }: Props) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -31,7 +35,10 @@ export const ReportingFilterBar = ({
     const next = new URLSearchParams(searchParams.toString());
     if (!value) next.delete(key);
     else next.set(key, value);
-    if (key === "jurisdiction") next.delete("clinic");
+    if (key === "jurisdiction") {
+      next.delete("clinic");
+      next.delete("supply");
+    }
     router.replace(`${pathname}?${next.toString()}`);
   };
 
@@ -52,13 +59,15 @@ export const ReportingFilterBar = ({
           allLabel="All jurisdictions"
           options={jurisdictions.map((j) => ({ value: j, label: j.toUpperCase() }))}
         />
-        <FilterSelect
-          label="Clinic"
-          value={filters.clinicId === null ? "" : String(filters.clinicId)}
-          onChange={(value) => setParam("clinic", value)}
-          allLabel="All clinics"
-          options={clinics.map((id) => ({ value: String(id), label: formatClinicName(id) }))}
-        />
+        {showClinic ? (
+          <FilterSelect
+            label="Clinic"
+            value={filters.clinicId === null ? "" : String(filters.clinicId)}
+            onChange={(value) => setParam("clinic", value)}
+            allLabel="All clinics"
+            options={clinics.map((id) => ({ value: String(id), label: formatClinicName(id) }))}
+          />
+        ) : null}
         {showSupply ? (
           <FilterSelect
             label="Supply"
@@ -72,9 +81,7 @@ export const ReportingFilterBar = ({
           />
         ) : null}
       </div>
-      <p className="mt-2 text-xs text-slate-500">
-        Filters apply across tabs. Auth respects month only; supply applies to stock failures.
-      </p>
+      <p className="mt-2 text-xs text-slate-500">{hint}</p>
     </div>
   );
 };

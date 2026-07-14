@@ -31,6 +31,12 @@ const ReportingBody = () => {
   const { report, loading, error } = useReportData();
   const supplyNames = useSupplyNames();
   const showFilters = tab === "consumption" || tab === "waste" || tab === "stock";
+  const filterHint =
+    tab === "waste"
+      ? "Waste rate is rolled up by jurisdiction (not clinic). Use month and jurisdiction filters."
+      : tab === "stock"
+        ? "Stock failures support month, jurisdiction, clinic, and supply filters."
+        : "Consumption supports month, jurisdiction, and clinic filters.";
   const filtered = report
     ? showFilters
       ? applyReportFilters(report.metrics, filters)
@@ -48,6 +54,9 @@ const ReportingBody = () => {
           clinics={uniqueClinics(report.metrics, filters.jurisdiction)}
           supplies={uniqueSupplies(report.metrics, filters.jurisdiction)}
           supplyNames={supplyNames}
+          showClinic={tab !== "waste"}
+          showSupply={tab === "stock"}
+          hint={filterHint}
         />
       ) : null}
       {tab !== "health" && loading ? <p className="text-sm text-slate-500">Loading report…</p> : null}

@@ -1,5 +1,6 @@
 "use client";
 
+import { PipelineRecentRuns } from "@backoffice/reporting/components/pipeline-recent-runs";
 import { StatusBanner } from "@backoffice/reporting/components/status-banner";
 import { usePipelineHealth } from "@backoffice/reporting/hooks/use-pipeline-health";
 
@@ -11,7 +12,7 @@ const Field = ({ label, value }: { label: string; value: string }) => (
 );
 
 export const PipelineHealthPanel = () => {
-  const { run, loading, error, triggering, message, trigger } = usePipelineHealth();
+  const { run, recent, loading, error, triggering, message, trigger } = usePipelineHealth();
 
   return (
     <section className="space-y-4">
@@ -19,7 +20,7 @@ export const PipelineHealthPanel = () => {
         Latest materialized ETL run status. Use Run pipeline for an on-demand refresh; nightly
         cron uses the CLI only.
       </p>
-      {loading ? <p className="text-sm text-slate-500">Loading latest run…</p> : null}
+      {loading ? <p className="text-sm text-slate-500">Loading pipeline health…</p> : null}
       {error ? <StatusBanner message={error} /> : null}
       {message ? <StatusBanner message={message} tone="info" /> : null}
       {run ? (
@@ -38,6 +39,7 @@ export const PipelineHealthPanel = () => {
           <Field label="Error summary" value={run.error_summary ?? "—"} />
         </dl>
       ) : null}
+      <PipelineRecentRuns runs={recent} />
       <button
         type="button"
         onClick={() => void trigger()}

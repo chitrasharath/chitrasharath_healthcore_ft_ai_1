@@ -1,16 +1,18 @@
-"""DB-free unit tests for telemetry transform helpers (analysis.py)."""
+"""DB-free unit tests for telemetry transform helpers and KPI math."""
 
 from __future__ import annotations
 
-from datetime import date, timezone
+from datetime import date, datetime, timezone
+from unittest.mock import MagicMock
 
 import pandas as pd
 
 from app.domains.telemetry.analysis import (
-    ensure_columns,
-    expand_tags,
-    prepare_timestamps,
-    records,
+    _ensure_columns,
+    _expand_tags,
+    _prepare_timestamps,
+    _records,
+    waste_rate_per_day,
 )
 
 
@@ -19,7 +21,7 @@ def test_expand_tags_flattens_jurisdiction_and_clinic() -> None:
         [{"id": "1", "tags": {"clinic_id": 3, "jurisdiction": "us"}}],
     )
 
-    result = expand_tags(frame)
+    result = _expand_tags(frame)
 
     assert "clinic_id" in result.columns
     assert "jurisdiction" in result.columns
@@ -33,7 +35,7 @@ def test_prepare_timestamps_derives_utc_date() -> None:
         [{"id": "1", "timestamp": "2026-03-15T14:30:00+00:00"}],
     )
 
-    result = prepare_timestamps(frame)
+    result = _prepare_timestamps(frame)
 
     assert result.loc[0, "date"] == date(2026, 3, 15)
     ts = result.loc[0, "timestamp"]
@@ -45,7 +47,7 @@ def test_prepare_timestamps_derives_utc_date() -> None:
 def test_ensure_columns_backfills_missing_keys() -> None:
     frame = pd.DataFrame([{"id": "1", "jurisdiction": "uk"}])
 
-    result = ensure_columns(frame, ["consumption_type", "jurisdiction"])
+    result = _ensure_columns(frame, ["consumption_type", "jurisdiction"])
 
     assert "consumption_type" in result.columns
     assert pd.isna(result.loc[0, "consumption_type"])
@@ -64,7 +66,7 @@ def test_records_serializes_date_to_string() -> None:
         ],
     )
 
-    result = records(frame, ["date", "clinic_id", "jurisdiction", "count"])
+    result = _records(frame, ["date", "clinic_id", "jurisdiction", "count"])
 
     assert isinstance(result, list)
     assert len(result) == 1
@@ -81,8 +83,62 @@ def test_prepare_timestamps_handles_malformed() -> None:
         ],
     )
 
-    result = prepare_timestamps(frame)
+    result = _prepare_timestamps(frame)
 
     assert pd.isna(result.loc[0, "timestamp"])
     assert pd.isna(result.loc[1, "timestamp"])
     assert result.loc[2, "date"] == date(2026, 7, 1)
+
+
+def test_waste_rate_matches_kpi_definition(monkeypatch) -> None:
+    """Supply waste rate = expiry_waste / all outbound consumptions per day/jurisdiction.
+
+    Definition: telemetry-plan.md §2 KPI 2 (share of outbound where
+    consumption_type = expiry_waste vs clinical_use + expiry_waste).
+    Fixture: 1 waste + 3 clinical on 2026-07-01 us → waste_rate = 0.25, total = 4.
+    """
+    events = pd.DataFrame(
+        [
+            {
+                "id": "a",
+                "event_type": "supply_consumption_created",
+                "timestamp": "2026-07-01T10:00:00Z",
+                "tags": {"jurisdiction": "us", "consumption_type": "expiry_waste"},
+            },
+            {
+                "id": "b",
+                "event_type": "supply_consumption_created",
+                "timestamp": "2026-07-01T11:00:00Z",
+                "tags": {"jurisdiction": "us", "consumption_type": "clinical_use"},
+            },
+            {
+                "id": "c",
+                "event_type": "supply_consumption_created",
+                "timestamp": "2026-07-01T12:00:00Z",
+                "tags": {"jurisdiction": "us", "consumption_type": "clinical_use"},
+            },
+            {
+                "id": "d",
+                "event_type": "supply_consumption_created",
+                "timestamp": "2026-07-01T13:00:00Z",
+                "tags": {"jurisdiction": "us", "consumption_type": "clinical_use"},
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "app.domains.telemetry.analysis.load_events",
+        lambda *_args, **_kwargs: events,
+    )
+
+    result = waste_rate_per_day(
+        MagicMock(),
+        datetime(2026, 7, 1, tzinfo=timezone.utc),
+        datetime(2026, 7, 2, tzinfo=timezone.utc),
+    )
+
+    assert len(result) == 1
+    row = result[0]
+    assert row["date"] == "2026-07-01"
+    assert row["jurisdiction"] == "us"
+    assert row["total"] == 4
+    assert row["waste_rate"] == 0.25
