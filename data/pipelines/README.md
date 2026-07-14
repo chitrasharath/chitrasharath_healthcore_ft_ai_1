@@ -1,10 +1,15 @@
 # `data/pipelines` folder
 
-This folder groups **all data pipelines in the monorepo** related to the company: ingestion, ETL/ELT, cleaning, transformation, and loading into analytical or production systems.
+Telemetry KPI ETL lives here, split by stage:
 
-Each subfolder or file under `data/pipelines/` should represent **one pipeline or job set** (for example `sales-etl`, `telemetry-stream`, `customer-segmentation`) and include the required configuration (scripts, orchestration, connectors, schemas, etc.).
+| Path | Role |
+|------|------|
+| `pipeline.py` | Prefect flow orchestrator + CLI entry (`uv run python data/pipelines/pipeline.py`) |
+| `config.py` | Watermark / event-type / version constants |
+| `extract/` | Watermark window, `extract_telemetry_events` task, PHI / quarantine scans |
+| `transform/` | `transform_kpi_aggregates` task (`build_metrics`) |
+| `load/` | Upserts + report readers (`repository.py`), run-log helpers, load + snapshot tasks |
 
-- **Main purpose**: consolidate in one place the data movement and transformation logic that powers the company’s applications and analytics.
-- **Recommendation**: document pipelines as you add them—their goal, data sources and sinks, dependencies, and how to run them in development, testing, and production.
+Design: [`docs/data_pipelines/pipeline-design.md`](../../docs/data_pipelines/pipeline-design.md).
 
 > _Spanish version: [README.es.md](./README.es.md)._

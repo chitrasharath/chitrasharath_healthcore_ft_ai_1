@@ -297,15 +297,16 @@ Each item: **(a)** failure scenario, **(b)** rationale, **(c)** tag.
 
 ## 12. Run command and schedule
 
-**CLI (Build 1):**
+**CLI (Build 1 — implemented):**
 
 ```bash
+# From repo root; DATABASE_URL must point at milestone5_inventory Postgres
 uv run python data/pipelines/pipeline.py
 ```
 
-Requires `DATABASE_URL` set to the Supabase Postgres URL for `milestone5_inventory`. If unset, exit non-zero with a one-line message (no false success).
+Requires `DATABASE_URL` (process env or `services/api/.env`). If missing/empty, exits `1` with a one-line stderr message (no false success). To force the fail-fast check when `.env` still has a URL: `DATABASE_URL= uv run python data/pipelines/pipeline.py`.
 
-**Intended schedule:** nightly cron `0 2 * * *` (02:00 local ops window) invoking the same CLI. On-demand: `POST /api/v1/telemetry/pipelines/runs/trigger` or CLI.
+**Intended schedule:** nightly cron `0 2 * * *` (02:00) invoking the same CLI. On-demand: `POST /api/v1/telemetry/pipelines/runs/trigger` (BackgroundTasks) or CLI.
 
 Build 1/2 must keep this section accurate when the entrypoint changes.
 
@@ -317,7 +318,7 @@ Shared vocabulary: flows/tasks/tables/states in §§7–9. **Do not rename** bet
 
 ### Build 1 — Resilient pipeline (implement)
 
-- `data/pipelines/pipeline.py` + `config.py`; `data/process/reporting_repository.py`
+- `data/pipelines/pipeline.py` + `config.py`; stage packages `extract/`, `transform/`, `load/` (upserts + run log in `load/repository.py`)
 - Four `reporting_*` tables + `pipeline_runs`; indexes; register models in `main.py`
 - Watermark, reprocess-window, transactional upsert, PHI guard, quarantine counts
 - Extract retries; transform cache; **`export_snapshot_optional` with `return_state=True`**

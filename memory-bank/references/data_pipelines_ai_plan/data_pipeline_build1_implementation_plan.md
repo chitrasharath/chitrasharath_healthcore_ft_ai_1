@@ -45,7 +45,7 @@ isProject: false
 
 **Branch:** `feature/data_pipeline` (continue; do not branch off `feature/telemetry`)
 
-**Status:** Planned — implement only after Design pause is cleared. **Pause again after this phase** before Build 2.
+**Status:** **Implemented on branch** — pending manual Supabase walkthrough + commit acknowledgement. **Pause** before Build 2.
 
 **Frontend:** Do not change any UI apps.
 

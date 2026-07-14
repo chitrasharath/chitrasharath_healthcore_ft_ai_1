@@ -30,3 +30,10 @@ def ensure_telemetry_indexes(engine: Engine) -> None:
                     "ON telemetry_events USING GIN (tags)",
                 ),
             )
+        # pipeline_runs created via SQLModel metadata; index powers /pipelines/runs/latest
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_pipeline_runs_started_at "
+                "ON pipeline_runs (started_at DESC)",
+            ),
+        )
