@@ -3,7 +3,16 @@ import sys
 from pathlib import Path
 
 # Repo root must be on sys.path before importing routers that use `data.pipelines`.
-_REPO_ROOT = Path(__file__).resolve().parents[3]
+# Walk up so Docker (/app/services/api/app/...) and local checkouts both resolve.
+def _repo_root() -> Path:
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if (parent / "data" / "pipelines").is_dir():
+            return parent
+    return here.parents[3]
+
+
+_REPO_ROOT = _repo_root()
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
