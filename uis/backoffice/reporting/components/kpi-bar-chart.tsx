@@ -14,8 +14,13 @@ export const KpiBarChart = ({ points, valueSuffix = "" }: Props) => {
       {points.map((point) => {
         const width = `${Math.max((point.value / max) * 100, 2)}%`;
         return (
-          <li key={point.label} className="grid grid-cols-[7rem_1fr_4.5rem] items-center gap-2 text-sm">
-            <span className="truncate font-medium text-slate-700">{point.label}</span>
+          <li
+            key={point.id ?? point.label}
+            className="grid grid-cols-[minmax(0,12rem)_1fr_4.5rem] items-center gap-2 text-sm"
+          >
+            <span className="truncate font-medium text-slate-700" title={point.label}>
+              {point.label}
+            </span>
             <div className="h-3 overflow-hidden rounded bg-slate-100">
               <div className="h-full rounded bg-teal-600" style={{ width }} />
             </div>

@@ -99,4 +99,4 @@ export type AuthMonthly = {
   failure_rate: number;
 };
 
-export type ChartPoint = { label: string; value: number };
+export type ChartPoint = { label: string; value: number; id?: string };

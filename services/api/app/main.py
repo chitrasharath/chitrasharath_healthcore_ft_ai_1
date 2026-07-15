@@ -2,6 +2,11 @@ import logging
 import sys
 from pathlib import Path
 
+# Repo root must be on sys.path before importing routers that use `data.pipelines`.
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -15,11 +20,6 @@ from app.domains.incidents import models as incident_models  # noqa: F401
 from app.domains.telemetry import models as telemetry_models  # noqa: F401
 from app.domains.telemetry import reporting_models as telemetry_reporting_models  # noqa: F401
 from app.domains.telemetry.indexes import ensure_telemetry_indexes
-
-# Repo root so `data.pipelines` is importable from FastAPI (trigger endpoint).
-_REPO_ROOT = Path(__file__).resolve().parents[3]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
 
 logger = logging.getLogger(__name__)
 

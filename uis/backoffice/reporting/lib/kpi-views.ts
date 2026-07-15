@@ -137,8 +137,10 @@ export const buildStockView = (
         attempts: row.attempts,
         rejection_rate: formatRate(row.rejection_rate),
       })),
+      // Period-only labels; grain stays in `id` (and the table) so filter dims are not repeated on bars.
       chart: daily.map((row) => ({
-        label: `${row.date} ${labels.supplyName(row.supply_id)}`,
+        id: `${row.date}|${row.clinic_id}|${row.jurisdiction}|${row.supply_id}`,
+        label: row.date,
         value: row.rejection_rate * 100,
       })),
     };
@@ -162,7 +164,8 @@ export const buildStockView = (
       rejection_rate: formatRate(row.rejection_rate),
     })),
     chart: monthly.map((row) => ({
-      label: `${row.month} ${labels.supplyName(row.supply_id)}`,
+      id: `${row.month}|${row.clinic_id}|${row.jurisdiction}|${row.supply_id}`,
+      label: row.month,
       value: row.rejection_rate * 100,
     })),
   };
