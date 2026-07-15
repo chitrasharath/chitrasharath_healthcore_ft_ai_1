@@ -197,7 +197,35 @@ def backfill_flow(start: datetime, end: datetime) -> int:
 
 
 if __name__ == "__main__":
+    import argparse
+    from datetime import datetime as _dt
+
     from app.core.config import settings
+
+    def _parse_aware_utc(value: str) -> _dt:
+        parsed = _dt.fromisoformat(value)
+        if parsed.tzinfo is None:
+            raise argparse.ArgumentTypeError(
+                f"datetime must be timezone-aware UTC ISO 8601, got naive: {value!r}"
+            )
+        return parsed.astimezone(timezone.utc)
+
+    parser = argparse.ArgumentParser(description="HealthCore telemetry KPI ETL")
+    parser.add_argument(
+        "--start",
+        type=_parse_aware_utc,
+        default=None,
+        help="Window start (timezone-aware ISO 8601, e.g. 2026-07-14T00:00:00+00:00)",
+    )
+    parser.add_argument(
+        "--end",
+        type=_parse_aware_utc,
+        default=None,
+        help="Window end (timezone-aware ISO 8601, exclusive)",
+    )
+    args = parser.parse_args()
+    if (args.start is None) ^ (args.end is None):
+        parser.error("both --start and --end are required together, or omit both")
 
     if not settings.database_url or supabase_engine is None:
         print(
@@ -205,4 +233,8 @@ if __name__ == "__main__":
             file=sys.stderr,
         )
         sys.exit(1)
-    telemetry_etl_flow()
+
+    if args.start is not None and args.end is not None:
+        telemetry_etl_flow(start=args.start, end=args.end)
+    else:
+        telemetry_etl_flow()
