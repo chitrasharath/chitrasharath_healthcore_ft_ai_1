@@ -123,7 +123,7 @@ def _seed_report_fixtures(session_engine) -> None:
 
 
 def test_report_requires_auth(telemetry_client: TestClient) -> None:
-    response = telemetry_client.get("/api/v1/telemetry/report")
+    response = telemetry_client.get("/api/v1/telemetry/raw-report")
     assert response.status_code == 401
 
 
@@ -135,7 +135,7 @@ def test_report_returns_four_metric_keys(
     _seed_report_fixtures(telemetry_session)
 
     response = telemetry_client.get(
-        "/api/v1/telemetry/report",
+        "/api/v1/telemetry/raw-report",
         params={
             "start_date": WINDOW_START.isoformat(),
             "end_date": WINDOW_END.isoformat(),
@@ -162,7 +162,7 @@ def test_kpi_metrics_exclude_v1_1_noise(
     _seed_report_fixtures(telemetry_session)
 
     response = telemetry_client.get(
-        "/api/v1/telemetry/report",
+        "/api/v1/telemetry/raw-report",
         params={
             "start_date": WINDOW_START.isoformat(),
             "end_date": WINDOW_END.isoformat(),
@@ -207,7 +207,7 @@ def test_report_empty_window_returns_empty_arrays(
     report_token: str,
 ) -> None:
     response = telemetry_client.get(
-        "/api/v1/telemetry/report",
+        "/api/v1/telemetry/raw-report",
         params={
             "start_date": "2026-01-01T00:00:00Z",
             "end_date": "2026-01-02T00:00:00Z",
@@ -236,8 +236,8 @@ def test_report_uses_cache_within_ttl(
     headers = _auth_header(report_token)
 
     with patch.object(telemetry_router, "build_metrics", wraps=telemetry_router.build_metrics) as mocked:
-        first = telemetry_client.get("/api/v1/telemetry/report", params=params, headers=headers)
-        second = telemetry_client.get("/api/v1/telemetry/report", params=params, headers=headers)
+        first = telemetry_client.get("/api/v1/telemetry/raw-report", params=params, headers=headers)
+        second = telemetry_client.get("/api/v1/telemetry/raw-report", params=params, headers=headers)
 
     assert first.status_code == 200
     assert second.status_code == 200

@@ -1,4 +1,9 @@
-"""Run API tests from the repository root regardless of the caller's cwd."""
+"""Run pytest from the repository root regardless of the caller's cwd.
+
+With no path args, pytest uses ``[tool.pytest.ini_options] testpaths`` from
+``pyproject.toml`` (``services/api/tests`` and ``tests``). Explicit paths such
+as ``tests/pipelines/test_pipeline.py`` are passed through unchanged.
+"""
 
 from __future__ import annotations
 
@@ -12,11 +17,7 @@ def _repo_root() -> Path:
 
 
 def main() -> None:
-    root = _repo_root()
-    os.chdir(root)
-    test_dir = root / "services" / "api" / "tests"
-
+    os.chdir(_repo_root())
     import pytest
 
-    args = [str(test_dir), *sys.argv[1:]]
-    raise SystemExit(pytest.main(args))
+    raise SystemExit(pytest.main(sys.argv[1:]))

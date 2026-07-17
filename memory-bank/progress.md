@@ -2,7 +2,7 @@
 
 ## Current Status Summary
 
-The project is organized into milestone-based delivery (M1–M5 **delivered**).
+The project is organized into milestone-based delivery (M1–M5 **delivered**; **M6 Data Pipeline in progress** — Design/Build on `feature/data_pipeline`; **DEV-53 Background Processing** on `feature/background-processing`).
 Milestone 4 public portal migration is **delivered** at `uis/website`. Milestone 5 backend and internal ops platform is **delivered** (`services/api`, backoffice landing on :3001, Docker Compose). Legacy `apps/healthcore_web_portal/` and `apps/src` remain unchanged.
 
 ## Major Milestones
@@ -213,6 +213,15 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
   - v1.1 stored events excluded from default metrics; ingest unchanged
   - `tests/test_telemetry_report.py` (6 tests); telemetry suite 140 tests passing
 - Plan: `memory-bank/references/telemetry_ai_plan/telemetry_report_implementation_plan.md`.
+
+### Milestone 6: Data Pipeline (In progress)
+
+- Goal: auditable Prefect ETL from `telemetry_events` → materialized `reporting_*` KPI tables; replace request-path Pandas recompute.
+- **Part 1 — Design (delivered on branch):** `docs/data_pipelines/pipeline-design.md` on `feature/data_pipeline`. Plans under `memory-bank/references/data_pipelines_ai_plan/`.
+- **Part 2 — Build 1 (delivered on branch):** Prefect ETL under `data/pipelines/{extract,transform,load}/`, `reporting_*` + `pipeline_runs`, PHI guard, CLI, `GET /telemetry/report` (materialized) + `/raw-report` + pipeline endpoints.
+- **Part 3 — Build 2 (implemented on branch):** Subflows; `tests/pipelines/`; pytest path isolation; `/reporting` dashboard (summary + KPI tabs, clinic-location jurisdiction filter, supply filter coercion, tab-aware filter visibility). Eval-gap follow-ups: private `analysis.py` helpers restored; KPI value assertion test; reporting demo seed (~12 months KPIs + pipeline run history); recent pipeline runs API/UI; README Build 2 + seed docs. Pending PR to `main`.
+- **Background processes (DEV-53 — implemented on `feature/background-processing`):** Nightly OS-cron job — `scripts/nightly_export.py` exports yesterday’s `telemetry_events` to `data/raw/telemetry_YYYY-MM-DD.csv`, then subprocess-triggers `data/pipelines/pipeline.py --start/--end` for that UTC day. New `job_runs` table + `app/domains/jobs/` state machine (`pending → processing → completed|failed`); `processing` is the distributed lock with 6h stale reclaim. Pipeline CLI gains optional `--start`/`--end` (no-arg behaviour unchanged). Cron `0 2 * * *` documented in README (cwd/`.env` trap + root → `services/api/.env` fallback). Tests: `test_job_runner.py`, `tests/jobs/test_nightly_export.py`. Plan: `memory-bank/references/async_processing_ai_plan/`.
+- **Next:** PR M6 Build 2 to `main`; open DEV-53 PR from `feature/background-processing` against `main` with `cronjob` label (after or alongside M6).
 
 ## Future Feature Additions
 

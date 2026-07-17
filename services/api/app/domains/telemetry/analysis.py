@@ -13,7 +13,11 @@ def _prepare_timestamps(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
     prepared = df.copy()
-    prepared["timestamp"] = pd.to_datetime(prepared["timestamp"], utc=True)
+    prepared["timestamp"] = pd.to_datetime(
+        prepared["timestamp"],
+        utc=True,
+        errors="coerce",
+    )
     prepared["date"] = prepared["timestamp"].dt.date
     return prepared
 

@@ -22,6 +22,7 @@
       "@backoffice/talent-tracker/*": ["../talent-tracker/*"],
       "@backoffice/inventory/*": ["../inventory/*"],
       "@backoffice/incident-manager/*": ["../incident-manager/*"],
+      "@backoffice/reporting/*": ["../reporting/*"],
       "@backoffice/shared/*": ["../shared/*"],
       "@repo/shared/*": ["../../../packages/shared/*"],
       "@healthcore/src/*": ["../../../apps/src/*"]

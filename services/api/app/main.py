@@ -1,4 +1,20 @@
 import logging
+import sys
+from pathlib import Path
+
+# Repo root must be on sys.path before importing routers that use `data.pipelines`.
+# Walk up so Docker (/app/services/api/app/...) and local checkouts both resolve.
+def _repo_root() -> Path:
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if (parent / "data" / "pipelines").is_dir():
+            return parent
+    return here.parents[3]
+
+
+_REPO_ROOT = _repo_root()
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,7 +26,9 @@ from app.core.config import settings
 from app.core.db import supabase_engine
 from app.domains.inventory import models as inventory_models  # noqa: F401
 from app.domains.incidents import models as incident_models  # noqa: F401
+from app.domains.jobs import models as job_models  # noqa: F401
 from app.domains.telemetry import models as telemetry_models  # noqa: F401
+from app.domains.telemetry import reporting_models as telemetry_reporting_models  # noqa: F401
 from app.domains.telemetry.indexes import ensure_telemetry_indexes
 
 logger = logging.getLogger(__name__)

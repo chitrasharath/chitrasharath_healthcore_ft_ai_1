@@ -2,6 +2,7 @@
 
 @source "../../inventory/**/*";
 @source "../../incident-manager/**/*";
+@source "../../reporting/**/*";
 @source "../../talent-tracker/**/*";
 @source "../../backoffice_functions/**/*";
 @source "../../shared/**/*";

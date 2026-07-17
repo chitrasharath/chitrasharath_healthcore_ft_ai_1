@@ -302,7 +302,8 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision: Add Compose **`test` profile** service reusing API image/volumes; default command `uv run pytest`. Does not start with `docker compose up`.
 - Why: One-shot pytest without requiring the dev stack to be running; `docker compose exec api uv run pytest` retained for iterative dev.
 
-## Telemetry (design phase)
+- Decision (Milestone 6 Build 2): Reporting jurisdiction filter for clinic-grain KPIs uses **clinic catalog location** (`CLINICS[].jurisdiction`), not supply-derived telemetry `jurisdiction` alone; UK clinic names added (ids 7–9).
+- Why: Supply-country tags can pair UK jurisdiction with US clinics (e.g. San Antonio); filter UX must not show US clinics under UK.
 
 - Decision: Reconcile stakeholder CONTEXT KPIs to three observable metrics — supply consumption rate, supply waste rate, insufficient-stock rejection rate — because `min_stock_threshold`, `emergency` clinical context, and persisted stock levels do not exist in the delivered inventory model.
 - Why: Codebase wins over context docs; metrics must be computable from real API paths and event properties.
@@ -327,3 +328,12 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 
 - Decision (Phase 3 delivered): `telemetry_events.tags` uses PostgreSQL `jsonb` (SQLite `JSON` in tests); startup runs `ALTER COLUMN tags TYPE jsonb` + GIN index `idx_telemetry_events_tags`.
 - Why: Default SQLAlchemy `JSON` maps to `json` in Postgres, which cannot use GIN without an operator class; `jsonb` matches storage spec and enables tag containment queries.
+
+- Decision (DEV-53 nightly export): Orchestration status lives in a separate `job_runs` table (`pending`/`processing`/`completed`/`failed`); do **not** harmonize with `pipeline_runs` vocabulary or add an FK between them.
+- Why: Different layers (job lock/idempotency vs ETL audit); rubric grades independence.
+
+- Decision (DEV-53): Trigger is OS crontab only (`0 2 * * *`); `processing` status is the lock; stale locks reclaim after `STALE_LOCK_HOURS` (default 6) with no extra lock table/column.
+- Why: Avoids zombie `processing` rows after SIGKILL while satisfying “no second locking mechanism.”
+
+- Decision (DEV-53): `scripts/nightly_export.py` bootstraps env from repo-root `.env` then fills gaps from `services/api/.env` before importing `app.core.*`.
+- Why: Docker uses root `.env`; manual API uses `services/api/.env`; cron must work for both without FastAPI.
