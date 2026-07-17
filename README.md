@@ -87,6 +87,8 @@ docker compose down -v
 If a build fails with `ENOSPC: no space left on device`, prune unused Docker data from the repo root:
 
 ```bash
+./scripts/docker_purge.sh       # down -v + builder/volume/image prune
+# or step-by-step:
 docker compose down -v          # stop stack and remove anonymous volumes
 docker builder prune -af        # clear build cache (largest win after failed builds)
 docker volume prune -f          # remove unused volumes
@@ -94,6 +96,8 @@ docker image prune -af          # optional — remove unused images if still tig
 df -h /workspaces               # confirm free space before rebuilding
 docker compose up --build
 ```
+
+Soft stop (keep images/cache): `./scripts/docker_purge.sh --soft`
 
 ### Troubleshooting
 
@@ -385,6 +389,70 @@ uv run python data/pipelines/pipeline.py
 Fail-fast if `DATABASE_URL` is missing (exit `1`, no false success). Intended cron: `0 2 * * *` with cwd = repo root.
 
 On-demand from the UI: Reporting → **Pipeline health** → **Run pipeline** (`POST /api/v1/telemetry/pipelines/runs/trigger`).
+
+### Background Processing
+
+Standalone OS-cron job (not FastAPI `BackgroundTasks` / APScheduler). Exports yesterday’s `telemetry_events` to CSV, then runs the Milestone 6 pipeline for that UTC day. Status lives in `job_runs` (`pending` → `processing` → `completed` | `failed`); ETL audit remains in `pipeline_runs`.
+
+**Cron expression:** `0 2 * * *` (02:00 UTC) — same schedule already documented for the pipeline CLI.
+
+```cron
+0 2 * * * cd /path/to/chitrasharath_healthcore_ft_ai_1 && /usr/local/bin/uv run python scripts/nightly_export.py >> /tmp/nightly_export.log 2>&1
+```
+
+**cwd / `.env` trap (mandatory `cd`):** `Settings` loads `.env` relative to the current working directory. Cron’s default cwd is `$HOME`, so without `cd` to the repo root the process often sees an empty `DATABASE_URL` / missing `SECRET_KEY`. The script also falls back to `services/api/.env` when keys are missing from the root `.env` (covers Docker root env and the manual API workflow).
+
+**`uv` path:** cron’s `PATH` is minimal — use an absolute path (`which uv`).
+
+**Manual run / backfill** (from repo root):
+
+```bash
+uv run python scripts/nightly_export.py
+TARGET_DATE=2026-07-14 uv run python scripts/nightly_export.py
+```
+
+CSV output: `data/raw/telemetry_YYYY-MM-DD.csv` (gitignored). The CSV is a local backup/audit artifact; the pipeline still reads `telemetry_events` from the database.
+
+Optional window CLI on the pipeline (used by the nightly job):
+
+```bash
+uv run python data/pipelines/pipeline.py \
+  --start 2026-07-14T00:00:00+00:00 \
+  --end 2026-07-15T00:00:00+00:00
+```
+
+Omit both flags to keep the watermark-based default behaviour.
+
+**Manual test walkthrough** (requires `DATABASE_URL`; from repo root):
+
+1. **Happy path** — pick a day that has telemetry rows, then:
+   ```bash
+   TARGET_DATE=YYYY-MM-DD uv run python scripts/nightly_export.py
+   ```
+   Expect: `data/raw/telemetry_YYYY-MM-DD.csv`, a `job_runs` row with `status=completed`, and a new `pipeline_runs` row from the subprocess.
+2. **Idempotency** — run the exact same command again. Expect: INFO `skipped as duplicate`, exit `0`, no second CSV rewrite, no new `pipeline_runs` / `job_runs` work row.
+3. **Lock** — start two instances with the same *new* (not already completed) date, staggered so the first can take the lock:
+   ```bash
+   TARGET_DATE=YYYY-MM-DD uv run python scripts/nightly_export.py &
+   sleep 2
+   TARGET_DATE=YYYY-MM-DD uv run python scripts/nightly_export.py &
+   wait
+   ```
+   Expect: one run completes; the other logs lock abort and exits `0`.
+4. **Failure** — force a bad subprocess temporarily (e.g. rename `data/pipelines/pipeline.py`), then restore. Expect: `job_runs.status=failed`, `error_message` set, **no** row left in `processing`, non-zero exit.
+5. **Stale reclaim** — insert a stale lock (example SQL against Supabase), then re-run:
+   ```sql
+   INSERT INTO job_runs (id, job_name, target_date, status, started_at, created_at)
+   VALUES (
+     gen_random_uuid(),
+     'nightly_export',
+     CURRENT_DATE,
+     'processing',
+     NOW() - INTERVAL '12 hours',
+     NOW() - INTERVAL '12 hours'
+   );
+   ```
+   Expect: WARNING reclaim line, that row flips to `failed`, and a new run proceeds normally.
 
 ### Seed the database
 

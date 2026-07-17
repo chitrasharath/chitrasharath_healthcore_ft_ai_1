@@ -57,3 +57,4 @@ services/api/db.json
 .pnp.*
 data/process/snapshots/
 data/pipelines/load/snapshots/
+data/raw/*.csv

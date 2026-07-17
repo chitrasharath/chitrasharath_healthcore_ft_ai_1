@@ -5,6 +5,15 @@ This folder contains **helper scripts** for the monorepo: development automation
 - **Main purpose**: group support tools that do not belong to a specific app, agent, or pipeline but make the team’s work easier.
 - **Recommendation**: document each script (what it does, parameters, requirements, usage examples) and keep them reproducible (and safe) across environments.
 
+## Docker purge
+
+Stop Compose and reclaim disk (anonymous volumes, build cache, unused images):
+
+```bash
+./scripts/docker_purge.sh
+./scripts/docker_purge.sh --soft   # down -v only
+```
+
 ## Telemetry index verification
 
 After Phase 3 storage is deployed and the API has started with `DATABASE_URL` set:

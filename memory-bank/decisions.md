@@ -328,3 +328,12 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 
 - Decision (Phase 3 delivered): `telemetry_events.tags` uses PostgreSQL `jsonb` (SQLite `JSON` in tests); startup runs `ALTER COLUMN tags TYPE jsonb` + GIN index `idx_telemetry_events_tags`.
 - Why: Default SQLAlchemy `JSON` maps to `json` in Postgres, which cannot use GIN without an operator class; `jsonb` matches storage spec and enables tag containment queries.
+
+- Decision (DEV-53 nightly export): Orchestration status lives in a separate `job_runs` table (`pending`/`processing`/`completed`/`failed`); do **not** harmonize with `pipeline_runs` vocabulary or add an FK between them.
+- Why: Different layers (job lock/idempotency vs ETL audit); rubric grades independence.
+
+- Decision (DEV-53): Trigger is OS crontab only (`0 2 * * *`); `processing` status is the lock; stale locks reclaim after `STALE_LOCK_HOURS` (default 6) with no extra lock table/column.
+- Why: Avoids zombie `processing` rows after SIGKILL while satisfying “no second locking mechanism.”
+
+- Decision (DEV-53): `scripts/nightly_export.py` bootstraps env from repo-root `.env` then fills gaps from `services/api/.env` before importing `app.core.*`.
+- Why: Docker uses root `.env`; manual API uses `services/api/.env`; cron must work for both without FastAPI.
