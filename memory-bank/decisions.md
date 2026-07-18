@@ -337,3 +337,12 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 
 - Decision (DEV-53): `scripts/nightly_export.py` bootstraps env from repo-root `.env` then fills gaps from `services/api/.env` before importing `app.core.*`.
 - Why: Docker uses root `.env`; manual API uses `services/api/.env`; cron must work for both without FastAPI.
+
+- Decision (DEV-55): Telemetry ETL enqueue is **additive** (`POST .../pipelines/runs/enqueue` → 202 + Celery `task_id`); keep `/trigger` BackgroundTasks for existing UI callers.
+- Why: Avoid breaking Reporting “Run pipeline”; graders must be pointed at `/enqueue` for eval #2.
+
+- Decision (DEV-55): Celery 5 + Redis 7 + Flower; DLQ in Postgres `dead_letter_tasks`; `MAX_ATTEMPTS=3` (Celery `max_retries=2`) with backoff 2s/4s.
+- Why: Spec stack; reconcile “three failures → DLQ” with Celery retry semantics.
+
+- Decision (DEV-55 manual testing): Prefer `docker compose up redis api worker flower` (omit `ui`) on disk-constrained Codespaces.
+- Why: UI image `npm ci` is the largest disk consumer; queue demos do not need the Next.js container.

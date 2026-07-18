@@ -14,6 +14,11 @@ services:
       - ./uis:/app/uis
     env_file:
       - .env
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    depends_on:
+      redis:
+        condition: service_healthy
     networks:
       - healthcore_net
 
@@ -43,6 +48,70 @@ services:
     networks:
       - healthcore_net
 
+  redis:
+    image: redis:7
+    command: ["redis-server", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - healthcore_net
+
+  worker:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+    working_dir: /app
+    command: ["celery", "-A", "services.celery_app", "worker", "--loglevel=info", "--concurrency=2"]
+    volumes:
+      - ./services:/app/services
+      - ./packages:/app/packages
+      - ./scripts:/app/scripts
+      - ./data:/app/data
+      - ./memory-bank:/app/memory-bank
+      - ./uis:/app/uis
+    env_file:
+      - .env
+    environment:
+      PYTHONPATH: /app
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - healthcore_net
+
+  flower:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+    working_dir: /app
+    command: ["celery", "-A", "services.celery_app", "flower", "--port=5555"]
+    ports:
+      - "5555:5555"
+    volumes:
+      - ./services:/app/services
+      - ./packages:/app/packages
+      - ./scripts:/app/scripts
+      - ./data:/app/data
+      - ./memory-bank:/app/memory-bank
+    env_file:
+      - .env
+    environment:
+      PYTHONPATH: /app
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - healthcore_net
+
   test:
     build:
       context: .
@@ -67,3 +136,6 @@ services:
 networks:
   healthcore_net:
     name: healthcore_net
+
+volumes:
+  redis_data:

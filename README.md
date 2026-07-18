@@ -454,6 +454,52 @@ Omit both flags to keep the watermark-based default behaviour.
    ```
    Expect: WARNING reclaim line, that row flips to `failed`, and a new run proceeds normally.
 
+### Message queues (Celery)
+
+Moves telemetry ETL off FastAPI `BackgroundTasks` onto an independent Celery worker (Redis broker + result backend). The sync-style trigger stays for the Reporting UI; prefer **`/enqueue`** for out-of-process runs.
+
+**Disk-conscious stack** (skip the heavy `ui` image):
+
+```bash
+# Ensure REDIS_URL=redis://redis:6379/0 in root .env (see .example.env)
+docker compose up --build redis api worker flower
+```
+
+| Service | Role | Port |
+|---------|------|------|
+| `redis` | Broker DB 0 + results DB 1; `--maxmemory-policy noeviction` | 6379 |
+| `api` | FastAPI (enqueue + task status) | 8000 |
+| `worker` | `celery -A services.celery_app worker` | (none) |
+| `flower` | Queue monitor | 5555 → http://localhost:5555 |
+
+Stop / reclaim: `docker compose stop api worker flower redis` or `./scripts/docker_purge.sh`.
+
+**API**
+
+```bash
+# Enqueue (JWT). Returns 202 + task_id + run_id in <200ms.
+curl -s -X POST -H "Authorization: Bearer $TOKEN" \
+  "$API/api/v1/telemetry/pipelines/runs/enqueue"
+
+# Poll status: pending → started → success | failure
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "$API/api/v1/tasks/$TASK_ID"
+
+# Dead letters after 3 failed attempts (MAX_ATTEMPTS=3, backoff 2s then 4s)
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "$API/api/v1/tasks/dlq"
+
+# DLQ demo (auth required): force failures
+curl -s -X POST -H "Authorization: Bearer $TOKEN" \
+  "$API/api/v1/telemetry/pipelines/runs/enqueue?force_fail=true"
+```
+
+Legacy in-process trigger (unchanged): `POST /api/v1/telemetry/pipelines/runs/trigger`.
+
+**Independence check:** enqueue a task, then `docker compose stop api` — the `worker` keeps processing Redis-queued jobs. Restart `api` and read `GET /tasks/{task_id}`.
+
+Requires `DATABASE_URL` (ETL + `dead_letter_tasks`) and `REDIS_URL`. Plan: [`memory-bank/references/async_processing_ai_plan/message_queues_IMPLEMENTATION_PLAN.md`](./memory-bank/references/async_processing_ai_plan/message_queues_IMPLEMENTATION_PLAN.md).
+
 ### Seed the database
 
 `DATABASE_URL` must point at the Supabase project used for inventory / telemetry (same DB as `milestone5_inventory`).
