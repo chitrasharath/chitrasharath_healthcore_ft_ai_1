@@ -27,6 +27,7 @@ from app.core.db import supabase_engine
 from app.domains.inventory import models as inventory_models  # noqa: F401
 from app.domains.incidents import models as incident_models  # noqa: F401
 from app.domains.jobs import models as job_models  # noqa: F401
+from app.domains.async_tasks import models as async_tasks_models  # noqa: F401
 from app.domains.telemetry import models as telemetry_models  # noqa: F401
 from app.domains.telemetry import reporting_models as telemetry_reporting_models  # noqa: F401
 from app.domains.telemetry.indexes import ensure_telemetry_indexes

@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:3001"
     database_url: str = ""
     telemetry_endpoint: str = ""
+    redis_url: str = "redis://redis:6379/0"
 
     @property
     def cors_origin_list(self) -> list[str]:

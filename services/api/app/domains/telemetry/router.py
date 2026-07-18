@@ -178,3 +178,25 @@ def trigger_pipeline_run(
         "message": "Pipeline run submitted",
         "run_id": str(run_id),
     }
+
+
+@router.post("/pipelines/runs/enqueue", status_code=202)
+def enqueue_pipeline_run(
+    force_fail: bool = Query(
+        default=False,
+        description="Demo/test only: force task failure to exercise retries + DLQ",
+    ),
+    _user: dict = Depends(get_current_user),
+) -> dict:
+    """Enqueue telemetry ETL on Celery. Returns 202 + task_id immediately (<200ms)."""
+    if supabase_engine is None:
+        raise HTTPException(status_code=503, detail="DATABASE_URL is not configured")
+
+    from services.tasks import run_telemetry_etl
+
+    run_id = uuid4()
+    async_result = run_telemetry_etl.delay(str(run_id), _force_fail=force_fail)
+    return {
+        "task_id": async_result.id,
+        "run_id": str(run_id),
+    }
