@@ -20,7 +20,6 @@ The honest evaluation number is the **recursive 24-month** holdout (2024–2025)
 Source: `data/raw/healthcore_sales.csv` — 120 consolidated monthly rows (2016-01 … 2025-12).
 Cleaning drops null/empty `month` / `revenue_usd`, validates a continuous monthly index,
 and reshapes to Nixtla long format (`unique_id`, `ds`, `y`, `visits_count`).
-`avg_revenue_per_visit_usd` is dropped entirely.
 
 **Chronological split (never random):**
 
@@ -29,13 +28,38 @@ and reshapes to Nixtla long format (`unique_id`, `ds`, `y`, `visits_count`).
 | Train | 2016-01 … 2023-12 | 96 |
 | Test | 2024-01 … 2025-12 | 24 |
 
-### Leakage controls
+### Original columns → what we used (and why)
 
-- **Identity leakage:** `visits × avg_revenue_per_visit ≈ revenue`. Including both would let the model relearn multiplication. `avg_revenue_per_visit_usd` is never a feature.
-- **Future visits leakage:** contemporaneous `visits_count` is unknown at forecast time. The exogenous model uses a **Stage-1 StatsForecast visits forecast** in `X_df`, never actual test visits.
-- **Transforms:** MLForecast `Differences([12])` + `LocalStandardScaler` are fit inside `.fit()` on train only.
+The raw file has five columns. Here is how each one was treated for the regression models:
 
-Feature catalog (`FEATURE_COLUMNS`): month, month_sin, month_cos, quarter, year, trend, is_high_season, is_low_season, rev_lag_1, rev_lag_2, rev_lag_3, rev_lag_12, rev_roll_mean_3, rev_roll_mean_12, rev_roll_std_3, rev_yoy, visits_count, visits_lag_1, visits_lag_12, visits_roll_mean_3.
+| Original column | Used in regression? | Plain-language reason |
+|---|---|---|
+| `month` | **Yes** (as the time index `ds`) | Tells the model which month we are predicting. Also drives calendar features (month number, season flags, etc.). |
+| `revenue_usd` | **Yes** (as the target `y`) | This is what we are trying to forecast — monthly network revenue in dollars. |
+| `visits_count` | **Carefully — only in the exogenous model** | Visits are a demand signal (busier clinics → more revenue), but we do **not** know next year’s visits in advance. See “How visits was used” below. |
+| `avg_revenue_per_visit_usd` | **No — never** | Together with visits it almost rebuilds revenue (`visits × $/visit ≈ revenue`). Feeding it in would be cheating: the model could “predict” by multiplying instead of learning real patterns. |
+| `region` | **No (as a feature)** | Every row is already `consolidated` (one network total). There is no US vs UK breakdown in this file, so region adds no information. We only keep a constant series id (`unique_id = consolidated`). |
+
+### How visits was used (layman’s version)
+
+Think of revenue as depending partly on **how many patients came in**. Visits are useful, but they create a trap:
+
+1. **In the past (training years 2016–2023):** we *do* know how many visits happened each month, so the exogenous model can learn “when visits were higher, revenue tended to be higher.”
+2. **In the future (test years 2024–2025):** if we handed the model the *real* visit counts for those months, we would be peeking at the answer booklet — in real life Sandra would not know next December’s visits yet. That would inflate accuracy unfairly (**leakage**).
+3. **So we use a two-step dance for the exogenous model:**
+   - **Step 1:** forecast visits for 2024–2025 from past visits alone (StatsForecast).
+   - **Step 2:** forecast revenue using those *predicted* visits, plus revenue’s own past and calendar patterns.
+4. **We also trained a simpler model with no visits at all** (`MLForecast_uni`) — only past revenue and calendar. That answers: “Did visits earn their keep?” In this dataset the lift was small, so the recommended regression path is the **visits-free** model.
+
+Bottom line for Sandra: visits are a fair demand hint when forecasted honestly; they are **not** a free look at the future, and they are **not** paired with $/visit (that would just reconstruct revenue).
+
+### Technical leakage notes
+
+- **Identity leakage:** `visits × avg_revenue_per_visit ≈ revenue` — so `$/visit` is banned as a feature.
+- **Future visits leakage:** test-horizon `visits_count` in the exogenous model comes from the Stage-1 **forecast**, never actual test visits.
+- **Transforms:** MLForecast `Differences([12])` + `LocalStandardScaler` are learned on train only inside `.fit()`.
+
+Engineered feature catalog (`FEATURE_COLUMNS`): month, month_sin, month_cos, quarter, year, trend, is_high_season, is_low_season, rev_lag_1, rev_lag_2, rev_lag_3, rev_lag_12, rev_roll_mean_3, rev_roll_mean_12, rev_roll_std_3, rev_yoy, visits_count, visits_lag_1, visits_lag_12, visits_roll_mean_3.
 
 ## 3. Regression model (MLForecast)
 
@@ -47,7 +71,7 @@ Two families were trained with the same lag/calendar machinery:
 Learners compared inside one MLForecast object: RandomForest, XGBoost, ElasticNet.
 Selection uses rolling-origin CV on the **training** window only (`n_windows=3`, `h=12`); the test set is scored once.
 
-- Exogenous CV winner: `rf` (CV RMSE 100,538); light sweep params `{'n_estimators': 200, 'max_depth': None, 'max_features': 1.0}`.
+- Exogenous CV winner: `rf` (CV RMSE 100,538); light sweep params `{'max_depth': None, 'max_features': 1.0, 'n_estimators': 200}`.
 - Univariate CV winner: `rf` (CV RMSE 100,387).
 
 ### 3.1 Ablation: do visits actually help?
@@ -133,12 +157,12 @@ All metrics below are on the **24-month test set** unless noted. PSI uses **in-s
 
 | Model | RMSE (USD) | RMSE % mean | MAE | MAPE | MASE | R² | PSI | Gini | K2 p | Cov80 | Cov95 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| MLForecast_exog | 116,979 | 3.5% | 95,514 | 0.028 | 0.745 | 0.892 | 5.159 | 0.786 | 0.761 | 0.71 | 0.75 |
-| MLForecast_uni | 121,141 | 3.6% | 100,613 | 0.030 | 0.785 | 0.884 | 5.147 | 0.800 | 0.515 | 0.75 | 0.75 |
-| SARIMA | 120,129 | 3.6% | 98,384 | 0.029 | 0.767 | 0.886 | 8.936 | 0.829 | 0.783 | 0.58 | 0.83 |
 | AutoARIMA | 122,140 | 3.6% | 97,544 | 0.029 | 0.761 | 0.882 | 7.625 | 0.833 | 0.810 | 0.58 | 0.83 |
 | AutoETS | 102,474 | 3.0% | 83,425 | 0.025 | 0.651 | 0.917 | 7.679 | 0.801 | 0.625 | 0.79 | 0.96 |
 | AutoTheta | 113,848 | 3.4% | 93,729 | 0.028 | 0.731 | 0.898 | 7.546 | 0.727 | 0.685 | 0.50 | 0.75 |
+| MLForecast_exog | 116,979 | 3.5% | 95,514 | 0.028 | 0.745 | 0.892 | 5.159 | 0.786 | 0.761 | 0.71 | 0.75 |
+| MLForecast_uni | 121,141 | 3.6% | 100,613 | 0.030 | 0.785 | 0.884 | 5.147 | 0.800 | 0.515 | 0.75 | 0.75 |
+| SARIMA | 120,129 | 3.6% | 98,384 | 0.029 | 0.767 | 0.886 | 8.936 | 0.829 | 0.783 | 0.58 | 0.83 |
 | SeasonalNaive | 242,690 | 7.2% | 206,633 | 0.061 | 1.611 | 0.535 | 7.747 | 0.553 | 0.498 | 0.67 | 0.96 |
 
 ### Plain-English metric guide
