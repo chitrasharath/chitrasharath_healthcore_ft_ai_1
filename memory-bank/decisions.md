@@ -337,3 +337,17 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 
 - Decision (DEV-53): `scripts/nightly_export.py` bootstraps env from repo-root `.env` then fills gaps from `services/api/.env` before importing `app.core.*`.
 - Why: Docker uses root `.env`; manual API uses `services/api/.env`; cron must work for both without FastAPI.
+
+## Sales Forecast (Nixtla)
+
+- Decision: Local **MLForecast + StatsForecast** only (no TimeGPT / Prophet / statsmodels SARIMA); forecast deps live in root `pyproject.toml` `[dependency-groups] forecast`.
+- Why: Spec stack; keep data on-box; do not touch `services/api`.
+
+- Decision: Two-stage exogenous design — Stage-1 StatsForecast visits forecast → `X_df` for revenue MLForecast; univariate ablation always trained; dashboard may prefer either if lift is weak (≥1 regression required).
+- Why: Avoid using actual future visits (leakage); quantify whether visits earn their keep.
+
+- Decision: Commit fitted models under `data/process/models/` plus `data/eval/revenue_forecast/` report/figures/metrics; do not commit raw CSV.
+- Why: Stakeholder request for reusable model artifacts; raw data stays gitignored.
+
+- Decision: Include AutoTheta; attempt AutoCES with skip-on-numba-failure; include ElasticNet alongside RF/XGB; MASE vs SeasonalNaive required; log/Box-Cox off by default.
+- Why: Locked plan recommendations during clarifying Q&A.

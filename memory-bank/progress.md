@@ -232,3 +232,11 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
 - Integrate `apps/src` validators into `/enquiry-form` when milestone 2 wiring is scheduled.
 - Legacy portal retirement and redirect strategy after stakeholder cutover approval.
 - Optional: extract shared operations registry from `apps/src/main.ts` and `uis/backoffice/backoffice_functions/lib/operations-registry.ts` to reduce drift.
+
+### Sales Forecast (Nixtla revenue prediction) — In progress on `feature/sales_forecast`
+
+- Goal: predict monthly consolidated revenue well enough to justify an executive dashboard (Sandra).
+- **Implemented:** `data/forecast/` package; `scripts/train_revenue_forecast.py`; two-stage visits→revenue MLForecast (RF/XGB/ElasticNet) + univariate ablation; StatsForecast SARIMA/AutoARIMA/AutoETS/AutoTheta (+ AutoCES attempted); metrics incl. MASE/PSI/Gini/K2; plots; `data/eval/revenue_forecast/report.md`; leakage/split/validation/pattern tests (14 passed).
+- **Artifacts:** committed path `data/process/models/*.pkl` + `data/eval/revenue_forecast/` (CSV remains gitignored under `data/raw/`).
+- **Deps:** root `pyproject.toml` `[dependency-groups] forecast`; local-only (no Docker).
+- Plan: `memory-bank/references/sales_forecast_ai_plan/healthcore_sales_regression_IMPLEMENTATION_PLAN.md`.

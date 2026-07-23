@@ -1,0 +1,307 @@
+{
+  "autoarima_order": "arma=(0, 0, 1, 0, 12, 0, 1)",
+  "baseline_seasonal_naive": {
+    "directional_accuracy": 0.6521739130434783,
+    "mae": 206632.52416666667,
+    "mape": 0.061255207088088924,
+    "mase": 1.6113646056672672,
+    "mean_test_revenue": 3366658.4008333334,
+    "mse": 58898598976.10888,
+    "mse_pct_of_mean_sq": 0.5196451266871781,
+    "r2": 0.5345724566602904,
+    "rmse": 242690.33556388042,
+    "rmse_pct_of_mean": 7.208641527272515,
+    "smape": 0.03196062656230974
+  },
+  "ces_note": "AutoCES skipped due to runtime error: Failed in nopython mode pipeline (step: nopython frontend)\n\u001b[1m\u001b[1m\u001b[1m\u001b[1m\u001b[1m\u001b[1m\u001b[1m\u001b[1mFailed in nopython mode pipeline (step: nopython frontend)\n\u001b[1m\u001b[1m\u001b[1mFailed in nopython mode pipeline (step: nopython frontend)\n\u001b[1m\u001b[1m\u001b[1mNo implementation of function Function(<built-in function setitem>) found for signature:\n \n >>> setitem(readonly array(float64, 1d, C), slice<a:b>, readonly array(float64, 1d, A))\n \nThere are 16 candidate implementations:\n\u001b[1m      - Of which 14 did not match due to:\n      Overload of function 'setitem': File: <numerous>: Line N/A.\n        With argument(s): '(readonly array(float64, 1d, C), slice<a:b>, readonly array(float64, 1d, A))':\u001b[0m\n\u001b[1m       No match.\u001b[0m\n\u001b[1m      - Of which 2 did not match due to:\n      Overload in function 'SetItemBuffer.generic': File: numba/core/typing/arraydecl.py: Line 206.\n        With argument(s): '(readonly array(float64, 1d, C), slice<a:b>, readonly array(float64, 1d, A))':\u001b[0m\n\u001b[1m       Rejected as the implementation raised a specific error:\n         NumbaTypeError: \u001b[1mCannot modify readonly array of type: readonly array(float64, 1d, C)\u001b[0m\u001b[0m\n  raised from /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/numba/core/typing/arraydecl.py:213\n\u001b[0m\n\u001b[0m\u001b[1mDuring: typing of staticsetitem at /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/statsforecast/ces.py (97)\u001b[0m\n\u001b[1m\nFile \".venv/lib/python3.12/site-packages/statsforecast/ces.py\", line 97:\u001b[0m\n\u001b[1mdef cescalc(\n    <source elided>\n        return lik\n\u001b[1m    y[:] = y[::-1]\n\u001b[0m    \u001b[1m^\u001b[0m\u001b[0m\n\n\u001b[0m\u001b[1mDuring: Pass nopython_type_inference\u001b[0m\n\u001b[0m\u001b[1mDuring: resolving callee type: type(CPUDispatcher(<function cescalc at 0x7f97f3fb6e80>))\u001b[0m\n\u001b[0m\u001b[1mDuring: typing of call at /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/statsforecast/ces.py (386)\u001b[0m\n\u001b[1m\nFile \".venv/lib/python3.12/site-packages/statsforecast/ces.py\", line 386:\u001b[0m\n\u001b[1mdef ces_target_fn(\n    <source elided>\n    amse = np.full(nmse, fill_value=np.nan)\n\u001b[1m    lik = cescalc(\n\u001b[0m    \u001b[1m^\u001b[0m\u001b[0m\n\n\u001b[0m\u001b[1mDuring: Pass nopython_type_inference\u001b[0m\n\u001b[0m\u001b[1mDuring: resolving callee type: type(CPUDispatcher(<function ces_target_fn at 0x7f97f3fb7d80>))\u001b[0m\n\u001b[0m\u001b[1mDuring: typing of call at /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/statsforecast/ces.py (456)\u001b[0m\n\u001b[0m\u001b[1mDuring: typing of call at /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/statsforecast/ces.py (475)\u001b[0m\n\u001b[0m\u001b[1mDuring: typing of call at /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/statsforecast/ces.py (486)\u001b[0m\n\u001b[0m\u001b[1mDuring: typing of call at /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/statsforecast/ces.py (499)\u001b[0m\n\u001b[0m\u001b[1mDuring: typing of call at /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/statsforecast/ces.py (510)\u001b[0m\n\u001b[0m\u001b[1mDuring: typing of call at /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/statsforecast/ces.py (521)\u001b[0m\n\u001b[1m\nFile \".venv/lib/python3.12/site-packages/statsforecast/ces.py\", line 456:\u001b[0m\n\u001b[1mdef nelder_mead_ces(\n    <source elided>\n    for j in range(n + 1):\n\u001b[1m        f_simplex[j] = ces_target_fn(simplex[j], *args)\n\u001b[0m        \u001b[1m^\u001b[0m\u001b[0m\n\n\u001b[0m\u001b[1mDuring: Pass nopython_type_inference\u001b[0m",
+  "classical_backtest_rmse": {
+    "AutoARIMA": 111561.58848518715,
+    "AutoETS": 110196.45885173779,
+    "AutoTheta": 99612.77063283187,
+    "SeasonalNaive": 170214.22695569685
+  },
+  "feature_columns": [
+    "month",
+    "month_sin",
+    "month_cos",
+    "quarter",
+    "year",
+    "trend",
+    "is_high_season",
+    "is_low_season",
+    "rev_lag_1",
+    "rev_lag_2",
+    "rev_lag_3",
+    "rev_lag_12",
+    "rev_roll_mean_3",
+    "rev_roll_mean_12",
+    "rev_roll_std_3",
+    "rev_yoy",
+    "visits_count",
+    "visits_lag_1",
+    "visits_lag_12",
+    "visits_roll_mean_3"
+  ],
+  "mlforecast_cv_exog": {
+    "scores": {
+      "elasticnet": {
+        "mae": 105923.70897722064,
+        "rmse": 128955.92944447983
+      },
+      "rf": {
+        "mae": 82984.926462037,
+        "rmse": 100537.84123607661
+      },
+      "xgb": {
+        "mae": 88888.42036193867,
+        "rmse": 109691.84691103884
+      }
+    },
+    "sweep": {
+      "best_params": {
+        "max_depth": null,
+        "max_features": 1.0,
+        "n_estimators": 200
+      },
+      "best_rmse": 101531.82798469138
+    },
+    "winner": "rf"
+  },
+  "mlforecast_cv_uni": {
+    "scores": {
+      "elasticnet": {
+        "mae": 109486.47088627922,
+        "rmse": 132765.56936999864
+      },
+      "rf": {
+        "mae": 82464.46493518515,
+        "rmse": 100386.66861855533
+      },
+      "xgb": {
+        "mae": 84154.940632873,
+        "rmse": 108590.94142170806
+      }
+    },
+    "winner": "rf"
+  },
+  "models": {
+    "AutoARIMA": {
+      "coverage_80": 0.5833333333333334,
+      "coverage_95": 0.8333333333333334,
+      "directional_accuracy": 0.782608695652174,
+      "gini": 0.8326972541958794,
+      "k2_pvalue": 0.8102062599160272,
+      "k2_statistic": 0.42093284371950523,
+      "ljung_box_pvalue": 0.9439259933077732,
+      "mae": 97543.9397230101,
+      "mape": 0.02869500317624338,
+      "mase": 0.7606684988284893,
+      "mean_test_revenue": 3366658.4008333334,
+      "miscoverage_80": 0.41666666666666663,
+      "miscoverage_95": 0.16666666666666663,
+      "mse": 14918172689.873137,
+      "mse_pct_of_mean_sq": 0.13161867806931782,
+      "psi": 0.0,
+      "r2": 0.8821138603147143,
+      "rmse": 122139.971712266,
+      "rmse_pct_of_mean": 3.627928859133236,
+      "smape": 0.014603372911408993
+    },
+    "AutoETS": {
+      "coverage_80": 0.7916666666666666,
+      "coverage_95": 0.9583333333333334,
+      "directional_accuracy": 0.8260869565217391,
+      "gini": 0.8012726965884317,
+      "k2_pvalue": 0.6250283532130168,
+      "k2_statistic": 0.9399165302677516,
+      "ljung_box_pvalue": 0.9604652655439769,
+      "mae": 83425.32663545977,
+      "mape": 0.0248905588383056,
+      "mase": 0.650568535126554,
+      "mean_test_revenue": 3366658.4008333334,
+      "miscoverage_80": 0.20833333333333337,
+      "miscoverage_95": 0.04166666666666663,
+      "mse": 10500988661.792944,
+      "mse_pct_of_mean_sq": 0.09264715423386317,
+      "psi": 0.0,
+      "r2": 0.9170192595331692,
+      "rmse": 102474.33172162161,
+      "rmse_pct_of_mean": 3.0437995044658113,
+      "smape": 0.012578756325232981
+    },
+    "AutoTheta": {
+      "coverage_80": 0.5,
+      "coverage_95": 0.75,
+      "directional_accuracy": 0.8260869565217391,
+      "gini": 0.72699717342257,
+      "k2_pvalue": 0.6848734289437836,
+      "k2_statistic": 0.7570424661150275,
+      "ljung_box_pvalue": 0.9714931297975009,
+      "mae": 93728.54111839955,
+      "mape": 0.027778465589859535,
+      "mase": 0.7309152047002965,
+      "mean_test_revenue": 3366658.4008333334,
+      "miscoverage_80": 0.5,
+      "miscoverage_95": 0.25,
+      "mse": 12961349635.55284,
+      "mse_pct_of_mean_sq": 0.11435420010815053,
+      "psi": 0.0,
+      "r2": 0.8975770353775411,
+      "rmse": 113847.92328168679,
+      "rmse_pct_of_mean": 3.381629786185214,
+      "smape": 0.01405389585116581
+    },
+    "MLForecast_exog": {
+      "coverage_80": 0.7083333333333334,
+      "coverage_95": 0.75,
+      "directional_accuracy": 0.7391304347826086,
+      "gini": 0.7863664965483588,
+      "k2_pvalue": 0.7610406809453405,
+      "k2_statistic": 0.5461369306560562,
+      "ljung_box_pvalue": 0.9738372064115067,
+      "mae": 95514.48786458331,
+      "mape": 0.028424274184545045,
+      "mase": 0.7448423992985967,
+      "mean_test_revenue": 3366658.4008333334,
+      "miscoverage_80": 0.29166666666666663,
+      "miscoverage_95": 0.25,
+      "mse": 13684001312.791605,
+      "mse_pct_of_mean_sq": 0.12072994467419297,
+      "psi": 5.1593921349191545,
+      "r2": 0.891866509139659,
+      "rmse": 116978.63613836333,
+      "rmse_pct_of_mean": 3.474621485488642,
+      "smape": 0.014405873086468873
+    },
+    "MLForecast_uni": {
+      "coverage_80": 0.75,
+      "coverage_95": 0.75,
+      "directional_accuracy": 0.7391304347826086,
+      "gini": 0.7998314681094769,
+      "k2_pvalue": 0.5147737334554903,
+      "k2_statistic": 1.328055654751213,
+      "ljung_box_pvalue": 0.9389761385519804,
+      "mae": 100612.56945416665,
+      "mape": 0.029874081963006432,
+      "mase": 0.784598329607189,
+      "mean_test_revenue": 3366658.4008333334,
+      "miscoverage_80": 0.25,
+      "miscoverage_95": 0.25,
+      "mse": 14675186698.514742,
+      "mse_pct_of_mean_sq": 0.1294748836759425,
+      "psi": 5.147318636137559,
+      "r2": 0.8840339802325033,
+      "rmse": 121141.18498064455,
+      "rmse_pct_of_mean": 3.5982618536724433,
+      "smape": 0.015175102985855097
+    },
+    "SARIMA": {
+      "coverage_80": 0.5833333333333334,
+      "coverage_95": 0.8333333333333334,
+      "directional_accuracy": 0.782608695652174,
+      "gini": 0.8287446011907433,
+      "k2_pvalue": 0.7825015015738795,
+      "k2_statistic": 0.4905188752508298,
+      "ljung_box_pvalue": 0.8755272352120349,
+      "mae": 98384.1108884043,
+      "mape": 0.028974970884874194,
+      "mase": 0.7672203332218323,
+      "mean_test_revenue": 3366658.4008333334,
+      "miscoverage_80": 0.41666666666666663,
+      "miscoverage_95": 0.16666666666666663,
+      "mse": 14430895696.29183,
+      "mse_pct_of_mean_sq": 0.12731957555307605,
+      "psi": 0.0,
+      "r2": 0.8859644125857538,
+      "rmse": 120128.66309208568,
+      "rmse_pct_of_mean": 3.5681868722514523,
+      "smape": 0.014728348915232415
+    },
+    "SeasonalNaive": {
+      "coverage_80": 0.6666666666666666,
+      "coverage_95": 0.9583333333333334,
+      "directional_accuracy": 0.6521739130434783,
+      "gini": 0.5529746305592556,
+      "k2_pvalue": 0.4978409373976078,
+      "k2_statistic": 1.3949493115869531,
+      "ljung_box_pvalue": 0.4407469817853945,
+      "mae": 206632.52416666667,
+      "mape": 0.061255207088088924,
+      "mase": 1.6113646056672672,
+      "mean_test_revenue": 3366658.4008333334,
+      "miscoverage_80": 0.33333333333333337,
+      "miscoverage_95": 0.04166666666666663,
+      "mse": 58898598976.10888,
+      "mse_pct_of_mean_sq": 0.5196451266871781,
+      "psi": 0.0,
+      "r2": 0.5345724566602904,
+      "rmse": 242690.33556388042,
+      "rmse_pct_of_mean": 7.208641527272515,
+      "smape": 0.03196062656230974
+    }
+  },
+  "per_model_figures": [
+    "actual_vs_MLForecast_exog.png",
+    "actual_vs_MLForecast_uni.png",
+    "actual_vs_SARIMA.png",
+    "actual_vs_AutoARIMA.png",
+    "actual_vs_AutoETS.png",
+    "actual_vs_AutoTheta.png",
+    "actual_vs_SeasonalNaive.png"
+  ],
+  "perfect_foresight_diagnostic": {
+    "directional_accuracy": 0.7391304347826086,
+    "mae": 94126.98435208325,
+    "mape": 0.027937601305217465,
+    "mase": 0.7340223502317893,
+    "mean_test_revenue": 3366658.4008333334,
+    "mse": 13159316136.55899,
+    "mse_pct_of_mean_sq": 0.11610080069430176,
+    "note": "leakage upper bound \u2014 not a reportable model",
+    "r2": 0.8960126677384359,
+    "rmse": 114714.06250568842,
+    "rmse_pct_of_mean": 3.4073567569936345,
+    "smape": 0.014155723037459886
+  },
+  "recommendation": {
+    "ablation_visits_help": true,
+    "beats_seasonal_naive": true,
+    "classical": "AutoETS",
+    "regression": "MLForecast_exog",
+    "regression_learner_exog": "rf",
+    "regression_learner_uni": "rf"
+  },
+  "sarima_order": "SARIMA(1, 1, 1)(1, 1, 1)_12",
+  "seasonal_factors_ets": {
+    "1": 1.0017328526924072,
+    "10": 1.1580326444283027,
+    "11": 1.1555683454017744,
+    "12": 1.1462314900428998,
+    "2": 0.9941402400717945,
+    "3": 0.9762849683237123,
+    "4": 0.997876391694526,
+    "5": 0.9766009273298498,
+    "6": 0.9638469815334838,
+    "7": 0.8317066226205219,
+    "8": 0.8279440414481961,
+    "9": 0.9700344944125311
+  },
+  "stage1_visits": {
+    "cv_rmse": {
+      "AutoARIMA": 908.5258841573204,
+      "AutoETS": 858.4712487940319
+    },
+    "directional_accuracy": 0.782608695652174,
+    "mae": 845.1728281316472,
+    "mape": 0.04658928906021507,
+    "mase": NaN,
+    "mean_test_revenue": 18556.208333333332,
+    "mse": 973133.23195416,
+    "mse_pct_of_mean_sq": 0.2826140990913318,
+    "r2": 0.7704025780867311,
+    "rmse": 986.4751552645206,
+    "rmse_pct_of_mean": 5.316146151972609,
+    "smape": 0.02296917861267986,
+    "winner": "AutoETS"
+  }
+}
