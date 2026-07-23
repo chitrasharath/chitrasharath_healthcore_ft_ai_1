@@ -119,7 +119,7 @@ def fit_classical_models(train_df: pd.DataFrame, h: int = 24) -> dict[str, Any]:
     try:
         models.insert(-1, AutoCES(season_length=SEASON_LENGTH))
         sf = _sf(models)
-        sf.fit(train_y)
+        fcst = sf.forecast(h=h, df=train_y, fitted=True, level=LEVELS)
     except Exception as exc:  # pragma: no cover - numba/CES quirks
         ces_note = f"AutoCES skipped due to runtime error: {exc}"
         models = [
@@ -130,8 +130,13 @@ def fit_classical_models(train_df: pd.DataFrame, h: int = 24) -> dict[str, Any]:
             SeasonalNaive(season_length=SEASON_LENGTH),
         ]
         sf = _sf(models)
-        sf.fit(train_y)
-    fcst = sf.predict(h=h, level=LEVELS)
+        fcst = sf.forecast(h=h, df=train_y, fitted=True, level=LEVELS)
+
+    fitted_values = None
+    try:
+        fitted_values = sf.forecast_fitted_values()
+    except Exception:
+        fitted_values = None
 
     auto_order = "unknown"
     sarima_order = f"SARIMA{sarima.order}{sarima.seasonal_order}_{SEASON_LENGTH}"
@@ -154,6 +159,7 @@ def fit_classical_models(train_df: pd.DataFrame, h: int = 24) -> dict[str, Any]:
     return {
         "fitted": sf,
         "forecast": fcst,
+        "fitted_values": fitted_values,
         "sarima_order": sarima_order,
         "sarima_order_tuple": (sarima.order, sarima.seasonal_order),
         "autoarima_order": auto_order,

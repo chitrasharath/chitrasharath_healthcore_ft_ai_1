@@ -181,8 +181,10 @@ def evaluate_model(
     out.update(k2_normality(resid))
     out["gini"] = normalized_gini(y, yhat)
     out["ljung_box_pvalue"] = ljung_box_pvalue(resid)
-    if train_scores is not None:
+    if train_scores is not None and len(np.asarray(train_scores).ravel()) >= 10:
         out["psi"] = population_stability_index(train_scores, yhat)
+    else:
+        out["psi"] = None
     if lo80 is not None and hi80 is not None:
         out["coverage_80"] = interval_coverage(y, lo80, hi80)
         out["miscoverage_80"] = 1.0 - out["coverage_80"]

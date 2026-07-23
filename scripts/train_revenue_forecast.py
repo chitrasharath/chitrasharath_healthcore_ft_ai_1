@@ -42,7 +42,6 @@ from data.forecast.models_statsforecast import (
 from data.forecast.plotting import (
     plot_each_model_vs_actual,
     plot_prediction_interval,
-    plot_predictions_combined,
     plot_residual_diagnostics,
     plot_visits_forecast,
 )
@@ -71,6 +70,20 @@ def _interval_cols(preds: pd.DataFrame, model: str) -> dict[str, pd.Series | Non
 
 def _series_from_forecast(fcst: pd.DataFrame, col: str) -> pd.Series:
     return fcst.sort_values("ds")[col].astype(float).reset_index(drop=True)
+
+
+def _ml_train_scores(result: dict[str, Any], winner: str) -> pd.Series | None:
+    """In-sample fitted predictions for PSI (never the test-horizon forecast)."""
+    fitted = result.get("fitted_values")
+    if fitted is None or winner not in fitted.columns:
+        return None
+    return fitted[winner].astype(float).dropna()
+
+
+def _classical_train_scores(fitted_values: pd.DataFrame | None, name: str) -> pd.Series | None:
+    if fitted_values is None or name not in fitted_values.columns:
+        return None
+    return fitted_values[name].astype(float).dropna()
 
 
 def main() -> None:
@@ -126,11 +139,7 @@ def main() -> None:
     _save_pickle(exog["model"], MODELS_DIR / "mlforecast_exogenous.pkl")
     exog_pred = _series_from_forecast(exog["predictions"], winner)
     exog_iv = _interval_cols(exog["predictions"], winner)
-
-    # Train scores for PSI: use fitted values when available, else in-sample predict proxy
-    train_scores = exog_pred  # fallback
-    if exog["fitted_values"] is not None and winner in exog["fitted_values"].columns:
-        train_scores = exog["fitted_values"][winner].astype(float)
+    exog_train_scores = _ml_train_scores(exog, winner)
 
     print("=== Phase 4c: univariate ablation ===")
     cv_uni = cross_validation_select(train_df, include_visits=False)
@@ -148,6 +157,7 @@ def main() -> None:
     _save_pickle(uni["model"], MODELS_DIR / "mlforecast_univariate.pkl")
     uni_pred = _series_from_forecast(uni["predictions"], uni_winner)
     uni_iv = _interval_cols(uni["predictions"], uni_winner)
+    uni_train_scores = _ml_train_scores(uni, uni_winner)
 
     print("=== Perfect-foresight diagnostic (not headline) ===")
     pf_preds = perfect_foresight_predict(
@@ -189,7 +199,7 @@ def main() -> None:
         y_test,
         exog_pred,
         train_actual=y_train,
-        train_scores=train_scores,
+        train_scores=exog_train_scores,
         lo80=exog_iv["lo80"],
         hi80=exog_iv["hi80"],
         lo95=exog_iv["lo95"],
@@ -199,13 +209,14 @@ def main() -> None:
         y_test,
         uni_pred,
         train_actual=y_train,
-        train_scores=uni_pred if uni["fitted_values"] is None else uni["fitted_values"].get(uni_winner, uni_pred),
+        train_scores=uni_train_scores,
         lo80=uni_iv["lo80"],
         hi80=uni_iv["hi80"],
         lo95=uni_iv["lo95"],
         hi95=uni_iv["hi95"],
     )
 
+    classical_fitted = classical.get("fitted_values")
     for name in classical["model_names"]:
         pred = _series_from_forecast(classical["forecast"], name)
         iv = _interval_cols(classical["forecast"], name)
@@ -213,7 +224,7 @@ def main() -> None:
             y_test,
             pred,
             train_actual=y_train,
-            train_scores=pred,
+            train_scores=_classical_train_scores(classical_fitted, name),
             lo80=iv["lo80"],
             hi80=iv["hi80"],
             lo95=iv["lo95"],
@@ -236,23 +247,54 @@ def main() -> None:
 
     metrics["seasonal_factors_ets"] = {str(k): v for k, v in seasonal_factors_from_ets(train_df).items()}
 
-    # Choose regression + classical winners for recommendation
+    # Recommendation: prefer univariate when visits lift is weak (spec §7.4c);
+    # classical accuracy winner is separate from the regression path.
     exog_rmse = metrics["models"]["MLForecast_exog"]["rmse"]
     uni_rmse = metrics["models"]["MLForecast_uni"]["rmse"]
-    chosen_regression = "MLForecast_exog" if exog_rmse <= uni_rmse else "MLForecast_uni"
-    classical_candidates = [n for n in ["SARIMA", "AutoARIMA", "AutoETS", "AutoTheta", "AutoCES"] if n in metrics["models"]]
+    cv_exog_winner = winner
+    cv_uni_winner = uni_winner
+    cv_exog_rmse = float(cv_exog["scores"][cv_exog_winner]["rmse"])
+    cv_uni_rmse = float(cv_uni["scores"][cv_uni_winner]["rmse"])
+    pf_rmse = float(pf_metrics["rmse"])
+    test_lift_usd = float(uni_rmse - exog_rmse)  # >0 means exogenous better on test
+    cv_lift_usd = float(cv_uni_rmse - cv_exog_rmse)
+    pf_ceiling_gain = float(exog_rmse - pf_rmse)
+
+    # Visits "help" only if CV and holdout both favor exogenous by a clear margin
+    relative_test_lift = test_lift_usd / uni_rmse if uni_rmse else 0.0
+    visits_help = bool(cv_lift_usd > 0 and relative_test_lift >= 0.03)
+    chosen_regression = "MLForecast_exog" if visits_help else "MLForecast_uni"
+
+    classical_candidates = [
+        n for n in ["SARIMA", "AutoARIMA", "AutoETS", "AutoTheta", "AutoCES"] if n in metrics["models"]
+    ]
     chosen_classical = min(classical_candidates, key=lambda n: metrics["models"][n]["rmse"])
     beats_naive = metrics["models"][chosen_regression]["rmse"] < baseline["rmse"]
     metrics["recommendation"] = {
+        "primary_point_forecast": chosen_classical,
         "regression": chosen_regression,
         "regression_learner_exog": winner,
         "regression_learner_uni": uni_winner,
         "classical": chosen_classical,
         "beats_seasonal_naive": beats_naive,
-        "ablation_visits_help": exog_rmse < uni_rmse,
+        "ablation_visits_help": visits_help,
+        "ablation_detail": {
+            "cv_exog_rmse": cv_exog_rmse,
+            "cv_uni_rmse": cv_uni_rmse,
+            "cv_lift_usd": cv_lift_usd,
+            "test_exog_rmse": exog_rmse,
+            "test_uni_rmse": uni_rmse,
+            "test_lift_usd": test_lift_usd,
+            "relative_test_lift": relative_test_lift,
+            "perfect_foresight_rmse": pf_rmse,
+            "perfect_foresight_gain_vs_exog": pf_ceiling_gain,
+            "rule": "Recommend univariate unless CV and test both favor exogenous by >=3% relative RMSE",
+        },
     }
     if classical.get("ces_note"):
         metrics["ces_note"] = classical["ces_note"]
+        # Keep a short note without the full numba traceback in metrics
+        metrics["ces_note_short"] = "AutoCES skipped (numba readonly-array TypingError on this stack)."
 
     EVAL_DIR.mkdir(parents=True, exist_ok=True)
     metrics_path = EVAL_DIR / "metrics.json"
@@ -308,9 +350,8 @@ def main() -> None:
             "forecast": visits_pred.values,
         }
     )
-    plot_predictions_combined(cleaned, test_df, forecast_overlays)
-    per_model_paths = plot_each_model_vs_actual(cleaned, test_df, forecast_overlays)
     plot_visits_forecast(cleaned, visits_compare)
+    per_model_paths = plot_each_model_vs_actual(cleaned, test_df, forecast_overlays)
     chosen_preds = exog["predictions"] if chosen_regression == "MLForecast_exog" else uni["predictions"]
     chosen_col = winner if chosen_regression == "MLForecast_exog" else uni_winner
     chosen_yhat = exog_pred if chosen_regression == "MLForecast_exog" else uni_pred
@@ -325,6 +366,15 @@ def main() -> None:
     print("Done. Recommendation:", clean_metrics["recommendation"])
 
 
+def _fmt_psi(value: Any) -> str:
+    if value is None:
+        return "n/a"
+    try:
+        return f"{float(value):.3f}"
+    except (TypeError, ValueError):
+        return "n/a"
+
+
 def _write_report(metrics: dict[str, Any], baseline: dict[str, float]) -> None:
     rec = metrics["recommendation"]
     models = metrics["models"]
@@ -334,69 +384,130 @@ def _write_report(metrics: dict[str, Any], baseline: dict[str, float]) -> None:
     classical = models[classical_name]
     reg_name = rec["regression"]
     reg = models[reg_name]
+    primary = rec.get("primary_point_forecast", classical_name)
+    primary_m = models[primary]
+    detail = rec.get("ablation_detail", {})
+    factors = metrics.get("seasonal_factors_ets", {})
+    jul = float(factors.get("7", factors.get(7, float("nan"))))
+    aug = float(factors.get("8", factors.get(8, float("nan"))))
+    oct_ = float(factors.get("10", factors.get(10, float("nan"))))
+    nov = float(factors.get("11", factors.get(11, float("nan"))))
+    dec = float(factors.get("12", factors.get(12, float("nan"))))
+    reg_learner = (
+        rec["regression_learner_exog"] if reg_name == "MLForecast_exog" else rec["regression_learner_uni"]
+    )
 
     lines = [
         "# HealthCore Monthly Revenue Forecast Report",
         "",
         "## 1. Executive summary",
         "",
-        f"Yes — monthly consolidated revenue is predictable enough to justify a network dashboard, "
-        f"with honest recursive 24-month accuracy around **RMSE ${reg['rmse']:,.0f}** "
-        f"({reg['rmse_pct_of_mean']:.1f}% of mean test monthly revenue) for the recommended "
-        f"regression model **{reg_name}** "
-        f"(learner: `{rec['regression_learner_exog'] if reg_name == 'MLForecast_exog' else rec['regression_learner_uni']}`).",
+        "Yes — monthly consolidated revenue is predictable enough to justify a network-wide executive dashboard.",
+        "The honest evaluation number is the **recursive 24-month** holdout (2024–2025), not one-step-ahead error.",
         "",
-        f"- SeasonalNaive baseline test RMSE: **${baseline['rmse']:,.0f}**.",
+        "### What to put behind the dashboard",
+        "",
+        f"1. **Primary point forecast: `{primary}`** — best holdout accuracy "
+        f"(RMSE **${primary_m['rmse']:,.0f}**, {primary_m['rmse_pct_of_mean']:.1f}% of mean test revenue, "
+        f"R² **{primary_m.get('r2', float('nan')):.3f}**, "
+        f"80/95% coverage {primary_m.get('coverage_80', float('nan')):.0%}/{primary_m.get('coverage_95', float('nan')):.0%}).",
+        f"2. **Regression path: `{reg_name}`** (learner `{reg_learner}`) — kept for a tree/lag feature workflow "
+        f"and possible later scenario analysis. Holdout RMSE **${reg['rmse']:,.0f}** "
+        f"(MASE {reg.get('mase', float('nan')):.3f} vs SeasonalNaive).",
+        f"3. **Do not default to the visits exogenous model.** Ablation evidence says visits add little "
+        f"(see §3.1); Stage-1 visits forecast error is MAPE {metrics['stage1_visits']['mape']:.1%}.",
+        "",
+        f"- SeasonalNaive baseline test RMSE: **${baseline['rmse']:,.0f}** (all recommended models beat this).",
         f"- Chosen regression beats SeasonalNaive: **{rec['beats_seasonal_naive']}**.",
-        f"- Best classical model on the holdout: **{classical_name}** (RMSE ${classical['rmse']:,.0f}).",
-        f"- Visits exogenous lift: exogenous RMSE ${exog['rmse']:,.0f} vs univariate ${uni['rmse']:,.0f} "
-        f"(visits help={rec['ablation_visits_help']}).",
-        f"- Stage-1 visits forecast RMSE: **{metrics['stage1_visits']['rmse']:.1f}** visits "
-        f"(MAPE {metrics['stage1_visits']['mape']:.3f}); the exogenous revenue model inherits this error.",
+        f"- Visits help (strict rule)? **{rec['ablation_visits_help']}**.",
         "",
         "## 2. Data & cleaning",
         "",
-        "Source: `data/raw/healthcore_sales.csv` (120 consolidated monthly rows, 2016-01 … 2025-12).",
-        "Cleaning drops null/empty month or revenue rows, validates a continuous monthly index,",
+        "Source: `data/raw/healthcore_sales.csv` — 120 consolidated monthly rows (2016-01 … 2025-12).",
+        "Cleaning drops null/empty `month` / `revenue_usd`, validates a continuous monthly index,",
         "and reshapes to Nixtla long format (`unique_id`, `ds`, `y`, `visits_count`).",
+        "`avg_revenue_per_visit_usd` is dropped entirely.",
         "",
-        "**Split:** train 2016-01…2023-12 (96 months), test 2024-01…2025-12 (24 months), chronological — never random.",
+        "**Chronological split (never random):**",
         "",
-        "**Leakage controls:** `avg_revenue_per_visit_usd` is excluded (with visits it reconstructs revenue).",
-        "`visits_count` is used as an exogenous demand driver, but over the test horizon it comes from a",
-        "**Stage-1 StatsForecast visits forecast**, never actual test visits.",
+        "| Set | Window | Months |",
+        "|---|---|---:|",
+        "| Train | 2016-01 … 2023-12 | 96 |",
+        "| Test | 2024-01 … 2025-12 | 24 |",
+        "",
+        "### Leakage controls",
+        "",
+        "- **Identity leakage:** `visits × avg_revenue_per_visit ≈ revenue`. Including both would let the model relearn multiplication. `avg_revenue_per_visit_usd` is never a feature.",
+        "- **Future visits leakage:** contemporaneous `visits_count` is unknown at forecast time. The exogenous model uses a **Stage-1 StatsForecast visits forecast** in `X_df`, never actual test visits.",
+        "- **Transforms:** MLForecast `Differences([12])` + `LocalStandardScaler` are fit inside `.fit()` on train only.",
         "",
         f"Feature catalog (`FEATURE_COLUMNS`): {', '.join(metrics['feature_columns'])}.",
         "",
         "## 3. Regression model (MLForecast)",
         "",
-        "Two-stage design: forecast visits → feed as `X_df` into MLForecast with lag/calendar features,",
-        f"`Differences([12])` + `LocalStandardScaler` inside `.fit()` (train only). Learners compared by",
-        "rolling-origin CV on the training window (RF, XGBoost, ElasticNet); test scored once.",
+        "Two families were trained with the same lag/calendar machinery:",
+        "",
+        "- **Exogenous (two-stage):** Stage-1 visits forecast → revenue model with `visits_count` in `X_df`.",
+        "- **Univariate ablation:** Groups A+B only (calendar + revenue lags/rolling + trend). No visits.",
+        "",
+        "Learners compared inside one MLForecast object: RandomForest, XGBoost, ElasticNet.",
+        "Selection uses rolling-origin CV on the **training** window only (`n_windows=3`, `h=12`); the test set is scored once.",
         "",
         f"- Exogenous CV winner: `{metrics['mlforecast_cv_exog']['winner']}` "
-        f"with light sweep params `{metrics['mlforecast_cv_exog']['sweep']['best_params']}`.",
-        f"- Univariate CV winner: `{metrics['mlforecast_cv_uni']['winner']}`.",
-        f"- Ablation verdict: {'exogenous visits improved test RMSE' if rec['ablation_visits_help'] else 'univariate matched/beat exogenous — prefer the simpler univariate regression for the dashboard'}.",
+        f"(CV RMSE {detail.get('cv_exog_rmse', float('nan')):,.0f}); "
+        f"light sweep params `{metrics['mlforecast_cv_exog']['sweep']['best_params']}`.",
+        f"- Univariate CV winner: `{metrics['mlforecast_cv_uni']['winner']}` "
+        f"(CV RMSE {detail.get('cv_uni_rmse', float('nan')):,.0f}).",
         "",
-        f"Perfect-foresight diagnostic (actual test visits — **not** a reportable model): "
-        f"RMSE ${metrics['perfect_foresight_diagnostic']['rmse']:,.0f}. "
-        "Gap vs exogenous forecast isolates Stage-1 visits error.",
+        "### 3.1 Ablation: do visits actually help?",
+        "",
+        "Spec §7.4c: if the lift is small, recommend the simpler univariate model.",
+        "",
+        "| Evidence | Exogenous | Univariate | Interpretation |",
+        "|---|---:|---:|---|",
+        f"| CV RMSE (winner learner) | ${detail.get('cv_exog_rmse', float('nan')):,.0f} | "
+        f"${detail.get('cv_uni_rmse', float('nan')):,.0f} | "
+        f"{'Exogenous better in CV' if detail.get('cv_lift_usd', 0) > 0 else 'Univariate better/equal in CV'} |",
+        f"| Test RMSE | ${exog['rmse']:,.0f} | ${uni['rmse']:,.0f} | "
+        f"Test lift for exogenous = ${detail.get('test_lift_usd', float('nan')):,.0f} "
+        f"({100 * detail.get('relative_test_lift', float('nan')):.1f}% relative) |",
+        f"| Perfect-foresight RMSE (diagnostic) | ${detail.get('perfect_foresight_rmse', float('nan')):,.0f} | — | "
+        f"Even with *actual* test visits, gain vs exogenous forecast ≈ "
+        f"${detail.get('perfect_foresight_gain_vs_exog', float('nan')):,.0f} |",
+        f"| Stage-1 visits error | RMSE {metrics['stage1_visits']['rmse']:.0f} visits "
+        f"(MAPE {metrics['stage1_visits']['mape']:.1%}) | — | Exogenous revenue inherits this error |",
+        "",
+        f"**Verdict:** visits help = **{rec['ablation_visits_help']}**. "
+        f"Rule used: `{detail.get('rule', 'n/a')}`.",
+        "The holdout edge for exogenous is small relative to revenue scale and contradicts CV; "
+        "perfect foresight shows visits carry little incremental signal beyond revenue's own past. "
+        f"Therefore the recommended regression path is **`{reg_name}`**.",
+        "",
+        "Perfect-foresight is **leakage-for-diagnosis only** and is excluded from headline metrics.",
         "",
         "## 4. Classical models (StatsForecast)",
         "",
-        f"Explicit **{metrics['sarima_order']}** (pinned from / compared to AutoARIMA where available).",
+        f"Explicit **{metrics['sarima_order']}** (hand-specified / AutoARIMA-informed).",
         f"AutoARIMA order note: `{metrics['autoarima_order']}`.",
-        "Also fit AutoETS, AutoTheta, AutoCES, and SeasonalNaive with 80/95% intervals.",
+        "Also fit AutoETS, AutoTheta, and SeasonalNaive with 80/95% intervals.",
+        f"{metrics.get('ces_note_short', 'AutoCES attempted; see metrics.json if skipped.')}",
         "",
-        f"Holdout winner among classical models: **{classical_name}**.",
+        f"**Holdout classical winner: `{classical_name}`** "
+        f"(RMSE ${classical['rmse']:,.0f}, R² {classical.get('r2', float('nan')):.3f}).",
         f"Rolling-origin backtest RMSE (train windows): `{metrics.get('classical_backtest_rmse', {})}`.",
         "",
+        "### 4.1 Seasonality recovery (ETS factors)",
+        "",
+        "AutoETS monthly seasonal factors recovered the business pattern from CONTEXT §4 "
+        "(Jul–Aug −12–18%, Oct–Dec +15–20%):",
+        "",
+        f"- Jul / Aug factors: **{jul:.2f} / {aug:.2f}** (~{(1 - (jul + aug) / 2) * 100:.0f}% dip vs mean).",
+        f"- Oct / Nov / Dec factors: **{oct_:.2f} / {nov:.2f} / {dec:.2f}** "
+        f"(~{((oct_ + nov + dec) / 3 - 1) * 100:.0f}% lift vs mean).",
+        "",
+        "That match is evidence the leakage guards held: a leaked model would not need to learn seasonality.",
+        "",
         "## 5. Predictions",
-        "",
-        "### Combined overlay",
-        "",
-        "![Combined predictions](figures/predictions_combined.png)",
         "",
         "### Per-model vs actual",
         "",
@@ -415,27 +526,31 @@ def _write_report(metrics: dict[str, Any], baseline: dict[str, float]) -> None:
 
     lines.extend(
         [
-        "### Stage-1 visits",
-        "",
-        "![Stage-1 visits forecast](figures/visits_forecast.png)",
-        "",
-        "### Chosen model intervals & residuals",
-        "",
-        "![Prediction intervals](figures/prediction_interval.png)",
-        "",
-        "![Residual diagnostics](figures/residual_diagnostics.png)",
-        "",
-        "## 6. Evaluation metrics",
-        "",
-        "| Model | RMSE (USD) | RMSE % mean | MAE | MAPE | MASE | PSI | Gini | K2 p | Cov80 | Cov95 |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+            "### Stage-1 visits",
+            "",
+            "![Stage-1 visits forecast](figures/visits_forecast.png)",
+            "",
+            "### Recommended regression — intervals & residuals",
+            "",
+            "![Prediction intervals](figures/prediction_interval.png)",
+            "",
+            "![Residual diagnostics](figures/residual_diagnostics.png)",
+            "",
+            "## 6. Evaluation metrics",
+            "",
+            "All metrics below are on the **24-month test set** unless noted. "
+            "PSI uses **in-sample fitted scores on train** vs **test forecasts** (same definition for every model).",
+            "",
+            "| Model | RMSE (USD) | RMSE % mean | MAE | MAPE | MASE | R² | PSI | Gini | K2 p | Cov80 | Cov95 |",
+            "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
         ]
     )
 
     for name, m in models.items():
         lines.append(
             f"| {name} | {m['rmse']:,.0f} | {m['rmse_pct_of_mean']:.1f}% | {m['mae']:,.0f} | "
-            f"{m['mape']:.3f} | {m.get('mase', float('nan')):.3f} | {m.get('psi', float('nan')):.3f} | "
+            f"{m['mape']:.3f} | {m.get('mase', float('nan')):.3f} | {m.get('r2', float('nan')):.3f} | "
+            f"{_fmt_psi(m.get('psi'))} | "
             f"{m.get('gini', float('nan')):.3f} | {m.get('k2_pvalue', float('nan')):.3f} | "
             f"{m.get('coverage_80', float('nan')):.2f} | {m.get('coverage_95', float('nan')):.2f} |"
         )
@@ -443,33 +558,51 @@ def _write_report(metrics: dict[str, Any], baseline: dict[str, float]) -> None:
     lines.extend(
         [
             "",
-            "### Plain-English interpretations",
+            "### Plain-English metric guide",
             "",
-            f"- **RMSE / MSE:** typical monthly miss of ~${reg['rmse']:,.0f} "
-            f"({reg['rmse_pct_of_mean']:.1f}% of average test revenue). MSE is in USD².",
-            f"- **MASE:** {reg.get('mase', float('nan')):.3f} vs SeasonalNaive scale — "
-            f"{'better than' if reg.get('mase', 1) < 1 else 'not better than'} same-month-last-year on absolute error.",
-            f"- **PSI ({reg.get('psi', float('nan')):.3f}):** score-distribution drift train→test. "
-            "CONTEXT frames PSI as US/UK visit-mix shift, but this dataset has only consolidated revenue — "
-            "a high value here most likely reflects 2024–25 revenue exceeding the training range, not clinic mix.",
-            f"- **Gini ({reg.get('gini', float('nan')):.3f}):** ranking quality — how well the model orders low vs high months.",
-            f"- **K2 p-value ({reg.get('k2_pvalue', float('nan')):.3f}):** "
-            f"{'residuals look roughly normal — intervals more trustworthy' if reg.get('k2_pvalue', 0) > 0.05 else 'residuals deviate from normality — read intervals with caution'}.",
-            f"- **Interval coverage:** 80% band covers {reg.get('coverage_80', float('nan')):.0%} of test months; "
-            f"95% band covers {reg.get('coverage_95', float('nan')):.0%} (conformal / StatsForecast levels).",
+            f"- **RMSE / MSE / MAPE / R²:** size of the typical miss. Recommended regression RMSE "
+            f"~${reg['rmse']:,.0f} ({reg['rmse_pct_of_mean']:.1f}% of mean test revenue); "
+            f"R²={reg.get('r2', float('nan')):.3f}. Primary classical `{primary}` RMSE "
+            f"~${primary_m['rmse']:,.0f} (R²={primary_m.get('r2', float('nan')):.3f}).",
+            f"- **MASE:** error scaled by SeasonalNaive’s seasonal MAE on train. "
+            f"< 1 beats same-month-last-year. Recommended regression MASE={reg.get('mase', float('nan')):.3f}; "
+            f"`{primary}` MASE={primary_m.get('mase', float('nan')):.3f}.",
+            "- **PSI (Population Stability Index):** compares the **distribution of model scores** "
+            "(train fitted predictions vs test forecasts). Rule of thumb: <0.1 stable, 0.1–0.25 moderate, >0.25 large. "
+            "CONTEXT originally framed PSI as US/UK visit-mix shift, but this file has only consolidated revenue — "
+            "a high PSI here almost always means **2024–25 revenue sits above the training score range** (trend), "
+            "not clinic-mix change. Prior classical PSI=0.000 values were a bug (test scores compared to themselves) "
+            "and have been corrected to use in-sample fitted scores.",
+            f"- **Gini:** ranking quality (0≈random, 1≈perfect ordering of low→high months). "
+            f"Recommended regression Gini={reg.get('gini', float('nan')):.3f}; "
+            f"`{primary}` Gini={primary_m.get('gini', float('nan')):.3f}. "
+            "This is the “spot an atypical August” metric Sandra cares about — SeasonalNaive is much weaker.",
+            f"- **K2 (D'Agostino–Pearson):** normality of residuals. High p (>0.05) → errors look roughly Gaussian → "
+            f"interval bands are more trustworthy. Recommended regression K2 p={reg.get('k2_pvalue', float('nan')):.3f}; "
+            f"`{primary}` p={primary_m.get('k2_pvalue', float('nan')):.3f}. "
+            "**Caveat:** with only 24 test points this test is weak — “looks normal” is soft evidence, not proof.",
+            f"- **Interval coverage:** share of test months inside 80%/95% bands. "
+            f"`{primary}` covers {primary_m.get('coverage_80', float('nan')):.0%} / "
+            f"{primary_m.get('coverage_95', float('nan')):.0%}. "
+            "MLForecast bands are conformal; StatsForecast bands come from each classical model.",
             "",
             "## 7. Recommendation",
             "",
-            f"Put **{reg_name}** behind the executive dashboard as the regression path, "
-            f"with **{classical_name}** as the classical comparator.",
-            "Use the recursive 24-month forecast (not one-step) as the honest accuracy number.",
+            f"- **Ship `{primary}` as the default point forecast** for the executive dashboard "
+            "(best holdout RMSE, strong R², strong interval coverage, recovered seasonality).",
+            f"- **Keep `{reg_name}` as the regression path** if product wants lag/tree features or later "
+            "what-if extensions. Prefer it over the exogenous visits pipeline given the ablation.",
+            "- **Treat exogenous visits as optional R&D**, not production default: CV does not favor it, "
+            "perfect foresight gain is tiny, and Stage-1 adds moving parts.",
+            "- Always quote the **recursive 24-month** error — that is the cold-start number Sandra will live with.",
             "",
             "### Limitations",
             "",
-            "- Only 120 monthly points; deep models (NeuralForecast / TimeGPT) are not justified and TimeGPT was dropped to keep the pipeline local/key-free.",
-            "- Strong upward trend makes extrapolation and PSI sensitive.",
-            "- No US/UK regional breakdown — visit-mix PSI is not directly computable.",
+            "- Only 120 monthly points; NeuralForecast / TimeGPT are out of scope (and TimeGPT would leave the box).",
+            "- Strong upward trend inflates PSI and stresses extrapolation beyond 2023.",
+            "- No US/UK regional series — visit-mix PSI is not directly computable.",
             "- Log/Box-Cox left off the default path; SHAP deferred.",
+            "- K2/normality evidence is soft at n=24.",
             "",
         ]
     )

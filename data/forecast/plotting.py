@@ -66,45 +66,6 @@ def _forecast_value_col(frame: pd.DataFrame, model_name: str) -> str:
     return candidates[0]
 
 
-def plot_predictions_combined(
-    history: pd.DataFrame,
-    test: pd.DataFrame,
-    forecasts: dict[str, pd.DataFrame],
-    *,
-    out_path: Path | str = FIGURES_DIR / "predictions_combined.png",
-) -> Path:
-    """Full 10-year series with overlaid test-window forecasts."""
-    out = Path(out_path)
-    _ensure_dir(out.parent)
-    fig, ax = plt.subplots(figsize=(12, 6), dpi=150)
-
-    hist = history.copy()
-    hist["ds"] = pd.to_datetime(hist["ds"])
-    tst = test.copy()
-    tst["ds"] = pd.to_datetime(tst["ds"])
-
-    train = hist.loc[hist["ds"] <= pd.Timestamp("2023-12-01")]
-    _plot_actuals(ax, train, tst)
-
-    for name, fcst in forecasts.items():
-        f = fcst.copy()
-        f["ds"] = pd.to_datetime(f["ds"])
-        col = _forecast_value_col(f, name)
-        color = MODEL_COLORS.get(name, FORECAST_DEFAULT)
-        ax.plot(f["ds"], f[col] / 1e6, lw=2.0, label=name, color=color, zorder=2)
-
-    ax.set_title("HealthCore monthly revenue — actuals vs forecasts")
-    ax.set_ylabel("Revenue (USD millions)")
-    ax.set_xlabel("Month")
-    ax.legend(loc="upper left", fontsize=8, ncol=2)
-    ax.grid(True, alpha=0.3)
-
-    fig.tight_layout()
-    fig.savefig(out)
-    plt.close(fig)
-    return out
-
-
 def plot_model_vs_actual(
     history: pd.DataFrame,
     test: pd.DataFrame,
