@@ -13,7 +13,7 @@
     "rmse_pct_of_mean": 7.208641527272515,
     "smape": 0.03196062656230974
   },
-  "ces_note": "AutoCES skipped due to runtime error: Failed in nopython mode pipeline (step: nopython frontend)\n\u001b[1m\u001b[1m\u001b[1m\u001b[1m\u001b[1m\u001b[1m\u001b[1m\u001b[1mFailed in nopython mode pipeline (step: nopython frontend)\n\u001b[1m\u001b[1m\u001b[1mFailed in nopython mode pipeline (step: nopython frontend)\n\u001b[1m\u001b[1m\u001b[1mNo implementation of function Function(<built-in function setitem>) found for signature:\n \n >>> setitem(readonly array(float64, 1d, C), slice<a:b>, readonly array(float64, 1d, A))\n \nThere are 16 candidate implementations:\n\u001b[1m      - Of which 14 did not match due to:\n      Overload of function 'setitem': File: <numerous>: Line N/A.\n        With argument(s): '(readonly array(float64, 1d, C), slice<a:b>, readonly array(float64, 1d, A))':\u001b[0m\n\u001b[1m       No match.\u001b[0m\n\u001b[1m      - Of which 2 did not match due to:\n      Overload in function 'SetItemBuffer.generic': File: numba/core/typing/arraydecl.py: Line 206.\n        With argument(s): '(readonly array(float64, 1d, C), slice<a:b>, readonly array(float64, 1d, A))':\u001b[0m\n\u001b[1m       Rejected as the implementation raised a specific error:\n         NumbaTypeError: \u001b[1mCannot modify readonly array of type: readonly array(float64, 1d, C)\u001b[0m\u001b[0m\n  raised from /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/numba/core/typing/arraydecl.py:213\n\u001b[0m\n\u001b[0m\u001b[1mDuring: typing of staticsetitem at /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/statsforecast/ces.py (97)\u001b[0m\n\u001b[1m\nFile \".venv/lib/python3.12/site-packages/statsforecast/ces.py\", line 97:\u001b[0m\n\u001b[1mdef cescalc(\n    <source elided>\n        return lik\n\u001b[1m    y[:] = y[::-1]\n\u001b[0m    \u001b[1m^\u001b[0m\u001b[0m\n\n\u001b[0m\u001b[1mDuring: Pass nopython_type_inference\u001b[0m\n\u001b[0m\u001b[1mDuring: resolving callee type: type(CPUDispatcher(<function cescalc at 0x73be9d2cb240>))\u001b[0m\n\u001b[0m\u001b[1mDuring: typing of call at /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/statsforecast/ces.py (386)\u001b[0m\n\u001b[1m\nFile \".venv/lib/python3.12/site-packages/statsforecast/ces.py\", line 386:\u001b[0m\n\u001b[1mdef ces_target_fn(\n    <source elided>\n    amse = np.full(nmse, fill_value=np.nan)\n\u001b[1m    lik = cescalc(\n\u001b[0m    \u001b[1m^\u001b[0m\u001b[0m\n\n\u001b[0m\u001b[1mDuring: Pass nopython_type_inference\u001b[0m\n\u001b[0m\u001b[1mDuring: resolving callee type: type(CPUDispatcher(<function ces_target_fn at 0x73be9d2ec360>))\u001b[0m\n\u001b[0m\u001b[1mDuring: typing of call at /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/statsforecast/ces.py (456)\u001b[0m\n\u001b[0m\u001b[1mDuring: typing of call at /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/statsforecast/ces.py (475)\u001b[0m\n\u001b[0m\u001b[1mDuring: typing of call at /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/statsforecast/ces.py (486)\u001b[0m\n\u001b[0m\u001b[1mDuring: typing of call at /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/statsforecast/ces.py (499)\u001b[0m\n\u001b[0m\u001b[1mDuring: typing of call at /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/statsforecast/ces.py (510)\u001b[0m\n\u001b[0m\u001b[1mDuring: typing of call at /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/statsforecast/ces.py (521)\u001b[0m\n\u001b[1m\nFile \".venv/lib/python3.12/site-packages/statsforecast/ces.py\", line 456:\u001b[0m\n\u001b[1mdef nelder_mead_ces(\n    <source elided>\n    for j in range(n + 1):\n\u001b[1m        f_simplex[j] = ces_target_fn(simplex[j], *args)\n\u001b[0m        \u001b[1m^\u001b[0m\u001b[0m\n\n\u001b[0m\u001b[1mDuring: Pass nopython_type_inference\u001b[0m",
+  "ces_note": "AutoCES skipped due to runtime error: Failed in nopython mode pipeline (step: nopython frontend)\n\u001b[1m\u001b[1m\u001b[1m\u001b[1m\u001b[1m\u001b[1m\u001b[1m\u001b[1mFailed in nopython mode pipeline (step: nopython frontend)\n\u001b[1m\u001b[1m\u001b[1mFailed in nopython mode pipeline (step: nopython frontend)\n\u001b[1m\u001b[1m\u001b[1mNo implementation of function Function(<built-in function setitem>) found for signature:\n \n >>> setitem(readonly array(float64, 1d, C), slice<a:b>, readonly array(float64, 1d, A))\n \nThere are 16 candidate implementations:\n\u001b[1m      - Of which 14 did not match due to:\n      Overload of function 'setitem': File: <numerous>: Line N/A.\n        With argument(s): '(readonly array(float64, 1d, C), slice<a:b>, readonly array(float64, 1d, A))':\u001b[0m\n\u001b[1m       No match.\u001b[0m\n\u001b[1m      - Of which 2 did not match due to:\n      Overload in function 'SetItemBuffer.generic': File: numba/core/typing/arraydecl.py: Line 206.\n        With argument(s): '(readonly array(float64, 1d, C), slice<a:b>, readonly array(float64, 1d, A))':\u001b[0m\n\u001b[1m       Rejected as the implementation raised a specific error:\n         NumbaTypeError: \u001b[1mCannot modify readonly array of type: readonly array(float64, 1d, C)\u001b[0m\u001b[0m\n  raised from /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/numba/core/typing/arraydecl.py:213\n\u001b[0m\n\u001b[0m\u001b[1mDuring: typing of staticsetitem at /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/statsforecast/ces.py (97)\u001b[0m\n\u001b[1m\nFile \".venv/lib/python3.12/site-packages/statsforecast/ces.py\", line 97:\u001b[0m\n\u001b[1mdef cescalc(\n    <source elided>\n        return lik\n\u001b[1m    y[:] = y[::-1]\n\u001b[0m    \u001b[1m^\u001b[0m\u001b[0m\n\n\u001b[0m\u001b[1mDuring: Pass nopython_type_inference\u001b[0m\n\u001b[0m\u001b[1mDuring: resolving callee type: type(CPUDispatcher(<function cescalc at 0x729c552577e0>))\u001b[0m\n\u001b[0m\u001b[1mDuring: typing of call at /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/statsforecast/ces.py (386)\u001b[0m\n\u001b[1m\nFile \".venv/lib/python3.12/site-packages/statsforecast/ces.py\", line 386:\u001b[0m\n\u001b[1mdef ces_target_fn(\n    <source elided>\n    amse = np.full(nmse, fill_value=np.nan)\n\u001b[1m    lik = cescalc(\n\u001b[0m    \u001b[1m^\u001b[0m\u001b[0m\n\n\u001b[0m\u001b[1mDuring: Pass nopython_type_inference\u001b[0m\n\u001b[0m\u001b[1mDuring: resolving callee type: type(CPUDispatcher(<function ces_target_fn at 0x729c55274900>))\u001b[0m\n\u001b[0m\u001b[1mDuring: typing of call at /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/statsforecast/ces.py (456)\u001b[0m\n\u001b[0m\u001b[1mDuring: typing of call at /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/statsforecast/ces.py (475)\u001b[0m\n\u001b[0m\u001b[1mDuring: typing of call at /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/statsforecast/ces.py (486)\u001b[0m\n\u001b[0m\u001b[1mDuring: typing of call at /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/statsforecast/ces.py (499)\u001b[0m\n\u001b[0m\u001b[1mDuring: typing of call at /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/statsforecast/ces.py (510)\u001b[0m\n\u001b[0m\u001b[1mDuring: typing of call at /workspaces/chitrasharath_healthcore_ft_ai_1/.venv/lib/python3.12/site-packages/statsforecast/ces.py (521)\u001b[0m\n\u001b[1m\nFile \".venv/lib/python3.12/site-packages/statsforecast/ces.py\", line 456:\u001b[0m\n\u001b[1mdef nelder_mead_ces(\n    <source elided>\n    for j in range(n + 1):\n\u001b[1m        f_simplex[j] = ces_target_fn(simplex[j], *args)\n\u001b[0m        \u001b[1m^\u001b[0m\u001b[0m\n\n\u001b[0m\u001b[1mDuring: Pass nopython_type_inference\u001b[0m",
   "ces_note_short": "AutoCES skipped (numba readonly-array TypingError on this stack).",
   "classical_backtest_rmse": {
     "AutoARIMA": 111561.58848518715,
@@ -46,17 +46,22 @@
   "mlforecast_cv_exog": {
     "scores": {
       "elasticnet": {
-        "mae": 105923.70897722064,
-        "rmse": 128955.92944447983
+        "mae": 83794.74597945034,
+        "rmse": 107630.49900144385
       },
       "rf": {
-        "mae": 82984.926462037,
-        "rmse": 100537.84123607661
+        "mae": 82373.76217444442,
+        "rmse": 100003.77875484526
       },
       "xgb": {
-        "mae": 88888.42036193867,
-        "rmse": 109691.84691103884
+        "mae": 91440.62626880965,
+        "rmse": 111649.56762755835
       }
+    },
+    "selection_cv": {
+      "h": 6,
+      "n_windows": 5,
+      "step_size": 6
     },
     "sweep": {
       "best_params": {
@@ -64,24 +69,37 @@
         "max_features": 1.0,
         "n_estimators": 200
       },
-      "best_rmse": 101531.82798469138
+      "best_rmse": 100485.69327284582
     },
     "winner": "rf"
   },
   "mlforecast_cv_uni": {
     "scores": {
       "elasticnet": {
-        "mae": 109486.47088627922,
-        "rmse": 132765.56936999864
+        "mae": 94484.22971705458,
+        "rmse": 112751.4044983618
       },
       "rf": {
-        "mae": 82464.46493518515,
-        "rmse": 100386.66861855533
+        "mae": 82615.03262888883,
+        "rmse": 100037.12643405677
       },
       "xgb": {
-        "mae": 84154.940632873,
-        "rmse": 108590.94142170806
+        "mae": 92016.06010952551,
+        "rmse": 114980.24273778485
       }
+    },
+    "selection_cv": {
+      "h": 6,
+      "n_windows": 5,
+      "step_size": 6
+    },
+    "sweep": {
+      "best_params": {
+        "max_depth": null,
+        "max_features": 1.0,
+        "n_estimators": 200
+      },
+      "best_rmse": 100200.64980896667
     },
     "winner": "rf"
   },
@@ -266,9 +284,9 @@
   },
   "recommendation": {
     "ablation_detail": {
-      "cv_exog_rmse": 100537.84123607661,
-      "cv_lift_usd": -151.17261752128252,
-      "cv_uni_rmse": 100386.66861855533,
+      "cv_exog_rmse": 100003.77875484526,
+      "cv_lift_usd": 33.347679211510695,
+      "cv_uni_rmse": 100037.12643405677,
       "perfect_foresight_gain_vs_exog": 2264.5736326749175,
       "perfect_foresight_rmse": 114714.06250568842,
       "relative_test_lift": 0.034361136907702323,
@@ -277,11 +295,11 @@
       "test_lift_usd": 4162.54884228122,
       "test_uni_rmse": 121141.18498064455
     },
-    "ablation_visits_help": false,
+    "ablation_visits_help": true,
     "beats_seasonal_naive": true,
     "classical": "AutoETS",
     "primary_point_forecast": "AutoETS",
-    "regression": "MLForecast_uni",
+    "regression": "MLForecast_exog",
     "regression_learner_exog": "rf",
     "regression_learner_uni": "rf"
   },

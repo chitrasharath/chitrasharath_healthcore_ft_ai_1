@@ -29,9 +29,17 @@ def _attach_residual_intervals(
     winner: str,
     *,
     h: int,
+    n_windows: int = 5,
 ) -> pd.DataFrame:
     """Fallback 80/95% bands from rolling-origin residual quantiles."""
-    cv = mlf.cross_validation(prepared, n_windows=3, h=min(12, h), step_size=12, static_features=[])
+    cv_h = min(6, h)
+    cv = mlf.cross_validation(
+        prepared,
+        n_windows=n_windows,
+        h=cv_h,
+        step_size=cv_h,
+        static_features=[],
+    )
     resid = (cv["y"] - cv[winner]).dropna().to_numpy()
     out = preds.copy()
     if len(resid) == 0:
@@ -129,8 +137,8 @@ def cross_validation_select(
     train_df: pd.DataFrame,
     *,
     include_visits: bool = True,
-    n_windows: int = 3,
-    h: int = 12,
+    n_windows: int = 5,
+    h: int = 6,
 ) -> dict[str, Any]:
     """Rolling-origin CV on the training window; pick learner by mean RMSE."""
     prepared = prepare_frame(train_df, include_visits=include_visits)
@@ -189,8 +197,8 @@ def light_param_sweep(
     winner: str,
     *,
     include_visits: bool = True,
-    n_windows: int = 3,
-    h: int = 12,
+    n_windows: int = 5,
+    h: int = 6,
 ) -> dict[str, Any]:
     """Light rolling-origin sweep over a small param grid for the winning learner."""
     prepared = prepare_frame(train_df, include_visits=include_visits)
@@ -218,12 +226,18 @@ def light_param_sweep(
     return {"best_params": best_params or {}, "best_rmse": best_rmse, "trials": trials}
 
 
-def _make_winner_learner(winner: str, params: dict[str, Any]) -> Any:
+def make_winner_learner(winner: str, params: dict[str, Any]) -> Any:
+    """Instantiate the CV/sweep winner with the given hyperparameters."""
     if winner == "rf":
         return RandomForestRegressor(random_state=RANDOM_STATE, n_jobs=1, **params)
     if winner == "xgb":
         return XGBRegressor(random_state=RANDOM_STATE, n_jobs=1, verbosity=0, **params)
     return ElasticNet(max_iter=5000, random_state=RANDOM_STATE, **params)
+
+
+def _make_winner_learner(winner: str, params: dict[str, Any]) -> Any:
+    """Backward-compatible alias for :func:`make_winner_learner`."""
+    return make_winner_learner(winner, params)
 
 
 def fit_predict_revenue(

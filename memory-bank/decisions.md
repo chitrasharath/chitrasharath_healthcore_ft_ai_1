@@ -351,3 +351,17 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 
 - Decision: Include AutoTheta; attempt AutoCES with skip-on-numba-failure; include ElasticNet alongside RF/XGB; MASE vs SeasonalNaive required; log/Box-Cox off by default.
 - Why: Locked plan recommendations during clarifying Q&A.
+
+## CV & Fit Diagnosis (`feature/eval_metrics`)
+
+- Decision: Cut work from `feature/sales_forecast` onto `feature/eval_metrics`; PR base is `feature/sales_forecast`.
+- Why: Specs §15; keeps diagnosis changes off `main` until forecast branch is ready.
+
+- Decision: Diagnostic CV is **5 folds × 6-month** blocks, date-defined first, aligned across sklearn `TimeSeriesSplit` (ML uni winner) and `StatsForecast.cross_validation` via `classical_backtest` (AutoETS).
+- Why: Specs §5.1; comparable per-fold RMSE; 5×12 does not fit after differencing + lag_12.
+
+- Decision: ML path uses causal feature matrix, fold-local `Differences([12])`, and **recursive** within-fold prediction; selection CV stays MLForecast-native at `n_windows=5, h=6`.
+- Why: Avoid within-block lag leakage and keep engines faithful to each ecosystem.
+
+- Decision: Pin prior 3-fold shipped uni selection in the report; diagnose the 5-fold uni winner; corrective actions are report-only (no hyperparameter retune beyond CV defaults).
+- Why: Stakeholder clarifying Q&A; diagnosis honesty without silently mutating the shipped model.

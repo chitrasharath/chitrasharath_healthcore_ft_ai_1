@@ -1,0 +1,43 @@
+{
+  "autoets": {
+    "corrective_actions": [
+      "Ship AutoETS; keep this CV/learning-curve suite as a regression guard.",
+      "Monitor PSI for regime shift; revisit only if new data changes the pattern.",
+      "More data is not available as a lever (fixed 120 months)."
+    ],
+    "cv_coefficient_of_variation": 0.2395544236725696,
+    "cv_gap": 19419.64333590999,
+    "cv_relative_gap": 0.22043787163828985,
+    "cv_rmse_mean": 88095.76680986615,
+    "cv_rmse_std": 21103.73064613057,
+    "cv_train_rmse_mean": 68676.12347395616,
+    "gap": 110944.99092970642,
+    "learning_curve_val_improves": true,
+    "notes": "Classical AutoETS train error is genuine in-sample residual, not memorization. Learning-curve val error from early prefixes includes a long multi-step horizon into 2023 (trend), so CV train/val gap is the primary fit signal.",
+    "relative_gap": 0.6210232573175589,
+    "train_rmse_last_prefix": 67703.6983463136,
+    "val_rmse_last_prefix": 178648.68927602,
+    "verdict": "well-fitted"
+  },
+  "ml": {
+    "corrective_actions": [
+      "Constrain MLForecast_uni(rf): set max_depth (e.g. 3\u20135), raise min_samples_leaf, max_features < 1.0, and/or fewer estimators.",
+      "Prune the feature set (many lags/rollings on ~84 effective rows).",
+      "Prefer a more regularized learner (ElasticNet) or lean on classical AutoETS.",
+      "Add drift monitoring (PSI); more historical data is not available (fixed 120 months)."
+    ],
+    "cv_coefficient_of_variation": 0.26798209993103067,
+    "cv_gap": 61353.904735426375,
+    "cv_relative_gap": 0.6285768141625656,
+    "cv_rmse_mean": 97607.64850540404,
+    "cv_rmse_std": 26157.102615808104,
+    "cv_train_rmse_mean": 36253.743769977664,
+    "gap": 83938.03323446585,
+    "learning_curve_val_improves": false,
+    "notes": "For tree models, near-zero train RMSE is the overfitting signature; diagnose on the val\u2212train gap, not absolute train error. Do not compare tree train error to AutoETS in-sample residuals as like-for-like.",
+    "relative_gap": 0.700352735960032,
+    "train_rmse_last_prefix": 35913.0488340649,
+    "val_rmse_last_prefix": 119851.08206853076,
+    "verdict": "overfitting"
+  }
+}

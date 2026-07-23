@@ -145,6 +145,7 @@ def main() -> None:
     cv_uni = cross_validation_select(train_df, include_visits=False)
     uni_winner = cv_uni["winner"]
     uni_sweep = light_param_sweep(train_df, uni_winner, include_visits=False)
+    print("Uni sweep best:", uni_sweep["best_params"], "rmse=", uni_sweep["best_rmse"])
     uni = fit_predict_revenue(
         train_df,
         winner=uni_winner,
@@ -183,11 +184,24 @@ def main() -> None:
             "cv_rmse": visits_result["cv_rmse"],
             **visits_metrics,
         },
-        "mlforecast_cv_exog": {"winner": winner, "scores": cv_exog["scores"], "sweep": {
-            "best_params": sweep["best_params"],
-            "best_rmse": sweep["best_rmse"],
-        }},
-        "mlforecast_cv_uni": {"winner": uni_winner, "scores": cv_uni["scores"]},
+        "mlforecast_cv_exog": {
+            "winner": winner,
+            "scores": cv_exog["scores"],
+            "sweep": {
+                "best_params": sweep["best_params"],
+                "best_rmse": sweep["best_rmse"],
+            },
+            "selection_cv": {"n_windows": 5, "h": 6, "step_size": 6},
+        },
+        "mlforecast_cv_uni": {
+            "winner": uni_winner,
+            "scores": cv_uni["scores"],
+            "sweep": {
+                "best_params": uni_sweep["best_params"],
+                "best_rmse": uni_sweep["best_rmse"],
+            },
+            "selection_cv": {"n_windows": 5, "h": 6, "step_size": 6},
+        },
         "feature_columns": FEATURE_COLUMNS,
         "sarima_order": classical["sarima_order"],
         "autoarima_order": classical["autoarima_order"],
@@ -365,6 +379,14 @@ def main() -> None:
     _write_report(clean_metrics, baseline)
     print("Done. Recommendation:", clean_metrics["recommendation"])
 
+    print("=== Phase 9: CV fit diagnostics ===")
+    from data.forecast.diagnostics import run_all as run_diagnostics
+    from data.forecast.diagnostics import write_diagnosis_report
+
+    diag = run_diagnostics(train_df=train_df, metrics=clean_metrics, with_stretch=True)
+    write_diagnosis_report(diag, clean_metrics)
+    print("Diagnostics written to", EVAL_DIR / "diagnostics")
+
 
 def _fmt_psi(value: Any) -> str:
     if value is None:
@@ -475,7 +497,7 @@ def _write_report(metrics: dict[str, Any], baseline: dict[str, float]) -> None:
         "- **Univariate ablation:** Groups A+B only (calendar + revenue lags/rolling + trend). No visits.",
         "",
         "Learners compared inside one MLForecast object: RandomForest, XGBoost, ElasticNet.",
-        "Selection uses rolling-origin CV on the **training** window only (`n_windows=3`, `h=12`); the test set is scored once.",
+        "Selection uses rolling-origin CV on the **training** window only (`n_windows=5`, `h=6`); the test set is scored once.",
         "",
         f"- Exogenous CV winner: `{metrics['mlforecast_cv_exog']['winner']}` "
         f"(CV RMSE {detail.get('cv_exog_rmse', float('nan')):,.0f}); "

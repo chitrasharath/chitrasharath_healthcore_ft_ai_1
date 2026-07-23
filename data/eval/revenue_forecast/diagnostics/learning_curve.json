@@ -1,0 +1,134 @@
+{
+  "autoets": {
+    "model": "AutoETS",
+    "points": [
+      {
+        "train_end": "2018-12-01",
+        "train_mae": 39169.64495639555,
+        "train_rmse": 51223.329711002174,
+        "train_size": 36,
+        "val_mae": 581987.9236278331,
+        "val_rmse": 595843.1370839089
+      },
+      {
+        "train_end": "2019-12-01",
+        "train_mae": 47009.27666605887,
+        "train_rmse": 56533.00464812349,
+        "train_size": 48,
+        "val_mae": 367618.6203478651,
+        "val_rmse": 382105.93337533216
+      },
+      {
+        "train_end": "2020-12-01",
+        "train_mae": 50167.94933406855,
+        "train_rmse": 61278.83275052414,
+        "train_size": 60,
+        "val_mae": 280046.1839288914,
+        "val_rmse": 294748.99442274054
+      },
+      {
+        "train_end": "2021-12-01",
+        "train_mae": 55735.18560122962,
+        "train_rmse": 67703.6983463136,
+        "train_size": 72,
+        "val_mae": 160223.9824886806,
+        "val_rmse": 178648.68927602
+      }
+    ]
+  },
+  "elasticnet": {
+    "model": "MLForecast_uni(elasticnet)",
+    "params": {
+      "alpha": 1.0,
+      "l1_ratio": 0.5
+    },
+    "points": [
+      {
+        "train_end": "2018-12-01",
+        "train_mae": 0.0,
+        "train_rmse": 0.0,
+        "train_size": 36,
+        "val_mae": 117343.30916666666,
+        "val_rmse": 146226.10755234092
+      },
+      {
+        "train_end": "2019-12-01",
+        "train_mae": 77088.7554812234,
+        "train_rmse": 93901.3593965832,
+        "train_size": 48,
+        "val_mae": 97631.62222345379,
+        "val_rmse": 103297.82607005
+      },
+      {
+        "train_end": "2020-12-01",
+        "train_mae": 88514.06038972629,
+        "train_rmse": 104674.40808046616,
+        "train_size": 60,
+        "val_mae": 264741.669752586,
+        "val_rmse": 283235.97341020644
+      },
+      {
+        "train_end": "2021-12-01",
+        "train_mae": 84909.29822885254,
+        "train_rmse": 104955.98133293852,
+        "train_size": 72,
+        "val_mae": 96340.55066956095,
+        "val_rmse": 109875.83351566781
+      }
+    ],
+    "winner": "elasticnet"
+  },
+  "ml": {
+    "model": "MLForecast_uni(rf)",
+    "params": {
+      "max_depth": null,
+      "max_features": 1.0,
+      "n_estimators": 200
+    },
+    "points": [
+      {
+        "train_end": "2018-12-01",
+        "train_mae": 0.0,
+        "train_rmse": 0.0,
+        "train_size": 36,
+        "val_mae": 117343.30916666666,
+        "val_rmse": 146226.10755234092
+      },
+      {
+        "train_end": "2019-12-01",
+        "train_mae": 37195.279376923,
+        "train_rmse": 44602.88580481755,
+        "train_size": 48,
+        "val_mae": 93445.20308749995,
+        "val_rmse": 104688.19336332082
+      },
+      {
+        "train_end": "2020-12-01",
+        "train_mae": 29446.320082000064,
+        "train_rmse": 37099.912341425224,
+        "train_size": 60,
+        "val_mae": 109248.37232083331,
+        "val_rmse": 121277.00382575189
+      },
+      {
+        "train_end": "2021-12-01",
+        "train_mae": 26032.85706081075,
+        "train_rmse": 35913.0488340649,
+        "train_size": 72,
+        "val_mae": 106433.35773333325,
+        "val_rmse": 119851.08206853076
+      }
+    ],
+    "winner": "rf"
+  },
+  "prefixes": [
+    36,
+    48,
+    60,
+    72
+  ],
+  "validation_block": {
+    "end": "2023-12-01",
+    "start": "2023-01-01"
+  }
+}

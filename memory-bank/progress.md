@@ -240,3 +240,16 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
 - **Artifacts:** committed path `data/process/models/*.pkl` + `data/eval/revenue_forecast/` (CSV remains gitignored under `data/raw/`).
 - **Deps:** root `pyproject.toml` `[dependency-groups] forecast`; local-only (no Docker).
 - Plan: `memory-bank/references/sales_forecast_ai_plan/healthcore_sales_regression_IMPLEMENTATION_PLAN.md`.
+
+### CV & Fit Diagnosis — In progress on `feature/eval_metrics`
+
+- Goal: raise MLForecast selection CV to ≥5 folds; diagnose fit of uni ML winner + AutoETS with temporal CV, learning curves, and chronological-order tests.
+- **Implemented on `feature/eval_metrics` (cut from `feature/sales_forecast`):**
+  - Selection CV defaults `n_windows=5, h=6, step_size=6` in `models_mlforecast.py` (back-compatible).
+  - `data/forecast/diagnostics.py` — date-aligned 5×6mo CV (RF→`TimeSeriesSplit` recursive; AutoETS→`classical_backtest`), learning curves, fit classification, report writer.
+  - `scripts/run_diagnostics.py` + train-script Phase 9 hook.
+  - Artifacts: `data/eval/revenue_forecast/diagnostics/*`, `cv_fit_diagnosis_report.md`; regenerated pickles/metrics.
+  - `tests/pipelines/test_temporal_cv_order.py` — 11 cases; full `tests/pipelines/` **31 passed**.
+  - Verdicts (follow numbers): **MLForecast_uni(rf) overfitting**; **AutoETS well-fitted**. Uni learner unchanged vs pinned 3-fold (`rf`, n_estimators=200); pipeline ablation `visits_help` flipped True under 5-fold retrain (noted in report).
+- Plans: `healthcore_cv_diagnosis_specs.md`, `healthcore_cv_diagnosis_IMPLEMENTATION_PLAN.md`, `healthcore_cv_diagnosis_eval_criteria.md`.
+- **Next:** developer commit acknowledgement; PR base `feature/sales_forecast`.
