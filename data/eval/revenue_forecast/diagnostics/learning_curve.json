@@ -1,6 +1,7 @@
 {
   "autoets": {
-    "model": "AutoETS",
+    "engine_model": "AutoETS",
+    "model": "AutoETS2",
     "points": [
       {
         "train_end": "2018-12-01",
@@ -33,11 +34,19 @@
         "train_size": 72,
         "val_mae": 160223.9824886806,
         "val_rmse": 178648.68927602
+      },
+      {
+        "train_end": "2022-12-01",
+        "train_mae": 57283.85867797568,
+        "train_rmse": 68009.44378782793,
+        "train_size": 84,
+        "val_mae": 90403.07666057108,
+        "val_rmse": 103574.55769622044
       }
     ]
   },
   "elasticnet": {
-    "model": "MLForecast_uni(elasticnet)",
+    "model": "MLForecast_uni2(elasticnet)",
     "params": {
       "alpha": 1.0,
       "l1_ratio": 0.5
@@ -74,12 +83,20 @@
         "train_size": 72,
         "val_mae": 96340.55066956095,
         "val_rmse": 109875.83351566781
+      },
+      {
+        "train_end": "2022-12-01",
+        "train_mae": 85870.4701064481,
+        "train_rmse": 105272.36404746641,
+        "train_size": 84,
+        "val_mae": 115084.04364720476,
+        "val_rmse": 139964.30451287216
       }
     ],
     "winner": "elasticnet"
   },
   "ml": {
-    "model": "MLForecast_uni(rf)",
+    "model": "MLForecast_uni2(rf)",
     "params": {
       "max_depth": null,
       "max_features": 1.0,
@@ -117,6 +134,14 @@
         "train_size": 72,
         "val_mae": 106433.35773333325,
         "val_rmse": 119851.08206853076
+      },
+      {
+        "train_end": "2022-12-01",
+        "train_mae": 28152.728992857163,
+        "train_rmse": 35355.04415486361,
+        "train_size": 84,
+        "val_mae": 104937.37109166663,
+        "val_rmse": 120743.16869806276
       }
     ],
     "winner": "rf"
@@ -125,7 +150,8 @@
     36,
     48,
     60,
-    72
+    72,
+    84
   ],
   "validation_block": {
     "end": "2023-12-01",

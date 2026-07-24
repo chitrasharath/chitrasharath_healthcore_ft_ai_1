@@ -39,9 +39,13 @@ N_SPLITS = 5
 TEST_SIZE = 6
 GAP = 0
 DIFF_SEASON = 12
-LEARNING_PREFIXES = (36, 48, 60, 72)
+LEARNING_PREFIXES = (36, 48, 60, 72, 84)
 VAL_BLOCK_START = pd.Timestamp("2023-01-01")
 VAL_BLOCK_END = pd.Timestamp("2023-12-01")
+
+# Diagnostic labels (distinct from shipped MLForecast_uni / AutoETS artifact names).
+DIAGNOSTIC_ML_NAME = "MLForecast_uni2"
+DIAGNOSTIC_ETS_NAME = "AutoETS2"
 
 # Pre-bump shipped selection (3-fold CV) — pin for report continuity.
 PINNED_PRIOR = {
@@ -52,14 +56,21 @@ PINNED_PRIOR = {
     "best_params": {"n_estimators": 200, "max_depth": None, "max_features": 1.0},
 }
 
-# Last 30 months of the 2016–2023 train window → five non-overlapping 6-month blocks.
+# Five non-overlapping 6-month blocks shifted later so fold 0 is not starved.
+# Span 2022-01…2024-06 (30 months). Fold 5 uses 2024-H1 from the former holdout
+# year for diagnostics only — main pipeline selection/holdout metrics stay on 2024–2025.
 DATE_VALIDATION_WINDOWS: list[tuple[pd.Timestamp, pd.Timestamp]] = [
-    (pd.Timestamp("2021-07-01"), pd.Timestamp("2021-12-01")),
     (pd.Timestamp("2022-01-01"), pd.Timestamp("2022-06-01")),
     (pd.Timestamp("2022-07-01"), pd.Timestamp("2022-12-01")),
     (pd.Timestamp("2023-01-01"), pd.Timestamp("2023-06-01")),
     (pd.Timestamp("2023-07-01"), pd.Timestamp("2023-12-01")),
+    (pd.Timestamp("2024-01-01"), pd.Timestamp("2024-06-01")),
 ]
+DIAG_CV_END = pd.Timestamp("2024-06-01")
+PREVIOUS_WINDOWS_NOTE = (
+    "Previous design used 2021-07…2023-12 (train-only). Shifted later to thicken fold 0; "
+    "last fold scores 2024-01…2024-06 for diagnostics only."
+)
 
 
 @dataclass(frozen=True)
@@ -90,6 +101,21 @@ def _summary(values: list[float]) -> dict[str, float]:
         "min": float(arr.min()),
         "max": float(arr.max()),
     }
+
+
+def diagnostic_cv_frame(cleaned: pd.DataFrame | None = None) -> pd.DataFrame:
+    """Series for diagnostic temporal CV: history through ``DIAG_CV_END`` (2024-06).
+
+    Includes early 2024 so five shifted 6-month folds fit with a thicker fold-0 train.
+    """
+    if cleaned is None:
+        cleaned = load_clean()
+    work = cleaned.copy()
+    work["ds"] = pd.to_datetime(work["ds"])
+    out = work.loc[work["ds"] <= DIAG_CV_END].sort_values("ds").reset_index(drop=True)
+    if out["ds"].max() < DIAG_CV_END:
+        raise ValueError(f"Diagnostic CV frame must reach {DIAG_CV_END.date()}, got {out['ds'].max().date()}")
+    return out
 
 
 def defined_validation_windows() -> list[FoldBounds]:
@@ -216,8 +242,6 @@ def _features_from_scaled_diff(
 ) -> pd.DataFrame:
     """Build MLForecast-like lag features from a scaled differenced series."""
     s = pd.Series(scaled_diff)
-    feat = base[["ds", "y"] + [c for c in FEATURE_COLS if c in base.columns]].copy()
-    # Replace calendar already on base; add lag features from scaled_diff
     feat = base[
         [
             "ds",
@@ -363,14 +387,14 @@ def _recursive_forecast_block(
 
 
 def run_ml_temporal_cv(
-    train_df: pd.DataFrame,
+    cv_df: pd.DataFrame,
     *,
     winner: str,
     params: dict[str, Any],
     gap: int = GAP,
 ) -> dict[str, Any]:
     """5-fold TimeSeriesSplit CV with fold-local transforms + recursive forecasts."""
-    usable, base = usable_feature_matrix(train_df)
+    usable, base = usable_feature_matrix(cv_df)
     folds = time_series_split_folds(usable, gap=gap)
     windows = defined_validation_windows()
     # Date alignment is required for the scored path (gap=0); gap=1 stretch may shift train only.
@@ -404,7 +428,7 @@ def run_ml_temporal_cv(
 
     return {
         "engine": "sklearn.TimeSeriesSplit",
-        "model": f"MLForecast_uni({winner})",
+        "model": f"{DIAGNOSTIC_ML_NAME}({winner})",
         "winner": winner,
         "params": params,
         "n_splits": N_SPLITS,
@@ -422,10 +446,10 @@ def run_ml_temporal_cv(
     }
 
 
-def run_autoets_temporal_cv(train_df: pd.DataFrame) -> dict[str, Any]:
+def run_autoets_temporal_cv(cv_df: pd.DataFrame) -> dict[str, Any]:
     """Reuse classical_backtest (StatsForecast CV) for AutoETS with h=6."""
     windows = defined_validation_windows()
-    cv = classical_backtest(train_df, n_windows=N_SPLITS, h=TEST_SIZE)
+    cv = classical_backtest(cv_df, n_windows=N_SPLITS, h=TEST_SIZE)
     if "AutoETS" not in cv.columns:
         raise RuntimeError("classical_backtest did not return AutoETS column")
 
@@ -434,7 +458,7 @@ def run_autoets_temporal_cv(train_df: pd.DataFrame) -> dict[str, Any]:
     if len(cutoffs) < N_SPLITS:
         raise AssertionError(f"Expected ≥{N_SPLITS} cutoffs, got {len(cutoffs)}")
 
-    train_y = train_df[["unique_id", "ds", "y"]].copy()
+    train_y = cv_df[["unique_id", "ds", "y"]].copy()
     train_y["ds"] = pd.to_datetime(train_y["ds"])
     train_y["y"] = train_y["y"].astype(float)
 
@@ -479,7 +503,8 @@ def run_autoets_temporal_cv(train_df: pd.DataFrame) -> dict[str, Any]:
 
     return {
         "engine": "StatsForecast.cross_validation",
-        "model": "AutoETS",
+        "model": DIAGNOSTIC_ETS_NAME,
+        "engine_model": "AutoETS",
         "n_windows": N_SPLITS,
         "h": TEST_SIZE,
         "step_size": TEST_SIZE,
@@ -557,7 +582,7 @@ def run_learning_curve_ml(
                 "val_rmse": _rmse(y_va, yhat_va),
             }
         )
-    return {"model": f"MLForecast_uni({winner})", "winner": winner, "params": params, "points": points}
+    return {"model": f"{DIAGNOSTIC_ML_NAME}({winner})", "winner": winner, "params": params, "points": points}
 
 
 def run_learning_curve_autoets(
@@ -593,7 +618,7 @@ def run_learning_curve_autoets(
                 "val_rmse": _rmse(y_va, yhat_va),
             }
         )
-    return {"model": "AutoETS", "points": points}
+    return {"model": DIAGNOSTIC_ETS_NAME, "engine_model": "AutoETS", "points": points}
 
 
 def run_learning_curve_elasticnet(
@@ -721,15 +746,17 @@ def corrective_actions(verdict: str, *, model_name: str) -> list[str]:
             "More data is not a lever — only 120 monthly points exist.",
         ]
     return [
-        f"Ship {model_name}; keep this CV/learning-curve suite as a regression guard.",
+        f"Ship classical AutoETS (diagnosed here as {model_name}); keep this CV/learning-curve suite as a regression guard."
+        if model_name == DIAGNOSTIC_ETS_NAME
+        else f"Ship {model_name}; keep this CV/learning-curve suite as a regression guard.",
         "Monitor PSI for regime shift; revisit only if new data changes the pattern.",
         "More data is not available as a lever (fixed 120 months).",
     ]
 
 
-def seasonal_naive_fold_skill(train_df: pd.DataFrame) -> dict[str, Any]:
+def seasonal_naive_fold_skill(cv_df: pd.DataFrame) -> dict[str, Any]:
     """Stretch: SeasonalNaive RMSE per date-aligned fold for skill context."""
-    cv = classical_backtest(train_df, n_windows=N_SPLITS, h=TEST_SIZE)
+    cv = classical_backtest(cv_df, n_windows=N_SPLITS, h=TEST_SIZE)
     rows: list[dict[str, Any]] = []
     for i, cutoff in enumerate(sorted(pd.to_datetime(cv["cutoff"].unique()))):
         block = cv.loc[pd.to_datetime(cv["cutoff"]) == cutoff]
@@ -750,7 +777,7 @@ def seasonal_naive_fold_skill(train_df: pd.DataFrame) -> dict[str, Any]:
 def plot_fold_rmse_strip(cv_folds: dict[str, Any], path: Path) -> Path:
     """Stretch: per-fold validation RMSE strip plot for diagnosed models."""
     fig, ax = plt.subplots(figsize=(7, 4), constrained_layout=True)
-    for label, key in (("ML", "ml"), ("AutoETS", "autoets")):
+    for label, key in ((DIAGNOSTIC_ML_NAME, "ml"), (DIAGNOSTIC_ETS_NAME, "autoets")):
         folds = cv_folds[key]["folds"]
         xs = [f["fold"] for f in folds]
         ys = [f["val_rmse"] for f in folds]
@@ -798,7 +825,8 @@ def resolve_diagnostic_target(metrics: dict[str, Any]) -> dict[str, Any]:
         "params_changed": bool(params_flipped),
         "selection_changed": bool(winner_flipped or params_flipped or flipped),
         "include_visits": False,
-        "model_label": f"MLForecast_uni({winner})",
+        "model_label": DIAGNOSTIC_ML_NAME,
+        "model_label_with_learner": f"{DIAGNOSTIC_ML_NAME}({winner})",
     }
 
 
@@ -810,9 +838,10 @@ def run_all(
 ) -> dict[str, Any]:
     """Run full diagnostic suite and write artifacts under ``diagnostics/``."""
     DIAG_DIR.mkdir(parents=True, exist_ok=True)
+    cleaned = load_clean()
     if train_df is None:
-        cleaned = load_clean()
         train_df, _ = split_train_test(cleaned)
+    cv_df = diagnostic_cv_frame(cleaned)
     if metrics is None:
         metrics = load_metrics()
 
@@ -820,14 +849,14 @@ def run_all(
     winner = target["diagnose_winner"]
     params = target["diagnose_params"]
 
-    ml_cv = run_ml_temporal_cv(train_df, winner=winner, params=params, gap=GAP)
-    ets_cv = run_autoets_temporal_cv(train_df)
+    ml_cv = run_ml_temporal_cv(cv_df, winner=winner, params=params, gap=GAP)
+    ets_cv = run_autoets_temporal_cv(cv_df)
     align_validation_windows(ml_cv, ets_cv)
 
     gap_ab: dict[str, Any] | None = None
     if with_stretch:
         try:
-            ml_gap1 = run_ml_temporal_cv(train_df, winner=winner, params=params, gap=1)
+            ml_gap1 = run_ml_temporal_cv(cv_df, winner=winner, params=params, gap=1)
             gap_ab = {
                 "gap0_val_rmse": ml_cv["val_rmse"],
                 "gap1_val_rmse": ml_gap1["val_rmse"],
@@ -839,8 +868,8 @@ def run_all(
     ml_curve = run_learning_curve_ml(train_df, winner=winner, params=params)
     ets_curve = run_learning_curve_autoets(train_df)
 
-    ml_png = DIAG_DIR / f"learning_curve_mlforecast_uni.png"
-    ets_png = DIAG_DIR / "learning_curve_autoets.png"
+    ml_png = DIAG_DIR / "learning_curve_mlforecast_uni2.png"
+    ets_png = DIAG_DIR / "learning_curve_autoets2.png"
     plot_learning_curve(ml_curve, ml_png)
     plot_learning_curve(ets_curve, ets_png)
 
@@ -854,15 +883,22 @@ def run_all(
         en_png = DIAG_DIR / "learning_curve_elasticnet.png"
         plot_learning_curve(en_curve, en_png)
 
-    naive_skill = seasonal_naive_fold_skill(train_df) if with_stretch else None
+    naive_skill = seasonal_naive_fold_skill(cv_df) if with_stretch else None
+
+    display_label = target["model_label_with_learner"]
+    fold0_n_train = int(ml_cv["folds"][0]["n_train"]) if ml_cv["folds"] else None
 
     cv_payload = {
         "n_splits": N_SPLITS,
         "test_size_months": TEST_SIZE,
         "gap": GAP,
+        "cv_frame_end": str(DIAG_CV_END.date()),
+        "window_redesign": PREVIOUS_WINDOWS_NOTE,
+        "fold0_n_train": fold0_n_train,
         "selection_cv_defaults": {"n_windows": 5, "h": 6, "step_size": 6},
         "pinned_prior_selection": PINNED_PRIOR,
         "diagnostic_target": target,
+        "diagnostic_ets_name": DIAGNOSTIC_ETS_NAME,
         "ml": ml_cv,
         "autoets": ets_cv,
         "gap_ablation": gap_ab,
@@ -891,11 +927,13 @@ def run_all(
     diagnosis = {
         "ml": {
             **ml_fit,
-            "corrective_actions": corrective_actions(ml_fit["verdict"], model_name=target["model_label"]),
+            "model": display_label,
+            "corrective_actions": corrective_actions(ml_fit["verdict"], model_name=display_label),
         },
         "autoets": {
             **ets_fit,
-            "corrective_actions": corrective_actions(ets_fit["verdict"], model_name="AutoETS"),
+            "model": DIAGNOSTIC_ETS_NAME,
+            "corrective_actions": corrective_actions(ets_fit["verdict"], model_name=DIAGNOSTIC_ETS_NAME),
         },
     }
     (DIAG_DIR / "fit_classification.json").write_text(
@@ -931,6 +969,8 @@ def write_diagnosis_report(
     ml = cv["ml"]
     ets = cv["autoets"]
     mean_rev = float(cv.get("mean_monthly_revenue_train") or 0.0)
+    ml_label = target.get("model_label_with_learner") or target.get("model_label") or DIAGNOSTIC_ML_NAME
+    ets_label = DIAGNOSTIC_ETS_NAME
 
     def fmt_pm(summary: dict[str, float]) -> str:
         return f"${summary['mean']:,.0f} ± ${summary['std']:,.0f}"
@@ -961,23 +1001,28 @@ def write_diagnosis_report(
         "",
         f"| Model | Fit verdict | CV RMSE (mean ± std) | Corrective action |",
         f"|---|---|---|---|",
-        f"| {target['model_label']} | **{ml_verdict}** | {fmt_pm(ml['val_rmse'])} | "
+        f"| {ml_label} | **{ml_verdict}** | {fmt_pm(ml['val_rmse'])} | "
         f"{fit['ml']['corrective_actions'][0]} |",
-        f"| AutoETS | **{ets_verdict}** | {fmt_pm(ets['val_rmse'])} | "
+        f"| {ets_label} | **{ets_verdict}** | {fmt_pm(ets['val_rmse'])} | "
         f"{fit['autoets']['corrective_actions'][0]} |",
         "",
-        f"- Diagnostic ML target: `{target['model_label']}` with params `{target['diagnose_params']}`.",
+        f"- Diagnostic ML target: `{ml_label}` with params `{target['diagnose_params']}`.",
+        f"- Diagnostic classical label: `{ets_label}` (StatsForecast `AutoETS` under this diagnosis suite).",
         f"- {winner_note}",
         "",
         "## 2. CV setup & integrity",
         "",
         f"- **Folds:** {cv['n_splits']} (≥5 required) × {cv['test_size_months']}-month "
-        "non-overlapping validation blocks on the **training window only** (2016–2023).",
-        "- **Why 5×6:** five non-overlapping 12-month folds do not fit after `Differences([12])` "
-        "+ `lag_12` consume ~24 months; overlapping folds understate fold std.",
-        "- **Engines:** ML winner → `sklearn.model_selection.TimeSeriesSplit` "
-        f"(gap={cv['gap']}); AutoETS → existing `classical_backtest` / "
-        "`StatsForecast.cross_validation` (`n_windows=5`, `h=6`, `step_size=6`).",
+        "non-overlapping validation blocks on the diagnostic CV frame "
+        f"(through **{cv.get('cv_frame_end', '2024-06-01')}**).",
+        "- **Why 5×6:** comparable per-fold RMSE across engines; non-overlapping so std is not understated.",
+        f"- **Window redesign:** {cv.get('window_redesign', PREVIOUS_WINDOWS_NOTE)}",
+        f"- **Fold 0 train size:** ML fold 0 has `n_train={cv.get('fold0_n_train', 'n/a')}` "
+        "usable rows after differencing/`lag_12` — shifted later so this is no longer the starved "
+        "31-row fold from the 2021-07 start. Still interpret mean±std as a small-sample (5-fold) estimate.",
+        f"- **Engines:** ML → `sklearn.model_selection.TimeSeriesSplit` "
+        f"(gap={cv['gap']}); `{ets_label}` → `classical_backtest` / "
+        "`StatsForecast.cross_validation` on model `AutoETS` (`n_windows=5`, `h=6`, `step_size=6`).",
         "- **Chronology:** no shuffle; every fold has `max(train ds) < min(val ds)`; "
         "validation blocks are contiguous and roll forward; `TimeSeriesSplit` never shuffles.",
         "- **Date alignment:** both engines score the same calendar windows "
@@ -1005,31 +1050,31 @@ def write_diagnosis_report(
         [
             "### Per-fold validation RMSE",
             "",
-            "| Fold | Window | ML val RMSE | AutoETS val RMSE |",
-            "|---:|---|---:|---:|",
+            "| Fold | Window | ML n_train | ML val RMSE | AutoETS2 val RMSE |",
+            "|---:|---|---:|---:|---:|",
         ]
     )
     for mf, ef in zip(ml["folds"], ets["folds"], strict=True):
         lines.append(
             f"| {mf['fold']} | {mf['val_start']}…{mf['val_end']} | "
-            f"${mf['val_rmse']:,.0f} | ${ef['val_rmse']:,.0f} |"
+            f"{mf.get('n_train', 'n/a')} | ${mf['val_rmse']:,.0f} | ${ef['val_rmse']:,.0f} |"
         )
     lines.extend(
         [
             "",
             f"- ML val RMSE min/max: ${ml['val_rmse']['min']:,.0f} / ${ml['val_rmse']['max']:,.0f} "
             "(small-sample std caveat: only 5 folds).",
-            f"- AutoETS val RMSE min/max: ${ets['val_rmse']['min']:,.0f} / ${ets['val_rmse']['max']:,.0f}.",
+            f"- {ets_label} val RMSE min/max: ${ets['val_rmse']['min']:,.0f} / ${ets['val_rmse']['max']:,.0f}.",
             "",
             "## 3. Metrics table (train & validation)",
             "",
             "| Model | Stage | MAE (mean ± std) | RMSE (mean ± std) | RMSE % mean train revenue |",
             "|---|---|---|---|---|",
-            f"| {target['model_label']} | Train | {fmt_pm(ml['train_mae'])} | {fmt_pm(ml['train_rmse'])} | — |",
-            f"| {target['model_label']} | Validation | {fmt_pm(ml['val_mae'])} | {fmt_pm(ml['val_rmse'])} | "
+            f"| {ml_label} | Train | {fmt_pm(ml['train_mae'])} | {fmt_pm(ml['train_rmse'])} | — |",
+            f"| {ml_label} | Validation | {fmt_pm(ml['val_mae'])} | {fmt_pm(ml['val_rmse'])} | "
             f"{ml_rmse_pct:.1f}% |",
-            f"| AutoETS | Train | {fmt_pm(ets['train_mae'])} | {fmt_pm(ets['train_rmse'])} | — |",
-            f"| AutoETS | Validation | {fmt_pm(ets['val_mae'])} | {fmt_pm(ets['val_rmse'])} | "
+            f"| {ets_label} | Train | {fmt_pm(ets['train_mae'])} | {fmt_pm(ets['train_rmse'])} | — |",
+            f"| {ets_label} | Validation | {fmt_pm(ets['val_mae'])} | {fmt_pm(ets['val_rmse'])} | "
             f"{ets_rmse_pct:.1f}% |",
             "",
             f"Mean monthly train revenue ≈ **${mean_rev:,.0f}**.",
@@ -1037,11 +1082,14 @@ def write_diagnosis_report(
             "## 4. Learning curves",
             "",
             "Fixed validation block: **2023-01…2023-12**. Training prefixes "
-            f"`{lc['prefixes']}` all end before 2023-01. Smallest prefixes (~36 months) are noisy.",
+            f"`{lc['prefixes']}` all end before 2023-01. "
+            "Prefix **84** ends **2022-12** (contiguous with the val block) so the curve no longer "
+            "skips all of 2022 between the largest train set and validation. "
+            "Smallest prefixes (~36 months) are noisy.",
             "",
-            f"### {target['model_label']}",
+            f"### {ml_label}",
             "",
-            "![ML learning curve](diagnostics/learning_curve_mlforecast_uni.png)",
+            "![ML learning curve](diagnostics/learning_curve_mlforecast_uni2.png)",
             "",
         ]
     )
@@ -1053,9 +1101,9 @@ def write_diagnosis_report(
     lines.extend(
         [
             "",
-            "### AutoETS",
+            f"### {ets_label}",
             "",
-            "![AutoETS learning curve](diagnostics/learning_curve_autoets.png)",
+            "![AutoETS2 learning curve](diagnostics/learning_curve_autoets2.png)",
             "",
         ]
     )
@@ -1099,12 +1147,12 @@ def write_diagnosis_report(
             "miss is worse than ten $50k misses; RMSE reflects that, MAE treats them as equal.",
             "",
             f"- ML CV RMSE as % of mean monthly train revenue: **{ml_rmse_pct:.1f}%**.",
-            f"- AutoETS CV RMSE as % of mean monthly train revenue: **{ets_rmse_pct:.1f}%**.",
+            f"- {ets_label} CV RMSE as % of mean monthly train revenue: **{ets_rmse_pct:.1f}%**.",
             "- MAE is reported alongside for “average dollars off” interpretability.",
             "",
             "## 6. Fit diagnosis",
             "",
-            f"### {target['model_label']} → **{ml_verdict}**",
+            f"### {ml_label} → **{ml_verdict}**",
             "",
             f"- Learning-curve (largest prefix): train RMSE ${fit['ml']['train_rmse_last_prefix']:,.0f}, "
             f"val RMSE ${fit['ml']['val_rmse_last_prefix']:,.0f}, "
@@ -1116,7 +1164,7 @@ def write_diagnosis_report(
             f"fold CV {fit['ml']['cv_coefficient_of_variation']:.2f}.",
             f"- Guardrail: {fit['ml']['notes']}",
             "",
-            f"### AutoETS → **{ets_verdict}**",
+            f"### {ets_label} → **{ets_verdict}**",
             "",
             f"- Learning-curve (largest prefix): train RMSE ${fit['autoets']['train_rmse_last_prefix']:,.0f}, "
             f"val RMSE ${fit['autoets']['val_rmse_last_prefix']:,.0f}, "
@@ -1132,21 +1180,21 @@ def write_diagnosis_report(
             "",
             "§5.4 correctness rules honored for the ML path: causal `.shift()` features "
             "(no same-month target leakage); `Differences([12])` + local scaler **fit per fold "
-            "on train rows only** and inverted for scoring (scaler is a tree no-op but kept for "
-            "faithfulness); **recursive** month-by-month prediction inside each 6-month block "
-            "(predictions feed lag features — never one-shot `predict(X[test])`); validation "
-            "windows defined **by date first** and asserted identical across "
-            "`TimeSeriesSplit` and `StatsForecast.cross_validation`.",
+            "on train rows only** and inverted for scoring; **recursive** month-by-month "
+            "prediction inside each 6-month block (predictions feed lag features — never "
+            "one-shot `predict(X[test])`); validation windows defined **by date first** and "
+            f"asserted identical across `{DIAGNOSTIC_ML_NAME}` (`TimeSeriesSplit`) and "
+            f"`{DIAGNOSTIC_ETS_NAME}` (`StatsForecast.cross_validation` / `classical_backtest`).",
             "",
             "## 8. Corrective actions",
             "",
-            f"### {target['model_label']} ({ml_verdict})",
+            f"### {ml_label} ({ml_verdict})",
             "",
         ]
     )
     for a in fit["ml"]["corrective_actions"]:
         lines.append(f"- {a}")
-    lines.extend(["", f"### AutoETS ({ets_verdict})", ""])
+    lines.extend(["", f"### {ets_label} ({ets_verdict})", ""])
     for a in fit["autoets"]["corrective_actions"]:
         lines.append(f"- {a}")
 
@@ -1166,7 +1214,7 @@ def write_diagnosis_report(
             sn = cv["seasonal_naive_skill"]["val_rmse"]
             lines.append(
                 f"- **SeasonalNaive-in-CV** val RMSE {fmt_pm(sn)} "
-                "(skill context vs ML / AutoETS fold RMSE)."
+                f"(skill context vs {DIAGNOSTIC_ML_NAME} / {DIAGNOSTIC_ETS_NAME} fold RMSE)."
             )
 
     lines.extend(
@@ -1186,10 +1234,12 @@ def write_diagnosis_report(
 
 
 def chronological_fold_records(
-    train_df: pd.DataFrame,
+    cv_df: pd.DataFrame | None = None,
 ) -> dict[str, Any]:
     """Expose fold index boundaries for unit tests (both engines)."""
-    usable, _base = usable_feature_matrix(train_df)
+    if cv_df is None:
+        cv_df = diagnostic_cv_frame()
+    usable, _base = usable_feature_matrix(cv_df)
     ml_folds = time_series_split_folds(usable)
     assert_split_matches_date_windows(usable, ml_folds)
     windows = defined_validation_windows()
@@ -1202,9 +1252,10 @@ def chronological_fold_records(
                 "test_ds": list(pd.to_datetime(usable.iloc[test_idx]["ds"])),
                 "train_idx": train_idx,
                 "test_idx": test_idx,
+                "n_train_rows": int(len(train_idx)),
             }
         )
-    cv = classical_backtest(train_df, n_windows=N_SPLITS, h=TEST_SIZE)
+    cv = classical_backtest(cv_df, n_windows=N_SPLITS, h=TEST_SIZE)
     ets_records = []
     for i, cutoff in enumerate(sorted(pd.to_datetime(cv["cutoff"].unique()))):
         block = cv.loc[pd.to_datetime(cv["cutoff"]) == cutoff].sort_values("ds")
@@ -1215,4 +1266,4 @@ def chronological_fold_records(
                 "test_ds": list(pd.to_datetime(block["ds"])),
             }
         )
-    return {"ml": ml_records, "autoets": ets_records, "usable": usable, "windows": windows}
+    return {"ml": ml_records, "autoets": ets_records, "usable": usable, "windows": windows, "cv_df": cv_df}

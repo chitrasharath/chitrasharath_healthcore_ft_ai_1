@@ -363,5 +363,8 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision: ML path uses causal feature matrix, fold-local `Differences([12])`, and **recursive** within-fold prediction; selection CV stays MLForecast-native at `n_windows=5, h=6`.
 - Why: Avoid within-block lag leakage and keep engines faithful to each ecosystem.
 
-- Decision: Pin prior 3-fold shipped uni selection in the report; diagnose the 5-fold uni winner; corrective actions are report-only (no hyperparameter retune beyond CV defaults).
+- Decision: Pin prior 3-fold shipped uni selection in the report; diagnose the 5-fold uni winner as **`MLForecast_uni2`** (and classical as **`AutoETS2`**); corrective actions are report-only (no hyperparameter retune beyond CV defaults).
 - Why: Stakeholder clarifying Q&A; diagnosis honesty without silently mutating the shipped model.
+
+- Decision: Shift diagnostic 5×6 validation windows to **2022-01…2024-06** (last fold uses 2024-H1 for diagnostics only) so fold 0 is thicker than the prior 2021-07 start.
+- Why: Address thin fold-0 / inflated std; keep ≥5 non-overlapping 6-month folds and cross-engine date alignment.

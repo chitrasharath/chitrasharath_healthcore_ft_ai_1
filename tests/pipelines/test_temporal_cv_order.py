@@ -2,32 +2,34 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pandas as pd
 import pytest
-from sklearn.model_selection import KFold, TimeSeriesSplit
+from sklearn.model_selection import TimeSeriesSplit
 
-from data.forecast.clean import clean_sales, load_raw, split_train_test
 from data.forecast.diagnostics import (
     N_SPLITS,
     TEST_SIZE,
     chronological_fold_records,
     defined_validation_windows,
+    diagnostic_cv_frame,
     time_series_split_folds,
     usable_feature_matrix,
 )
 from data.forecast.models_statsforecast import classical_backtest
 
-
-@pytest.fixture(scope="module")
-def train_df() -> pd.DataFrame:
-    cleaned = clean_sales(load_raw())
-    train, _test = split_train_test(cleaned)
-    return train
+DIAGNOSTICS_SRC = Path(__file__).resolve().parents[2] / "data" / "forecast" / "diagnostics.py"
 
 
 @pytest.fixture(scope="module")
-def fold_records(train_df: pd.DataFrame) -> dict:
-    return chronological_fold_records(train_df)
+def cv_df() -> pd.DataFrame:
+    return diagnostic_cv_frame()
+
+
+@pytest.fixture(scope="module")
+def fold_records(cv_df: pd.DataFrame) -> dict:
+    return chronological_fold_records(cv_df)
 
 
 def test_ml_at_least_five_folds(fold_records: dict) -> None:
@@ -60,12 +62,17 @@ def test_ml_folds_roll_forward_no_overlap(fold_records: dict) -> None:
         assert earlier.isdisjoint(later)
 
 
+def test_fold0_thicker_than_prior_design(fold_records: dict) -> None:
+    """Shifted windows: fold 0 should have more history than the old ~31 usable train rows."""
+    assert fold_records["ml"][0]["n_train_rows"] >= 40
+    assert fold_records["ml"][0]["test_ds"][0] == pd.Timestamp("2022-01-01")
+
+
 def test_autoets_at_least_five_cutoffs(fold_records: dict) -> None:
     assert len(fold_records["autoets"]) >= 5
     cutoffs = [r["cutoff"] for r in fold_records["autoets"]]
     assert cutoffs == sorted(cutoffs)
     deltas = [(b - a).days for a, b in zip(cutoffs, cutoffs[1:], strict=False)]
-    # step_size=6 months ≈ 181–184 days depending on month lengths
     assert all(150 <= d <= 200 for d in deltas)
 
 
@@ -86,19 +93,19 @@ def test_engines_aligned_calendar_months(fold_records: dict) -> None:
         assert list(pd.DatetimeIndex(ml_rec["test_ds"])) == expected
 
 
-def test_splitters_deterministic(train_df: pd.DataFrame) -> None:
-    a = chronological_fold_records(train_df)
-    b = chronological_fold_records(train_df)
+def test_splitters_deterministic(cv_df: pd.DataFrame) -> None:
+    a = chronological_fold_records(cv_df)
+    b = chronological_fold_records(cv_df)
     for ra, rb in zip(a["ml"], b["ml"], strict=True):
         assert list(ra["train_idx"]) == list(rb["train_idx"])
         assert list(ra["test_idx"]) == list(rb["test_idx"])
     assert [r["cutoff"] for r in a["autoets"]] == [r["cutoff"] for r in b["autoets"]]
 
 
-def test_negative_control_sorts_before_split(train_df: pd.DataFrame) -> None:
+def test_negative_control_sorts_before_split(cv_df: pd.DataFrame) -> None:
     """Shuffled frame must be sorted by ds before TimeSeriesSplit, or order fails."""
-    shuffled = train_df.sample(frac=1.0, random_state=0).reset_index(drop=True)
-    usable, _ = usable_feature_matrix(shuffled)  # sorts internally via build frame
+    shuffled = cv_df.sample(frac=1.0, random_state=0).reset_index(drop=True)
+    usable, _ = usable_feature_matrix(shuffled)
     folds = time_series_split_folds(usable)
     for train_idx, test_idx in folds:
         train_ds = pd.to_datetime(usable.iloc[train_idx]["ds"])
@@ -107,15 +114,16 @@ def test_negative_control_sorts_before_split(train_df: pd.DataFrame) -> None:
 
 
 def test_no_shuffling_splitter_in_pipeline() -> None:
-    """Guard: temporal path uses TimeSeriesSplit; never KFold(shuffle=True)."""
+    """Guard: diagnostics CV path never constructs a shuffling splitter."""
+    src = DIAGNOSTICS_SRC.read_text()
+    for banned in ("KFold(", "ShuffleSplit(", "StratifiedKFold(", "GroupShuffleSplit("):
+        assert banned not in src, f"diagnostics.py must not use {banned}"
+    assert "TimeSeriesSplit(" in src
     tss = TimeSeriesSplit(n_splits=N_SPLITS, test_size=TEST_SIZE, gap=0)
     assert getattr(tss, "shuffle", False) is False or not hasattr(tss, "shuffle")
-    # Document that KFold(shuffle=True) is not the pipeline splitter
-    bad = KFold(n_splits=5, shuffle=True, random_state=42)
-    assert bad.shuffle is True
 
 
-def test_classical_backtest_h6_windows(train_df: pd.DataFrame) -> None:
-    cv = classical_backtest(train_df, n_windows=N_SPLITS, h=TEST_SIZE)
+def test_classical_backtest_h6_windows(cv_df: pd.DataFrame) -> None:
+    cv = classical_backtest(cv_df, n_windows=N_SPLITS, h=TEST_SIZE)
     cutoffs = sorted(pd.to_datetime(cv["cutoff"].unique()))
     assert len(cutoffs) >= N_SPLITS
