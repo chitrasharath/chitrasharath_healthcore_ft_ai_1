@@ -62,10 +62,12 @@ def test_ml_folds_roll_forward_no_overlap(fold_records: dict) -> None:
         assert earlier.isdisjoint(later)
 
 
-def test_fold0_thicker_than_prior_design(fold_records: dict) -> None:
-    """Shifted windows: fold 0 should have more history than the old ~31 usable train rows."""
-    assert fold_records["ml"][0]["n_train_rows"] >= 40
-    assert fold_records["ml"][0]["test_ds"][0] == pd.Timestamp("2022-01-01")
+def test_fold0_on_training_window(fold_records: dict) -> None:
+    """Diagnostic folds stay on train (2021-07…2023-12); fold 0 is the thin earliest block."""
+    assert fold_records["ml"][0]["test_ds"][0] == pd.Timestamp("2021-07-01")
+    assert fold_records["ml"][-1]["test_ds"][-1] == pd.Timestamp("2023-12-01")
+    # After burn-in, fold 0 has fewer usable train rows than later folds
+    assert fold_records["ml"][0]["n_train_rows"] < fold_records["ml"][-1]["n_train_rows"]
 
 
 def test_autoets_at_least_five_cutoffs(fold_records: dict) -> None:

@@ -56,20 +56,20 @@ PINNED_PRIOR = {
     "best_params": {"n_estimators": 200, "max_depth": None, "max_features": 1.0},
 }
 
-# Five non-overlapping 6-month blocks shifted later so fold 0 is not starved.
-# Span 2022-01…2024-06 (30 months). Fold 5 uses 2024-H1 from the former holdout
-# year for diagnostics only — main pipeline selection/holdout metrics stay on 2024–2025.
+# Five non-overlapping 6-month blocks on the **training window only** (2016–2023).
+# Last 30 months of train → 2021-07…2023-12. Fold 0 is thinner after differencing/`lag_12`
+# (see report note); do not extend into 2024 holdout for diagnostic mean±std.
 DATE_VALIDATION_WINDOWS: list[tuple[pd.Timestamp, pd.Timestamp]] = [
+    (pd.Timestamp("2021-07-01"), pd.Timestamp("2021-12-01")),
     (pd.Timestamp("2022-01-01"), pd.Timestamp("2022-06-01")),
     (pd.Timestamp("2022-07-01"), pd.Timestamp("2022-12-01")),
     (pd.Timestamp("2023-01-01"), pd.Timestamp("2023-06-01")),
     (pd.Timestamp("2023-07-01"), pd.Timestamp("2023-12-01")),
-    (pd.Timestamp("2024-01-01"), pd.Timestamp("2024-06-01")),
 ]
-DIAG_CV_END = pd.Timestamp("2024-06-01")
-PREVIOUS_WINDOWS_NOTE = (
-    "Previous design used 2021-07…2023-12 (train-only). Shifted later to thicken fold 0; "
-    "last fold scores 2024-01…2024-06 for diagnostics only."
+DIAG_CV_END = pd.Timestamp("2023-12-01")
+THIN_FOLD0_NOTE = (
+    "Fold 0 validates 2021-H2; after Differences([12]) + lag_12 dropna, usable n_train is "
+    "small (~31). Treat mean±std as a small-sample estimate inflated by that thin first fold."
 )
 
 
@@ -104,10 +104,7 @@ def _summary(values: list[float]) -> dict[str, float]:
 
 
 def diagnostic_cv_frame(cleaned: pd.DataFrame | None = None) -> pd.DataFrame:
-    """Series for diagnostic temporal CV: history through ``DIAG_CV_END`` (2024-06).
-
-    Includes early 2024 so five shifted 6-month folds fit with a thicker fold-0 train.
-    """
+    """Series for diagnostic temporal CV: **training window only** through ``DIAG_CV_END``."""
     if cleaned is None:
         cleaned = load_clean()
     work = cleaned.copy()
@@ -893,7 +890,8 @@ def run_all(
         "test_size_months": TEST_SIZE,
         "gap": GAP,
         "cv_frame_end": str(DIAG_CV_END.date()),
-        "window_redesign": PREVIOUS_WINDOWS_NOTE,
+        "training_window_only": True,
+        "thin_fold0_note": THIN_FOLD0_NOTE,
         "fold0_n_train": fold0_n_train,
         "selection_cv_defaults": {"n_windows": 5, "h": 6, "step_size": 6},
         "pinned_prior_selection": PINNED_PRIOR,
@@ -1013,14 +1011,13 @@ def write_diagnosis_report(
         "## 2. CV setup & integrity",
         "",
         f"- **Folds:** {cv['n_splits']} (≥5 required) × {cv['test_size_months']}-month "
-        "non-overlapping validation blocks on the diagnostic CV frame "
-        f"(through **{cv.get('cv_frame_end', '2024-06-01')}**).",
-        "- **Why 5×6:** comparable per-fold RMSE across engines; non-overlapping so std is not understated.",
-        f"- **Window redesign:** {cv.get('window_redesign', PREVIOUS_WINDOWS_NOTE)}",
-        f"- **Fold 0 train size:** ML fold 0 has `n_train={cv.get('fold0_n_train', 'n/a')}` "
-        "usable rows after differencing/`lag_12` — shifted later so this is no longer the starved "
-        "31-row fold from the 2021-07 start. Still interpret mean±std as a small-sample (5-fold) estimate.",
-        f"- **Engines:** ML → `sklearn.model_selection.TimeSeriesSplit` "
+        "non-overlapping validation blocks on the **training window only** "
+        f"(through **{cv.get('cv_frame_end', '2023-12-01')}**).",
+        "- **Why 5×6:** comparable per-fold RMSE across engines; non-overlapping so std is not understated. "
+        "Five × 12-month blocks do not fit after `Differences([12])` + `lag_12`.",
+        f"- **Fold 0 train size:** ML fold 0 has `n_train={cv.get('fold0_n_train', 'n/a')}`. "
+        f"{cv.get('thin_fold0_note', THIN_FOLD0_NOTE)}",
+        "- **Engines:** ML → `sklearn.model_selection.TimeSeriesSplit` "
         f"(gap={cv['gap']}); `{ets_label}` → `classical_backtest` / "
         "`StatsForecast.cross_validation` on model `AutoETS` (`n_windows=5`, `h=6`, `step_size=6`).",
         "- **Chronology:** no shuffle; every fold has `max(train ds) < min(val ds)`; "

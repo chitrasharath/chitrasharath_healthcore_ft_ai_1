@@ -366,5 +366,5 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision: Pin prior 3-fold shipped uni selection in the report; diagnose the 5-fold uni winner as **`MLForecast_uni2`** (and classical as **`AutoETS2`**); corrective actions are report-only (no hyperparameter retune beyond CV defaults).
 - Why: Stakeholder clarifying Q&A; diagnosis honesty without silently mutating the shipped model.
 
-- Decision: Shift diagnostic 5×6 validation windows to **2022-01…2024-06** (last fold uses 2024-H1 for diagnostics only) so fold 0 is thicker than the prior 2021-07 start.
-- Why: Address thin fold-0 / inflated std; keep ≥5 non-overlapping 6-month folds and cross-engine date alignment.
+- Decision: Diagnostic 5×6 validation windows stay on the **training window only** (**2021-07…2023-12**). A brief experiment shifted into 2024-H1 to thicken fold 0; that was reverted because it mixed holdout months into diagnostic mean±std. Thin fold 0 is documented instead.
+- Why: Specs require training-window CV; mean±std must not silently include test-period folds.

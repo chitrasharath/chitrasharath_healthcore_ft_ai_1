@@ -4,8 +4,8 @@
 
 | Model | Fit verdict | CV RMSE (mean ± std) | Corrective action |
 |---|---|---|---|
-| MLForecast_uni2(rf) | **overfitting** | $103,498 ± $28,617 | Constrain MLForecast_uni2(rf): set max_depth (e.g. 3–5), raise min_samples_leaf, max_features < 1.0, and/or fewer estimators. |
-| AutoETS2 | **well-fitted** | $93,757 ± $25,643 | Ship classical AutoETS (diagnosed here as AutoETS2); keep this CV/learning-curve suite as a regression guard. |
+| MLForecast_uni2(rf) | **overfitting** | $97,608 ± $26,157 | Constrain MLForecast_uni2(rf): set max_depth (e.g. 3–5), raise min_samples_leaf, max_features < 1.0, and/or fewer estimators. |
+| AutoETS2 | **well-fitted** | $88,096 ± $21,104 | Ship classical AutoETS (diagnosed here as AutoETS2); keep this CV/learning-curve suite as a regression guard. |
 
 - Diagnostic ML target: `MLForecast_uni2(rf)` with params `{'max_depth': None, 'max_features': 1.0, 'n_estimators': 200}`.
 - Diagnostic classical label: `AutoETS2` (StatsForecast `AutoETS` under this diagnosis suite).
@@ -13,13 +13,12 @@
 
 ## 2. CV setup & integrity
 
-- **Folds:** 5 (≥5 required) × 6-month non-overlapping validation blocks on the diagnostic CV frame (through **2024-06-01**).
-- **Why 5×6:** comparable per-fold RMSE across engines; non-overlapping so std is not understated.
-- **Window redesign:** Previous design used 2021-07…2023-12 (train-only). Shifted later to thicken fold 0; last fold scores 2024-01…2024-06 for diagnostics only.
-- **Fold 0 train size:** ML fold 0 has `n_train=37` usable rows after differencing/`lag_12` — shifted later so this is no longer the starved 31-row fold from the 2021-07 start. Still interpret mean±std as a small-sample (5-fold) estimate.
+- **Folds:** 5 (≥5 required) × 6-month non-overlapping validation blocks on the **training window only** (through **2023-12-01**).
+- **Why 5×6:** comparable per-fold RMSE across engines; non-overlapping so std is not understated. Five × 12-month blocks do not fit after `Differences([12])` + `lag_12`.
+- **Fold 0 train size:** ML fold 0 has `n_train=31`. Fold 0 validates 2021-H2; after Differences([12]) + lag_12 dropna, usable n_train is small (~31). Treat mean±std as a small-sample estimate inflated by that thin first fold.
 - **Engines:** ML → `sklearn.model_selection.TimeSeriesSplit` (gap=0); `AutoETS2` → `classical_backtest` / `StatsForecast.cross_validation` on model `AutoETS` (`n_windows=5`, `h=6`, `step_size=6`).
 - **Chronology:** no shuffle; every fold has `max(train ds) < min(val ds)`; validation blocks are contiguous and roll forward; `TimeSeriesSplit` never shuffles.
-- **Date alignment:** both engines score the same calendar windows `[('2022-01-01', '2022-06-01'), ('2022-07-01', '2022-12-01'), ('2023-01-01', '2023-06-01'), ('2023-07-01', '2023-12-01'), ('2024-01-01', '2024-06-01')]`.
+- **Date alignment:** both engines score the same calendar windows `[('2021-07-01', '2021-12-01'), ('2022-01-01', '2022-06-01'), ('2022-07-01', '2022-12-01'), ('2023-01-01', '2023-06-01'), ('2023-07-01', '2023-12-01')]`.
 - **Selection CV change:** MLForecast learner-selection defaults raised from **n_windows=3, h=12** (shipped) to **n_windows=5, h=6**. Classical `classical_backtest` was already 5-fold.
 
 - **Pipeline recommendation after 5-fold retrain:** primary classical `AutoETS`; regression path `MLForecast_exog` (visits help=True). Prior 3-fold narrative preferred univariate when visits lift was weak — note any flip; learner identity for uni/exog remains pinned above when unchanged.
@@ -28,23 +27,23 @@
 
 | Fold | Window | ML n_train | ML val RMSE | AutoETS2 val RMSE |
 |---:|---|---:|---:|---:|
-| 0 | 2022-01-01…2022-06-01 | 37 | $103,365 | $90,130 |
-| 1 | 2022-07-01…2022-12-01 | 43 | $58,379 | $60,529 |
-| 2 | 2023-01-01…2023-06-01 | 49 | $131,567 | $118,584 |
-| 3 | 2023-07-01…2023-12-01 | 55 | $99,750 | $79,469 |
-| 4 | 2024-01-01…2024-06-01 | 61 | $124,429 | $120,071 |
+| 0 | 2021-07-01…2021-12-01 | 31 | $94,978 | $91,767 |
+| 1 | 2022-01-01…2022-06-01 | 37 | $103,365 | $90,130 |
+| 2 | 2022-07-01…2022-12-01 | 43 | $58,379 | $60,529 |
+| 3 | 2023-01-01…2023-06-01 | 49 | $131,567 | $118,584 |
+| 4 | 2023-07-01…2023-12-01 | 55 | $99,750 | $79,469 |
 
 - ML val RMSE min/max: $58,379 / $131,567 (small-sample std caveat: only 5 folds).
-- AutoETS2 val RMSE min/max: $60,529 / $120,071.
+- AutoETS2 val RMSE min/max: $60,529 / $118,584.
 
 ## 3. Metrics table (train & validation)
 
 | Model | Stage | MAE (mean ± std) | RMSE (mean ± std) | RMSE % mean train revenue |
 |---|---|---|---|---|
-| MLForecast_uni2(rf) | Train | $29,130 ± $2,377 | $37,166 ± $1,635 | — |
-| MLForecast_uni2(rf) | Validation | $90,942 ± $27,899 | $103,498 ± $28,617 | 3.8% |
-| AutoETS2 | Train | $58,111 ± $1,808 | $69,537 ± $1,816 | — |
-| AutoETS2 | Validation | $82,573 ± $25,573 | $93,757 ± $25,643 | 3.4% |
+| MLForecast_uni2(rf) | Train | $28,126 ± $1,865 | $36,254 ± $1,494 | — |
+| MLForecast_uni2(rf) | Validation | $82,671 ± $26,183 | $97,608 ± $26,157 | 3.5% |
+| AutoETS2 | Train | $57,173 ± $2,107 | $68,676 ± $1,854 | — |
+| AutoETS2 | Validation | $77,164 ± $21,721 | $88,096 ± $21,104 | 3.2% |
 
 Mean monthly train revenue ≈ **$2,754,918**.
 
@@ -90,8 +89,8 @@ CONTEXT §3 asks to *"report MSE in USD², and also as a percentage of average m
 
 **RMSE is the business-cost metric.** It is √MSE in interpretable dollars and penalizes large errors disproportionately — matching the cost of a planning-breaking revenue miss (over/under-staffing, misinformed executive decisions). A single $500k miss is worse than ten $50k misses; RMSE reflects that, MAE treats them as equal.
 
-- ML CV RMSE as % of mean monthly train revenue: **3.8%**.
-- AutoETS2 CV RMSE as % of mean monthly train revenue: **3.4%**.
+- ML CV RMSE as % of mean monthly train revenue: **3.5%**.
+- AutoETS2 CV RMSE as % of mean monthly train revenue: **3.2%**.
 - MAE is reported alongside for “average dollars off” interpretability.
 
 ## 6. Fit diagnosis
@@ -99,13 +98,13 @@ CONTEXT §3 asks to *"report MSE in USD², and also as a percentage of average m
 ### MLForecast_uni2(rf) → **overfitting**
 
 - Learning-curve (largest prefix): train RMSE $35,355, val RMSE $120,743, gap $85,388 (relative 71%).
-- CV: train RMSE $37,166, val RMSE $103,498 ± $28,617, CV gap $66,332 (relative 64%), fold CV 0.28.
+- CV: train RMSE $36,254, val RMSE $97,608 ± $26,157, CV gap $61,354 (relative 63%), fold CV 0.27.
 - Guardrail: For tree models, near-zero train RMSE is the overfitting signature; diagnose on the val−train gap, not absolute train error. Do not compare tree train error to AutoETS in-sample residuals as like-for-like.
 
 ### AutoETS2 → **well-fitted**
 
 - Learning-curve (largest prefix): train RMSE $68,009, val RMSE $103,575, gap $35,565 (relative 34%).
-- CV: train RMSE $69,537, val RMSE $93,757 ± $25,643, CV gap $24,219 (relative 26%), fold CV 0.27.
+- CV: train RMSE $68,676, val RMSE $88,096 ± $21,104, CV gap $19,420 (relative 22%), fold CV 0.24.
 - Guardrail: Classical AutoETS train error is genuine in-sample residual, not memorization. Learning-curve val error from early prefixes includes a long multi-step horizon into 2023 (trend), so CV train/val gap is the primary fit signal.
 
 ## 7. Method note
@@ -129,9 +128,9 @@ CONTEXT §3 asks to *"report MSE in USD², and also as a percentage of average m
 
 ## Stretch notes
 
-- **Purged gap=1 A/B:** gap=0 val RMSE $103,498 ± $28,617; gap=1 val RMSE $106,112 ± $27,837.
+- **Purged gap=1 A/B:** gap=0 val RMSE $97,608 ± $26,157; gap=1 val RMSE $99,223 ± $25,494.
 - Per-fold RMSE strip: `diagnostics/fold_rmse_strip.png`.
-- **SeasonalNaive-in-CV** val RMSE $164,589 ± $49,374 (skill context vs MLForecast_uni2 / AutoETS2 fold RMSE).
+- **SeasonalNaive-in-CV** val RMSE $163,407 ± $49,039 (skill context vs MLForecast_uni2 / AutoETS2 fold RMSE).
 
 ## 9. Limitations
 
