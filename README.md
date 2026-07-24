@@ -345,6 +345,46 @@ Further detail: [`memory-bank/references/telemetry_ai_plan/`](./memory-bank/refe
 
 ---
 
+## Forecast (monthly revenue)
+
+Local Nixtla pipeline (**MLForecast** + **StatsForecast**) for consolidated monthly revenue. Work lands on **`feature/sales_forecast`**; temporal CV / fit diagnosis lands on **`feature/eval_metrics`** (branched from sales forecast).
+
+Requires the sales CSV at `data/raw/healthcore_sales.csv` (gitignored — local only).
+
+### Run
+
+```bash
+uv sync --group forecast
+uv run python scripts/train_revenue_forecast.py   # train, metrics, figures, forecast report
+# On feature/eval_metrics (after train, or standalone):
+uv run python scripts/run_diagnostics.py         # CV folds, learning curves, fit-diagnosis report
+uv run pytest tests/pipelines/test_temporal_cv_order.py -v
+```
+
+### Where the reports and artifacts are
+
+| Path | Contents |
+|------|----------|
+| [`data/eval/revenue_forecast/report.md`](./data/eval/revenue_forecast/report.md) | Main forecast report (model comparison, ablation, plots, recommendation) |
+| [`data/eval/revenue_forecast/metrics.json`](./data/eval/revenue_forecast/metrics.json) | Holdout metrics, CV scores, recommendation payload |
+| [`data/eval/revenue_forecast/figures/`](./data/eval/revenue_forecast/figures/) | PNGs: per-model vs actual, prediction intervals, residuals, visits forecast |
+| [`data/eval/revenue_forecast/cv_fit_diagnosis_report.md`](./data/eval/revenue_forecast/cv_fit_diagnosis_report.md) | Temporal CV + fit diagnosis (`MLForecast_uni2`, `AutoETS2`) — **`feature/eval_metrics`** |
+| [`data/eval/revenue_forecast/diagnostics/`](./data/eval/revenue_forecast/diagnostics/) | `cv_folds.json`, `learning_curve.json`, learning-curve PNGs, fold strip — **`feature/eval_metrics`** |
+| [`data/process/models/`](./data/process/models/) | Fitted model pickles (`.pkl`) written by the train script |
+
+### Code and plans
+
+| Path | Role |
+|------|------|
+| `data/forecast/` | Clean, features, MLForecast, StatsForecast, metrics, plotting, diagnostics |
+| `scripts/train_revenue_forecast.py` | End-to-end train + evaluate (+ diagnostics hook on eval_metrics) |
+| `scripts/run_diagnostics.py` | Standalone diagnostics entrypoint (`feature/eval_metrics`) |
+| `tests/pipelines/test_revenue_*.py` | Split / leakage / validation / pattern tests |
+| `tests/pipelines/test_temporal_cv_order.py` | Chronological CV integrity (`feature/eval_metrics`) |
+| [`memory-bank/references/sales_forecast_ai_plan/`](./memory-bank/references/sales_forecast_ai_plan/) | Specs, implementation plans, eval criteria |
+
+---
+
 ## Data pipeline (Milestone 6 — Build 2)
 
 Prefect ETL materializes clinic / jurisdiction KPIs from `telemetry_events` into `reporting_*` tables. Build 2 adds **subflows**, **unit tests**, and the authenticated **Reporting** dashboard at `/reporting`.
@@ -528,6 +568,8 @@ healthcore-monorepo/
 ├── .example.env               # Docker env template → copy to .env
 ├── docker-compose.yml
 ├── data/pipelines/            # Prefect KPI ETL (Milestone 6)
+├── data/forecast/             # Monthly revenue forecast (Nixtla; local)
+├── data/eval/revenue_forecast/# Forecast reports, metrics, figures (+ diagnostics on eval_metrics)
 ├── services/api/              # FastAPI backend
 ├── uis/
 │   ├── website/               # Public portal (port 3000)
@@ -559,6 +601,9 @@ healthcore-monorepo/
 | [docs/telemetry/telemetry-plan.md](./docs/telemetry/telemetry-plan.md) | Telemetry design, KPIs, event catalog |
 | [docs/data_pipelines/pipeline-design.md](./docs/data_pipelines/pipeline-design.md) | KPI ETL design, run command, Reporting UI (§12.1) |
 | [data/pipelines/README.md](./data/pipelines/README.md) | Pipeline package layout and CLI entry |
+| [data/eval/revenue_forecast/report.md](./data/eval/revenue_forecast/report.md) | Monthly revenue forecast report |
+| [data/eval/revenue_forecast/cv_fit_diagnosis_report.md](./data/eval/revenue_forecast/cv_fit_diagnosis_report.md) | CV / fit diagnosis report (`feature/eval_metrics`) |
+| [memory-bank/references/sales_forecast_ai_plan/](./memory-bank/references/sales_forecast_ai_plan/) | Forecast + CV diagnosis specs and plans |
 | [memory-bank/](./memory-bank/) | Project brief, tech context, progress, decisions, conventions |
 | [AGENTS.md](./AGENTS.md) | Mandatory agent bootstrap and commit workflow |
 
