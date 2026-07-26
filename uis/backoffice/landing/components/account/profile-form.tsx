@@ -29,7 +29,7 @@ export const ProfileForm = () => {
 
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-8 sm:px-6">
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900 md:p-8">
         <h1 className="text-xl font-bold text-slate-900">My Profile</h1>
         <div className="mt-6 space-y-5">
           <div>

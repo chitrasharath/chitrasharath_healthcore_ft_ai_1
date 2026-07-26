@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:where(.dark, .dark *));
+/* Class-based dark mode: utilities apply when an ancestor has `.dark` (set on <html>). */
+@custom-variant dark (&:where(.dark &));
 
 @source "../../inventory/**/*";
 @source "../../incident-manager/**/*";
@@ -23,6 +24,7 @@
   --hc-success: #166534;
   --hc-warning: #a16207;
   --hc-danger: #b91c1c;
+  color-scheme: light;
 }
 
 .dark {
@@ -31,6 +33,7 @@
   --hc-border: #334155;
   --hc-text: #f8fafc;
   --hc-text-muted: #94a3b8;
+  color-scheme: dark;
 }
 
 body {

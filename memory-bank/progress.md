@@ -232,7 +232,7 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
   - `scripts/seed_knowledge_base.py` + API startup no-op when collection populated
   - `services/api/app/domains/knowledge/` — `POST /api/v1/knowledge/query` + `/feedback` (JWT); JSONL interactions + PII redact; schema includes nullable `session_id` / `parent_query_id`
   - `uis/backoffice/knowledge/` aliased into landing `/knowledge`; hub nav card; shared light/dark theme toggle
-  - Golden set `data/eval/test-queries.json`; `data/eval/run_eval.py`; design doc `docs/rag/rag-design.md`
+  - Golden set `data/eval/test-queries.json`; `data/eval/run_eval.py`; design doc `docs/rag-design.md`
   - Tests: `tests/pipelines/test_rag.py`, `services/api/tests/test_knowledge.py`, landing Jest knowledge/theme — full `uv run pytest` **171 passed**; `npm run verify` in landing passes
 - **Pending before hand-off:** run live `run_eval.py` with `LLM_API_KEY`, tune `RAG_MIN_SCORE`, record metrics in design doc; open PR `feature/rag` → `main`
 - Plan: `memory-bank/references/rag/rag_milestone7_IMPLEMENTATION_PLAN.md`

@@ -7,7 +7,7 @@ type NavCardProps = {
 };
 
 const cardClassName =
-  "group flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-sky-300 hover:shadow-md";
+  "group flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-sky-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-900 dark:hover:border-sky-600";
 
 const LockIcon = () => (
   <svg aria-hidden="true" className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -29,14 +29,16 @@ const NavCardContent = ({ app }: NavCardProps) => (
   <>
     <div className="flex items-start justify-between gap-2">
       <div className="flex flex-wrap items-center gap-2">
-        <h3 className="font-semibold text-slate-900 group-hover:text-sky-800">{app.title}</h3>
+        <h3 className="font-semibold text-slate-900 group-hover:text-sky-800 dark:text-slate-100 dark:group-hover:text-sky-300">
+          {app.title}
+        </h3>
         {app.tag && app.tagVariant ? (
           <span className={tagClassName[app.tagVariant]}>{app.tag}</span>
         ) : null}
       </div>
       {app.protected ? <LockIcon /> : null}
     </div>
-    <p className="mt-2 flex-1 text-sm leading-6 text-slate-600">{app.description}</p>
+    <p className="mt-2 flex-1 text-sm leading-6 text-slate-600 dark:text-slate-300">{app.description}</p>
     {!app.protected ? (
       <span className="mt-3 text-xs font-semibold uppercase tracking-wide text-teal-700">Public</span>
     ) : null}

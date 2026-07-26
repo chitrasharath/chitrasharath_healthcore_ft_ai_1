@@ -71,6 +71,7 @@ Vector dimension is **probed** at setup (never hardcoded). Temperature ~0.15.
 
 - Dense-only `query_points`, `RAG_TOP_K=3`
 - Filter hits strictly below `RAG_MIN_SCORE` (default start `0.30`; **tune with `data/eval/run_eval.py` and record the final value here**)
+- **Query expansion (retrieval only):** short coverage questions that name insurers / Medicaid / Medicare (e.g. “do you take Kaiser?”) are embedded as `… insurance coverage accepted` so they align with policy chunks. The LLM still receives the original question.
 - Hybrid (keyword/full-text fusion) deferred until named-entity misses appear in eval
 
 ### Tuned params (fill after live eval)

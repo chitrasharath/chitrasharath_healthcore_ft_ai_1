@@ -19,7 +19,7 @@ export const ChangePasswordForm = () => {
 
   return (
     <main className="mx-auto w-full max-w-md flex-1 px-4 py-8 sm:px-6">
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900 md:p-8">
         <h1 className="text-xl font-bold text-slate-900">Change Password</h1>
         {success ? (
           <p className="mt-4 rounded-lg bg-teal-50 px-3 py-2 text-sm text-teal-800" role="status">

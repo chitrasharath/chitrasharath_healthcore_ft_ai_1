@@ -60,6 +60,18 @@
     "should_abstain": false
   },
   {
+    "question": "Do you take Kaiser?",
+    "expected_source_document": "insurance-coverage",
+    "expected_key_facts": ["Tom Callahan", "billing"],
+    "should_abstain": false
+  },
+  {
+    "question": "Do you take Medicaid?",
+    "expected_source_document": "insurance-coverage",
+    "expected_key_facts": ["Medicaid"],
+    "should_abstain": false
+  },
+  {
     "question": "A patient asks about an insurer that is not on our accepted list. Can I confirm coverage?",
     "expected_source_document": "insurance-coverage",
     "expected_key_facts": ["Tom Callahan", "verifying", "billing"],

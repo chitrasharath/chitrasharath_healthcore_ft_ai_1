@@ -83,6 +83,44 @@ def normalize_query(question: str, *, max_length: int | None = None) -> str:
     return cleaned
 
 
+# Short desk questions often omit "insurance/coverage", which weakens dense retrieval
+# against policy chunks. Expansion is for embedding only — the LLM still sees the
+# original user question.
+_COVERAGE_TERMS = (
+    "kaiser",
+    "medicaid",
+    "medicare",
+    "aetna",
+    "cigna",
+    "bupa",
+    "axa",
+    "blue cross",
+    "unitedhealthcare",
+    "united health",
+    "self-pay",
+    "self pay",
+    "uninsured",
+)
+
+
+def expand_query_for_retrieval(query: str) -> str:
+    """Enrich short coverage questions so embeddings align with insurance chunks."""
+    lower = query.lower()
+    already_grounded = any(
+        tip in lower for tip in ("insurance", "coverage", "insurer", "plan", "accept")
+    )
+    # "do you take/accept X" already has accept — still help bare "kaiser" / "medicaid"
+    mentions_coverage_entity = any(term in lower for term in _COVERAGE_TERMS)
+    if not mentions_coverage_entity:
+        return query
+    if "insurance" in lower or "coverage" in lower:
+        return query
+    # "do you take kaiser" / "do you take medicaid" → add domain signal
+    if re.search(r"\b(take|accept|cover|have)\b", lower) or not already_grounded:
+        return f"{query} insurance coverage accepted"
+    return query
+
+
 def retrieve(
     query: str,
     *,
@@ -95,7 +133,8 @@ def retrieve(
     k = top_k if top_k is not None else settings.rag_top_k
     threshold = min_score if min_score is not None else settings.rag_min_score
     collection = collection_name or settings.qdrant_collection
-    vector = embed(query)
+    retrieval_query = expand_query_for_retrieval(query)
+    vector = embed(retrieval_query)
     client = get_qdrant_client(qdrant_path)
     response = client.query_points(
         collection_name=collection,
@@ -242,6 +281,7 @@ __all__ = [
     "GenerationError",
     "QueryResult",
     "RagConfigError",
+    "expand_query_for_retrieval",
     "normalize_query",
     "query",
     "retrieve",

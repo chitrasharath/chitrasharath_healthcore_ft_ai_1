@@ -86,6 +86,21 @@ def test_normalize_query() -> None:
         normalize_query("   ")
 
 
+def test_expand_query_for_retrieval_short_coverage() -> None:
+    from data.pipelines.rag import expand_query_for_retrieval
+
+    assert "insurance" in expand_query_for_retrieval("Do you take Kaiser?").lower()
+    assert "insurance" in expand_query_for_retrieval("do you take medicaid").lower()
+    # Already specific — unchanged
+    assert expand_query_for_retrieval("Do you take Kaiser insurance?") == (
+        "Do you take Kaiser insurance?"
+    )
+    # Unrelated — unchanged
+    assert expand_query_for_retrieval("Do you offer dental cleanings?") == (
+        "Do you offer dental cleanings?"
+    )
+
+
 def test_embed_posts_and_returns_vector() -> None:
     mock_response = MagicMock()
     mock_response.status_code = 200
