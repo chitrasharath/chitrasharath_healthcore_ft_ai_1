@@ -2,7 +2,7 @@
 
 ## Current Status Summary
 
-The project is organized into milestone-based delivery (M1–M5 **delivered**; **M6 Data Pipeline in progress** — Design/Build on `feature/data_pipeline`; **DEV-53 Background Processing** on `feature/background-processing`; **M7 RAG Knowledge Base implemented on `feature/rag`** — pending live eval with `LLM_API_KEY` + PR).
+The project is organized into milestone-based delivery (M1–M5 **delivered**; **M6 Data Pipeline in progress** — Design/Build on `feature/data_pipeline`; **DEV-53 Background Processing** on `feature/background-processing`; **M7 RAG Knowledge Base implemented on `feature/rag`** — pending live eval with `LLM_API_KEY` + PR; **LangGraph Support Agent implemented on `feature/agent_rag_langgraph`** — awaiting manual smoke before single commit).
 Milestone 4 public portal migration is **delivered** at `uis/website`. Milestone 5 backend and internal ops platform is **delivered** (`services/api`, backoffice landing on :3001, Docker Compose). Legacy `apps/healthcore_web_portal/` and `apps/src` remain unchanged.
 
 ## Major Milestones
@@ -237,6 +237,20 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
 - **Pending before hand-off:** run live `run_eval.py` with `LLM_API_KEY`, tune `RAG_MIN_SCORE`, record metrics in design doc; open PR `feature/rag` → `main`
 - Plan: `memory-bank/references/rag/rag_milestone7_IMPLEMENTATION_PLAN.md`
 - Spec: `memory-bank/references/rag/rag_milestone7_specs.md`
+
+### LangGraph Support Agent (Implemented on `feature/agent_rag_langgraph` — pending manual smoke + commit)
+
+- Goal: re-express M7 RAG as a compiled LangGraph graph with conditional routing, checkpointing, in-state traces, optional LangSmith, and sibling `POST /api/v1/agent/query` (no frontend).
+- **Status:** Code + tests implemented; **no commit yet** until manual smoke of the endpoint.
+- Spec: `memory-bank/references/agentic_engineering/agent_rag_langgraph_specs.md`
+- Plan: `memory-bank/references/agentic_engineering/agent_rag_langgraph_IMPLEMENTATION_PLAN.md`
+- Branch: `feature/agent_rag_langgraph` off `feature/rag`; PR → `feature/rag` after one commit post-manual-test
+- **Delivered in working tree:**
+  - `generate_answer` / `build_assembled_prompt` factored from `data/pipelines/rag.query`
+  - `services/api/app/domains/agent/` — state, nodes, routing, MemorySaver graph, tracing, JWT `POST /api/v1/agent/query`
+  - Evals: `tests/pipelines/test_agent_evals.py` + grounding fixture; HTTP: `services/api/tests/test_agent.py`
+  - Deps: `langgraph`, `langsmith`; `LANGCHAIN_*` in `.example.env` files
+- **Verified:** `uv run pytest tests/pipelines/test_rag.py services/api/tests/test_knowledge.py tests/pipelines/test_agent_evals.py services/api/tests/test_agent.py` — 25 passed, 1 skipped (live grounding without key)
 
 ## Future Feature Additions
 

@@ -556,6 +556,56 @@ LLM_API_KEY=… uv run python data/eval/run_eval.py
 
 ---
 
+## LangGraph support agent (`feature/agent_rag_langgraph`)
+
+Re-expresses the same RAG retrieve → generate flow as a **compiled LangGraph** state graph with named nodes, conditional routing, `MemorySaver` checkpointing, in-state `trace_steps`, and optional LangSmith tracing. Coexists with the RAG endpoint — **does not change** `POST /api/v1/knowledge/query`.
+
+Spec / plan: [`memory-bank/references/agentic_engineering/`](./memory-bank/references/agentic_engineering/).
+
+### What it delivers
+
+| Area | Detail |
+|------|--------|
+| **Package** | `services/api/app/domains/agent/` — state, nodes, routing, graph, tracing, service, router |
+| **Reuse** | `normalize_query`, `retrieve`, `generate_answer` from `data/pipelines/rag.py` (no reimplemented RAG math) |
+| **Nodes** | `receive_question` → `retrieve` → `query` **or** `no_context` (empty question ends early) |
+| **Endpoint** | `POST /api/v1/agent/query` (Bearer JWT) → `{ answer, trace_id, sources }` |
+| **Fallbacks** | Empty → `Please enter a question.`; no hits above threshold → `I don't have information about that.` |
+| **Deps** | `langgraph`, `langsmith` |
+| **Evals** | `tests/pipelines/test_agent_evals.py` (trace-based; grounding fixture + optional live) |
+| **HTTP tests** | `services/api/tests/test_agent.py` |
+
+### Extra env (optional LangSmith)
+
+| Variable | Purpose |
+|----------|---------|
+| `LANGCHAIN_TRACING_V2` | `true` to enable remote traces |
+| `LANGCHAIN_API_KEY` | LangSmith key — unset disables tracing; graph still runs |
+| `LANGCHAIN_PROJECT` | Default `healthcore-agent` |
+| `LANGCHAIN_ENDPOINT` | Default `https://api.smith.langchain.com` |
+
+### Smoke test
+
+```bash
+# After login, TOKEN=…
+curl -s -X POST http://localhost:8000/api/v1/agent/query \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"question":"Is Medicaid accepted at Georgia clinics?"}'
+```
+
+### Tests
+
+```bash
+uv run pytest tests/pipelines/test_agent_evals.py services/api/tests/test_agent.py -q
+# Optional live grounding:
+LLM_API_KEY=… uv run pytest tests/pipelines/test_agent_evals.py -q
+```
+
+No frontend for the agent in this branch — use curl / Swagger. Knowledge UI remains for the RAG endpoint.
+
+---
+
 ## Milestones (course roadmap)
 
 | Milestone | Focus | Typical deliverables | Status |

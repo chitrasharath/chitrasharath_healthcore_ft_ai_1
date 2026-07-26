@@ -229,6 +229,31 @@ def _generate(assembled_prompt: str) -> str:
     raise last_error
 
 
+def build_assembled_prompt(question: str, hits: list[dict[str, Any]]) -> str:
+    """Assemble the SOURCE-CONTEXT + QUESTION prompt (moved verbatim from query())."""
+    context = _build_context_block(hits)
+    return (
+        f"SOURCE CONTEXT (every fact you state must come from a labeled block):\n\n"
+        f"{context}\n\n"
+        f"QUESTION:\n{question}\n"
+    )
+
+
+def generate_answer(
+    question: str,
+    context: list[dict[str, Any]],
+    *,
+    generate_fn=_generate,
+) -> str:
+    """Generate a grounded answer from already-retrieved context.
+
+    `context` is the list of hit dicts returned by `retrieve()`. Callers that
+    have no context must NOT call this — routing handles the no-context case.
+    """
+    assembled = build_assembled_prompt(question, context)
+    return generate_fn(assembled)
+
+
 def query(
     question: str,
     *,
@@ -257,13 +282,8 @@ def query(
             temperature=settings.rag_generation_temperature,
         )
 
-    context = _build_context_block(hits)
-    assembled = (
-        f"SOURCE CONTEXT (every fact you state must come from a labeled block):\n\n"
-        f"{context}\n\n"
-        f"QUESTION:\n{normalized}\n"
-    )
-    answer = generate_fn(assembled)
+    assembled = build_assembled_prompt(normalized, hits)
+    answer = generate_answer(normalized, hits, generate_fn=generate_fn)
     return QueryResult(
         answer=answer,
         sources=_dedupe_sources(hits),
@@ -281,7 +301,9 @@ __all__ = [
     "GenerationError",
     "QueryResult",
     "RagConfigError",
+    "build_assembled_prompt",
     "expand_query_for_retrieval",
+    "generate_answer",
     "normalize_query",
     "query",
     "retrieve",

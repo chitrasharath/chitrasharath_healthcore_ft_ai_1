@@ -338,10 +338,19 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision (DEV-53): `scripts/nightly_export.py` bootstraps env from repo-root `.env` then fills gaps from `services/api/.env` before importing `app.core.*`.
 - Why: Docker uses root `.env`; manual API uses `services/api/.env`; cron must work for both without FastAPI.
 
-## Milestone 7 — RAG Knowledge Base
+## LangGraph Support Agent
 
-- Decision: Local on-disk Qdrant via `qdrant-client` (no server/Cloud); dense-only retrieval with full-text payload index as hybrid seam.
-- Why: Spec §2; tiny English corpus; avoid infra for this milestone.
+- Decision: Package at `services/api/app/domains/agent/`; mount `POST /api/v1/agent/query` as JWT-protected sibling of knowledge router.
+- Why: Repo domain convention; coexist with RAG endpoint without changing it.
+
+- Decision: Agent no-context string is `I don't have information about that.` — distinct from RAG `FALLBACK_ANSWER`.
+- Why: Spec/task-required exact string for the `no_context` node.
+
+- Decision: Grounding eval uses recorded fixture for CI plus optional live path when `LLM_API_KEY` is set.
+- Why: Required acceptance gate without secrets in CI; live path catches proxy/model drift.
+
+- Decision: No frontend and no feedback JSONL wiring in this milestone; single commit only after build + manual smoke.
+- Why: Locked planning Q&A; feedback depends on future UI.
 
 - Decision: Landing-aliased UI at `uis/backoffice/knowledge/` on port 3001 (not a standalone Next app); hub nav card tagged New.
 - Why: Match inventory / incident-manager / reporting pattern; single AuthGuard.
