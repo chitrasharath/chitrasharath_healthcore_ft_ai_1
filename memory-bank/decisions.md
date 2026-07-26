@@ -337,3 +337,23 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 
 - Decision (DEV-53): `scripts/nightly_export.py` bootstraps env from repo-root `.env` then fills gaps from `services/api/.env` before importing `app.core.*`.
 - Why: Docker uses root `.env`; manual API uses `services/api/.env`; cron must work for both without FastAPI.
+
+## Milestone 7 — RAG Knowledge Base
+
+- Decision: Local on-disk Qdrant via `qdrant-client` (no server/Cloud); dense-only retrieval with full-text payload index as hybrid seam.
+- Why: Spec §2; tiny English corpus; avoid infra for this milestone.
+
+- Decision: Landing-aliased UI at `uis/backoffice/knowledge/` on port 3001 (not a standalone Next app); hub nav card tagged New.
+- Why: Match inventory / incident-manager / reporting pattern; single AuthGuard.
+
+- Decision: CLI `scripts/seed_knowledge_base.py` is primary indexer; API startup no-ops if collection populated, seeds once if empty + `LLM_API_KEY` set.
+- Why: Local Qdrant file lock — only one process may open the store.
+
+- Decision: Feedback/interactions append-only JSONL (`FEEDBACK_PATH`); no Supabase table; `session_id` / `parent_query_id` nullable in schema, UI wiring deferred.
+- Why: Zero new infra; preference-pair seam preserved without expanding UI DoD.
+
+- Decision: Shared light/dark theme toggle in `@backoffice/shared`, wired into landing toolbar + root `dark` class (Tailwind `dark` variant).
+- Why: Spec UX; no prior backoffice theme control existed.
+
+- Decision: HTTP to LiteLLM via `httpx` (runtime dep); models/URLs/keys only via Settings/env; vector dim probed at setup.
+- Why: Spec recommendation; avoid openai SDK weight; safe model swaps.

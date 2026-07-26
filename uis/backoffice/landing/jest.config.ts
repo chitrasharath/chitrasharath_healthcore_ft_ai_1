@@ -8,6 +8,7 @@ const config: Config = {
     "^@/(.*)$": "<rootDir>/$1",
     "^@backoffice/shared/(.*)$": "<rootDir>/../shared/$1",
     "^@backoffice/inventory/(.*)$": "<rootDir>/../inventory/$1",
+    "^@backoffice/knowledge/(.*)$": "<rootDir>/../knowledge/$1",
   },
 };
 

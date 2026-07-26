@@ -2,7 +2,7 @@
 
 ## Current Status Summary
 
-The project is organized into milestone-based delivery (M1–M5 **delivered**; **M6 Data Pipeline in progress** — Design/Build on `feature/data_pipeline`; **DEV-53 Background Processing** on `feature/background-processing`).
+The project is organized into milestone-based delivery (M1–M5 **delivered**; **M6 Data Pipeline in progress** — Design/Build on `feature/data_pipeline`; **DEV-53 Background Processing** on `feature/background-processing`; **M7 RAG Knowledge Base implemented on `feature/rag`** — pending live eval with `LLM_API_KEY` + PR).
 Milestone 4 public portal migration is **delivered** at `uis/website`. Milestone 5 backend and internal ops platform is **delivered** (`services/api`, backoffice landing on :3001, Docker Compose). Legacy `apps/healthcore_web_portal/` and `apps/src` remain unchanged.
 
 ## Major Milestones
@@ -222,6 +222,21 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
 - **Part 3 — Build 2 (implemented on branch):** Subflows; `tests/pipelines/`; pytest path isolation; `/reporting` dashboard (summary + KPI tabs, clinic-location jurisdiction filter, supply filter coercion, tab-aware filter visibility). Eval-gap follow-ups: private `analysis.py` helpers restored; KPI value assertion test; reporting demo seed (~12 months KPIs + pipeline run history); recent pipeline runs API/UI; README Build 2 + seed docs. Pending PR to `main`.
 - **Background processes (DEV-53 — implemented on `feature/background-processing`):** Nightly OS-cron job — `scripts/nightly_export.py` exports yesterday’s `telemetry_events` to `data/raw/telemetry_YYYY-MM-DD.csv`, then subprocess-triggers `data/pipelines/pipeline.py --start/--end` for that UTC day. New `job_runs` table + `app/domains/jobs/` state machine (`pending → processing → completed|failed`); `processing` is the distributed lock with 6h stale reclaim. Pipeline CLI gains optional `--start`/`--end` (no-arg behaviour unchanged). Cron `0 2 * * *` documented in README (cwd/`.env` trap + root → `services/api/.env` fallback). Tests: `test_job_runner.py`, `tests/jobs/test_nightly_export.py`. Plan: `memory-bank/references/async_processing_ai_plan/`.
 - **Next:** PR M6 Build 2 to `main`; open DEV-53 PR from `feature/background-processing` against `main` with `cronjob` label (after or alongside M6).
+
+### Milestone 7: RAG Knowledge Base (Implemented on `feature/rag`)
+
+- Goal: JWT-protected RAG assistant for coordinators — index four English policy docs, retrieve + generate faithful answers, backoffice UI with sources and thumbs feedback.
+- **Implemented:**
+  - `data/process/rag.py` — semantic chunker, integrity assert, `embed`, `store_vector`, idempotent `setup` (per-doc delete-before-upsert, contextual embedding)
+  - `data/pipelines/rag.py` — `normalize_query`, dense `retrieve`, `query` with labeled prompt + no-answer fallback
+  - `scripts/seed_knowledge_base.py` + API startup no-op when collection populated
+  - `services/api/app/domains/knowledge/` — `POST /api/v1/knowledge/query` + `/feedback` (JWT); JSONL interactions + PII redact; schema includes nullable `session_id` / `parent_query_id`
+  - `uis/backoffice/knowledge/` aliased into landing `/knowledge`; hub nav card; shared light/dark theme toggle
+  - Golden set `data/eval/test-queries.json`; `data/eval/run_eval.py`; design doc `docs/rag/rag-design.md`
+  - Tests: `tests/pipelines/test_rag.py`, `services/api/tests/test_knowledge.py`, landing Jest knowledge/theme — full `uv run pytest` **171 passed**; `npm run verify` in landing passes
+- **Pending before hand-off:** run live `run_eval.py` with `LLM_API_KEY`, tune `RAG_MIN_SCORE`, record metrics in design doc; open PR `feature/rag` → `main`
+- Plan: `memory-bank/references/rag/rag_milestone7_IMPLEMENTATION_PLAN.md`
+- Spec: `memory-bank/references/rag/rag_milestone7_specs.md`
 
 ## Future Feature Additions
 

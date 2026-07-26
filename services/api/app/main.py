@@ -66,6 +66,26 @@ def on_startup() -> None:
     if supabase_engine:
         SQLModel.metadata.create_all(supabase_engine)
         ensure_telemetry_indexes(supabase_engine)
+    _ensure_knowledge_base()
+
+
+def _ensure_knowledge_base() -> None:
+    """Idempotent startup: no-op if collection populated; seed once if empty."""
+    try:
+        from data.process.rag import collection_is_populated, setup
+
+        if collection_is_populated():
+            logger.info("Knowledge base collection already populated — skip seed")
+            return
+        if not settings.llm_api_key:
+            logger.warning(
+                "Knowledge base empty and LLM_API_KEY unset — skip startup seed"
+            )
+            return
+        logger.info("Knowledge base empty — running idempotent setup()")
+        setup()
+    except Exception:
+        logger.exception("Knowledge base startup seed skipped due to error")
 
 
 @app.get("/health")

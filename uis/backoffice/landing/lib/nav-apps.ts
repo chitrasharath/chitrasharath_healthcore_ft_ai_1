@@ -47,6 +47,14 @@ export const NAV_APPS: NavApp[] = [
     tagVariant: "new",
   },
   {
+    title: "Knowledge Assistant",
+    description: "Ask clinic policy and coverage questions grounded in knowledge documents",
+    url: "/knowledge",
+    protected: true,
+    tag: "New",
+    tagVariant: "new",
+  },
+  {
     title: "Talent Pipeline Tracker",
     description: "Track recruitment and hiring pipeline",
     url: "/talent-tracker",
