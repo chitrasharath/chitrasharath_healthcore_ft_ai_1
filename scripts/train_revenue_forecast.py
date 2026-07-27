@@ -415,7 +415,7 @@ def _write_report(metrics: dict[str, Any], baseline: dict[str, float]) -> None:
         f"and possible later scenario analysis. Holdout RMSE **${reg['rmse']:,.0f}** "
         f"(MASE {reg.get('mase', float('nan')):.3f} vs SeasonalNaive).",
         f"3. **Do not default to the visits exogenous model.** Ablation evidence says visits add little "
-        f"(see §3.1); Stage-1 visits forecast error is MAPE {metrics['stage1_visits']['mape']:.1%}.",
+        f"(see §3 CV table and §3.1); Stage-1 visits forecast error is MAPE {metrics['stage1_visits']['mape']:.1%}.",
         "",
         f"- SeasonalNaive baseline test RMSE: **${baseline['rmse']:,.0f}** (all recommended models beat this).",
         f"- Chosen regression beats SeasonalNaive: **{rec['beats_seasonal_naive']}**.",
@@ -477,65 +477,83 @@ def _write_report(metrics: dict[str, Any], baseline: dict[str, float]) -> None:
         "Learners compared inside one MLForecast object: RandomForest, XGBoost, ElasticNet.",
         "Selection uses rolling-origin CV on the **training** window only (`n_windows=3`, `h=12`); the test set is scored once.",
         "",
-        f"- Exogenous CV winner: `{metrics['mlforecast_cv_exog']['winner']}` "
-        f"(CV RMSE {detail.get('cv_exog_rmse', float('nan')):,.0f}); "
-        f"light sweep params `{metrics['mlforecast_cv_exog']['sweep']['best_params']}`.",
-        f"- Univariate CV winner: `{metrics['mlforecast_cv_uni']['winner']}` "
-        f"(CV RMSE {detail.get('cv_uni_rmse', float('nan')):,.0f}).",
+        "#### CV RMSE by learner (train only — used for model selection)",
         "",
-        "### 3.1 Ablation: do visits actually help?",
-        "",
-        "Spec §7.4c: if the lift is small, recommend the simpler univariate model.",
-        "",
-        "| Evidence | Exogenous | Univariate | Interpretation |",
-        "|---|---:|---:|---|",
-        f"| CV RMSE (winner learner) | ${detail.get('cv_exog_rmse', float('nan')):,.0f} | "
-        f"${detail.get('cv_uni_rmse', float('nan')):,.0f} | "
-        f"{'Exogenous better in CV' if detail.get('cv_lift_usd', 0) > 0 else 'Univariate better/equal in CV'} |",
-        f"| Test RMSE | ${exog['rmse']:,.0f} | ${uni['rmse']:,.0f} | "
-        f"Test lift for exogenous = ${detail.get('test_lift_usd', float('nan')):,.0f} "
-        f"({100 * detail.get('relative_test_lift', float('nan')):.1f}% relative) |",
-        f"| Perfect-foresight RMSE (diagnostic) | ${detail.get('perfect_foresight_rmse', float('nan')):,.0f} | — | "
-        f"Even with *actual* test visits, gain vs exogenous forecast ≈ "
-        f"${detail.get('perfect_foresight_gain_vs_exog', float('nan')):,.0f} |",
-        f"| Stage-1 visits error | RMSE {metrics['stage1_visits']['rmse']:.0f} visits "
-        f"(MAPE {metrics['stage1_visits']['mape']:.1%}) | — | Exogenous revenue inherits this error |",
-        "",
-        f"**Verdict:** visits help = **{rec['ablation_visits_help']}**. "
-        f"Rule used: `{detail.get('rule', 'n/a')}`.",
-        "The holdout edge for exogenous is small relative to revenue scale and contradicts CV; "
-        "perfect foresight shows visits carry little incremental signal beyond revenue's own past. "
-        f"Therefore the recommended regression path is **`{reg_name}`**.",
-        "",
-        "Perfect-foresight is **leakage-for-diagnosis only** and is excluded from headline metrics.",
-        "",
-        "## 4. Classical models (StatsForecast)",
-        "",
-        f"Explicit **{metrics['sarima_order']}** (hand-specified / AutoARIMA-informed).",
-        f"AutoARIMA order note: `{metrics['autoarima_order']}`.",
-        "Also fit AutoETS, AutoTheta, and SeasonalNaive with 80/95% intervals.",
-        f"{metrics.get('ces_note_short', 'AutoCES attempted; see metrics.json if skipped.')}",
-        "",
-        f"**Holdout classical winner: `{classical_name}`** "
-        f"(RMSE ${classical['rmse']:,.0f}, R² {classical.get('r2', float('nan')):.3f}).",
-        f"Rolling-origin backtest RMSE (train windows): `{metrics.get('classical_backtest_rmse', {})}`.",
-        "",
-        "### 4.1 Seasonality recovery (ETS factors)",
-        "",
-        "AutoETS monthly seasonal factors recovered the business pattern from CONTEXT §4 "
-        "(Jul–Aug −12–18%, Oct–Dec +15–20%):",
-        "",
-        f"- Jul / Aug factors: **{jul:.2f} / {aug:.2f}** (~{(1 - (jul + aug) / 2) * 100:.0f}% dip vs mean).",
-        f"- Oct / Nov / Dec factors: **{oct_:.2f} / {nov:.2f} / {dec:.2f}** "
-        f"(~{((oct_ + nov + dec) / 3 - 1) * 100:.0f}% lift vs mean).",
-        "",
-        "That match is evidence the leakage guards held: a leaked model would not need to learn seasonality.",
-        "",
-        "## 5. Predictions",
-        "",
-        "### Per-model vs actual",
-        "",
+        "| Learner | Exogenous CV RMSE | Univariate CV RMSE |",
+        "|---|---:|---:|",
     ]
+    exog_scores = metrics["mlforecast_cv_exog"]["scores"]
+    uni_scores = metrics["mlforecast_cv_uni"]["scores"]
+    preferred = ["rf", "xgb", "elasticnet"]
+    learners = [n for n in preferred if n in exog_scores or n in uni_scores]
+    learners += sorted((set(exog_scores) | set(uni_scores)) - set(learners))
+    for learner in learners:
+        exog_rmse = exog_scores.get(learner, {}).get("rmse", float("nan"))
+        uni_rmse = uni_scores.get(learner, {}).get("rmse", float("nan"))
+        lines.append(f"| `{learner}` | ${exog_rmse:,.0f} | ${uni_rmse:,.0f} |")
+    lines.extend(
+        [
+            "",
+            f"- Exogenous CV winner: `{metrics['mlforecast_cv_exog']['winner']}` "
+            f"(CV RMSE {detail.get('cv_exog_rmse', float('nan')):,.0f}); "
+            f"light sweep params `{metrics['mlforecast_cv_exog']['sweep']['best_params']}`.",
+            f"- Univariate CV winner: `{metrics['mlforecast_cv_uni']['winner']}` "
+            f"(CV RMSE {detail.get('cv_uni_rmse', float('nan')):,.0f}).",
+            "",
+            "### 3.1 Ablation: do visits actually help?",
+            "",
+            "Spec §7.4c: if the lift is small, recommend the simpler univariate model.",
+            "",
+            "| Evidence | Exogenous | Univariate | Interpretation |",
+            "|---|---:|---:|---|",
+            f"| CV RMSE (winner learner) | ${detail.get('cv_exog_rmse', float('nan')):,.0f} | "
+            f"${detail.get('cv_uni_rmse', float('nan')):,.0f} | "
+            f"{'Exogenous better in CV' if detail.get('cv_lift_usd', 0) > 0 else 'Univariate better/equal in CV'} |",
+            f"| Test RMSE | ${exog['rmse']:,.0f} | ${uni['rmse']:,.0f} | "
+            f"Test lift for exogenous = ${detail.get('test_lift_usd', float('nan')):,.0f} "
+            f"({100 * detail.get('relative_test_lift', float('nan')):.1f}% relative) |",
+            f"| Perfect-foresight RMSE (diagnostic) | ${detail.get('perfect_foresight_rmse', float('nan')):,.0f} | — | "
+            f"Even with *actual* test visits, gain vs exogenous forecast ≈ "
+            f"${detail.get('perfect_foresight_gain_vs_exog', float('nan')):,.0f} |",
+            f"| Stage-1 visits error | RMSE {metrics['stage1_visits']['rmse']:.0f} visits "
+            f"(MAPE {metrics['stage1_visits']['mape']:.1%}) | — | Exogenous revenue inherits this error |",
+            "",
+            f"**Verdict:** visits help = **{rec['ablation_visits_help']}**. "
+            f"Rule used: `{detail.get('rule', 'n/a')}`.",
+            "The holdout edge for exogenous is small relative to revenue scale and contradicts CV; "
+            "perfect foresight shows visits carry little incremental signal beyond revenue's own past. "
+            f"Therefore the recommended regression path is **`{reg_name}`**.",
+            "",
+            "Perfect-foresight is **leakage-for-diagnosis only** and is excluded from headline metrics.",
+            "",
+            "## 4. Classical models (StatsForecast)",
+            "",
+            f"Explicit **{metrics['sarima_order']}** (hand-specified / AutoARIMA-informed).",
+            f"AutoARIMA order note: `{metrics['autoarima_order']}`.",
+            "Also fit AutoETS, AutoTheta, and SeasonalNaive with 80/95% intervals.",
+            f"{metrics.get('ces_note_short', 'AutoCES attempted; see metrics.json if skipped.')}",
+            "",
+            f"**Holdout classical winner: `{classical_name}`** "
+            f"(RMSE ${classical['rmse']:,.0f}, R² {classical.get('r2', float('nan')):.3f}).",
+            f"Rolling-origin backtest RMSE (train windows): `{metrics.get('classical_backtest_rmse', {})}`.",
+            "",
+            "### 4.1 Seasonality recovery (ETS factors)",
+            "",
+            "AutoETS monthly seasonal factors recovered the business pattern from CONTEXT §4 "
+            "(Jul–Aug −12–18%, Oct–Dec +15–20%):",
+            "",
+            f"- Jul / Aug factors: **{jul:.2f} / {aug:.2f}** (~{(1 - (jul + aug) / 2) * 100:.0f}% dip vs mean).",
+            f"- Oct / Nov / Dec factors: **{oct_:.2f} / {nov:.2f} / {dec:.2f}** "
+            f"(~{((oct_ + nov + dec) / 3 - 1) * 100:.0f}% lift vs mean).",
+            "",
+            "That match is evidence the leakage guards held: a leaked model would not need to learn seasonality.",
+            "",
+            "## 5. Predictions",
+            "",
+            "### Per-model vs actual",
+            "",
+        ]
+    )
 
     for name in metrics.get("per_model_figures", []):
         label = name.replace("actual_vs_", "").replace(".png", "")

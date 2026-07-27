@@ -9,7 +9,7 @@ The honest evaluation number is the **recursive 24-month** holdout (2024–2025)
 
 1. **Primary point forecast: `AutoETS`** — best holdout accuracy (RMSE **$102,474**, 3.0% of mean test revenue, R² **0.917**, 80/95% coverage 79%/96%).
 2. **Regression path: `MLForecast_uni`** (learner `rf`) — kept for a tree/lag feature workflow and possible later scenario analysis. Holdout RMSE **$121,141** (MASE 0.785 vs SeasonalNaive).
-3. **Do not default to the visits exogenous model.** Ablation evidence says visits add little (see §3.1); Stage-1 visits forecast error is MAPE 4.7%.
+3. **Do not default to the visits exogenous model.** Ablation evidence says visits add little (see §3 CV table and §3.1); Stage-1 visits forecast error is MAPE 4.7%.
 
 - SeasonalNaive baseline test RMSE: **$242,690** (all recommended models beat this).
 - Chosen regression beats SeasonalNaive: **True**.
@@ -70,6 +70,14 @@ Two families were trained with the same lag/calendar machinery:
 
 Learners compared inside one MLForecast object: RandomForest, XGBoost, ElasticNet.
 Selection uses rolling-origin CV on the **training** window only (`n_windows=3`, `h=12`); the test set is scored once.
+
+#### CV RMSE by learner (train only — used for model selection)
+
+| Learner | Exogenous CV RMSE | Univariate CV RMSE |
+|---|---:|---:|
+| `rf` | $100,538 | $100,387 |
+| `xgb` | $109,692 | $108,591 |
+| `elasticnet` | $128,956 | $132,766 |
 
 - Exogenous CV winner: `rf` (CV RMSE 100,538); light sweep params `{'max_depth': None, 'max_features': 1.0, 'n_estimators': 200}`.
 - Univariate CV winner: `rf` (CV RMSE 100,387).
