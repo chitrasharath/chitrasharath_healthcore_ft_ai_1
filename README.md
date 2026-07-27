@@ -556,9 +556,9 @@ LLM_API_KEY=… uv run python data/eval/run_eval.py
 
 ---
 
-## LangGraph support agent (`feature/agent_rag_langgraph`)
+## LangGraph support agent (`feature/agent_tools_langgraph`)
 
-Re-expresses the same RAG retrieve → generate flow as a **compiled LangGraph** state graph with named nodes, conditional routing, `MemorySaver` checkpointing, in-state `trace_steps`, and optional LangSmith tracing. Coexists with the RAG endpoint — **does not change** `POST /api/v1/knowledge/query`.
+Multi-source support agent: a **compiled LangGraph** graph with intent classification, RAG retrieval, and live **incident** / **inventory** HTTP tools. Extends Part 1 (`feature/agent_rag_langgraph`). Coexists with the RAG endpoint — **does not change** `POST /api/v1/knowledge/query`. Same route: `POST /api/v1/agent/query` (no new endpoint, no frontend).
 
 Spec / plan: [`memory-bank/references/agentic_engineering/`](./memory-bank/references/agentic_engineering/).
 
@@ -567,42 +567,61 @@ Spec / plan: [`memory-bank/references/agentic_engineering/`](./memory-bank/refer
 | Area | Detail |
 |------|--------|
 | **Package** | `services/api/app/domains/agent/` — state, nodes, routing, graph, tracing, service, router |
-| **Reuse** | `normalize_query`, `retrieve`, `generate_answer` from `data/pipelines/rag.py` (no reimplemented RAG math) |
-| **Nodes** | `receive_question` → `retrieve` → `query` **or** `no_context` (empty question ends early) |
-| **Endpoint** | `POST /api/v1/agent/query` (Bearer JWT) → `{ answer, trace_id, sources }` |
-| **Fallbacks** | Empty → `Please enter a question.`; no hits above threshold → `I don't have information about that.` |
-| **Deps** | `langgraph`, `langsmith` |
-| **Evals** | `tests/pipelines/test_agent_evals.py` (trace-based; grounding fixture + optional live) |
+| **Tools** | `app/domains/agent/tools/` — typed incident + inventory clients (`httpx`, timeouts, retry-once on 5xx/timeout; never raise into the graph) |
+| **Reuse** | `normalize_query`, `retrieve`, `generate_answer` / `build_assembled_prompt` from `data/pipelines/rag.py` |
+| **Graph** | `receive_question` → `classify` → fan-out `{retrieve, incident_tool, inventory_tool}` → `gather` → `compose` **or** `honest_fallback` |
+| **Endpoint** | `POST /api/v1/agent/query` (Bearer JWT) → `{ answer, trace_id, sources, sources_used }` |
+| **Auth forwarding** | Caller JWT is threaded into graph state and sent on tool HTTP calls (required for incidents) |
+| **Fallbacks** | Empty → `Please enter a question.`; RAG-only no hits → `I don't have information about that.`; tool fail/empty → verbatim `I could not confirm the ticket's status.` / `…inventory item's status.` |
+| **Deps** | `langgraph`, `langsmith`, `httpx` (already present) |
+| **Evals** | `tests/pipelines/test_agent_evals.py` (RAG / tool / both / failure + plural name-match) |
 | **HTTP tests** | `services/api/tests/test_agent.py` |
 
-### Extra env (optional LangSmith)
+### Env
 
 | Variable | Purpose |
 |----------|---------|
-| `LANGCHAIN_TRACING_V2` | `true` to enable remote traces |
+| `LLM_API_KEY` | Required for classify, compose, and RAG |
+| `INTERNAL_API_BASE_URL` | Base URL tools call (default `http://localhost:8000`) |
+| `TOOL_HTTP_TIMEOUT_SECONDS` | Per-call tool timeout (default `5.0`) |
+| `LANGCHAIN_TRACING_V2` | `true` to enable LangSmith remote traces |
 | `LANGCHAIN_API_KEY` | LangSmith key — unset disables tracing; graph still runs |
 | `LANGCHAIN_PROJECT` | Default `healthcore-agent` |
 | `LANGCHAIN_ENDPOINT` | Default `https://api.smith.langchain.com` |
 
+Documented in `services/api/.example.env`. Requires a seeded knowledge base for RAG; `DATABASE_URL` + incident/inventory seed for live tool answers.
+
 ### Smoke test
 
 ```bash
-# After login, TOKEN=…
-curl -s -X POST http://localhost:8000/api/v1/agent/query \
-  -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"question":"Is Medicaid accepted at Georgia clinics?"}'
+# After login, TOKEN=…  (API on :8000 with LLM_API_KEY)
+ask() {
+  curl -s -X POST http://localhost:8000/api/v1/agent/query \
+    -H "Authorization: Bearer $TOKEN" \
+    -H 'Content-Type: application/json' \
+    -d "{\"question\": \"$1\"}" | python -m json.tool
+}
+
+ask "Do you take Medicaid?"                          # sources_used: ["rag"]
+ask "What is the status of incident 1?"              # ["incident_tool"]
+ask "How many surgical masks do we have in stock?"   # ["inventory_tool"]
+ask "What's our mask policy and do we have any in stock?"  # rag + inventory_tool
+ask "   "                                            # Please enter a question.
+ask "What is the capital of Mars?"                   # I don't have information about that.
 ```
+
+Check `answer`, `sources`, `sources_used`, and `trace_id` on each response.
 
 ### Tests
 
 ```bash
+uv run pytest tests/pipelines/test_rag.py services/api/tests/test_knowledge.py -q
 uv run pytest tests/pipelines/test_agent_evals.py services/api/tests/test_agent.py -q
 # Optional live grounding:
 LLM_API_KEY=… uv run pytest tests/pipelines/test_agent_evals.py -q
 ```
 
-No frontend for the agent in this branch — use curl / Swagger. Knowledge UI remains for the RAG endpoint.
+No frontend for the agent — use curl / Swagger. Knowledge UI remains for the RAG endpoint.
 
 ---
 
@@ -618,11 +637,11 @@ No frontend for the agent in this branch — use curl / Swagger. Knowledge UI re
 | 5 | Backend | Central API (locations, menus, sales, etc.) | **Implementation complete** |
 | 6 | Telemetry | Data pipeline, dashboards | **In progress** (Build 1–2 on `feature/data_pipeline`: ETL + `/reporting`) |
 | 7 | RAG & Memory | Semantic knowledge base, search | **Implementation complete** (`feature/rag`) |
-| 8 | Agents | Support, onboarding, training agents | Not started |
+| 8 | Agents | Support, onboarding, training agents | **In progress** (`feature/agent_tools_langgraph` — LangGraph + incident/inventory tools) |
 | 9 | Workflows | n8n automations | Not started |
 | 10 | Real-time | Live dashboards, alerts, streaming | Not started |
 
-**HealthCore mapping (M0–M7):** M1/M4 → `uis/website`; M2 → `apps/src` + `/backoffice-functions`; M3 → `/talent-tracker`; M5 → `services/api` + backoffice platform; **M6** → telemetry + Prefect ETL (`data/pipelines/`) + Reporting UI (`/reporting`) — see [Telemetry](#telemetry) and [Data pipeline (Build 2)](#data-pipeline-milestone-6--build-2); **M7** → RAG knowledge assistant (`/knowledge`, `POST /api/v1/knowledge/query`) — see [RAG Knowledge Base (Milestone 7)](#rag-knowledge-base-milestone-7). Detail: [memory-bank/progress.md](./memory-bank/progress.md).
+**HealthCore mapping (M0–M8):** M1/M4 → `uis/website`; M2 → `apps/src` + `/backoffice-functions`; M3 → `/talent-tracker`; M5 → `services/api` + backoffice platform; **M6** → telemetry + Prefect ETL (`data/pipelines/`) + Reporting UI (`/reporting`) — see [Telemetry](#telemetry) and [Data pipeline (Build 2)](#data-pipeline-milestone-6--build-2); **M7** → RAG knowledge assistant (`/knowledge`, `POST /api/v1/knowledge/query`) — see [RAG Knowledge Base (Milestone 7)](#rag-knowledge-base-milestone-7); **M8 (partial)** → LangGraph support agent with tools (`POST /api/v1/agent/query`) — see [LangGraph support agent](#langgraph-support-agent-featureagent_tools_langgraph). Detail: [memory-bank/progress.md](./memory-bank/progress.md).
 
 ---
 

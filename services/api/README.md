@@ -1,6 +1,6 @@
 # HealthCore API (`services/api`)
 
-FastAPI modular monolith for HealthCore internal tools. Domains include incidents reporting, supplier directory, medical supply inventory, and JWT authentication with password reset.
+FastAPI modular monolith for HealthCore internal tools. Domains include incidents reporting, supplier directory, medical supply inventory, JWT authentication with password reset, RAG knowledge, and the LangGraph multi-source support agent (RAG + incident/inventory tools).
 
 ## Architecture
 
@@ -121,10 +121,24 @@ Plans: [`IMPLEMENTATION_PLAN_auth_1.md`](../../memory-bank/references/authentica
 | `/api/v1/inventory/orders/inbound` | POST | Yes | Log vendor delivery (increases stock) |
 | `/api/v1/inventory/orders/outbound` | POST | Yes | Log consumption (decreases stock; `400` if insufficient) |
 | `/api/v1/inventory/orders` | GET | No | Combined delivery + consumption history |
+| `/api/v1/knowledge/query` | POST | Yes | RAG knowledge assistant |
+| `/api/v1/knowledge/feedback` | POST | Yes | Thumbs feedback for knowledge answers |
+| `/api/v1/agent/query` | POST | Yes | LangGraph multi-source agent (RAG + incident/inventory tools) |
 
 Inventory plans: [`milestone5_backend_implementation_plan.md`](../../memory-bank/references/milestone5_ai_plan/milestone5_backend_implementation_plan.md), [`milestone5_frontend_implementation_plan.md`](../../memory-bank/references/milestone5_ai_plan/milestone5_frontend_implementation_plan.md)
 
 Backoffice UI: `/inventory` on landing (`uis/backoffice/landing/`, port **3001**). Module source: `uis/backoffice/inventory/`.
+
+### Agent tools env
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `INTERNAL_API_BASE_URL` | `http://localhost:8000` | Base URL the agent tools call for incidents/inventory |
+| `TOOL_HTTP_TIMEOUT_SECONDS` | `5.0` | Per-call HTTP timeout for tools |
+| `LLM_API_KEY` | (empty) | Required for intent classify, compose, and RAG |
+| `LANGCHAIN_*` | (optional) | LangSmith tracing — see root README |
+
+Agent package: `app/domains/agent/` (tools under `tools/`). Spec/plan: [`memory-bank/references/agentic_engineering/`](../../memory-bank/references/agentic_engineering/).
 
 ### Example flow
 
@@ -151,6 +165,12 @@ curl -s -X POST http://localhost:8000/api/v1/inventory/products \
 
 # Inventory — list products (public)
 curl -s http://localhost:8000/api/v1/inventory/products
+
+# LangGraph agent (RAG + tools) — check answer / sources_used
+curl -s -X POST http://localhost:8000/api/v1/agent/query \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"question":"How many surgical masks do we have in stock?"}'
 ```
 
 Use `/docs` → **Authorize** to paste the token for interactive testing.

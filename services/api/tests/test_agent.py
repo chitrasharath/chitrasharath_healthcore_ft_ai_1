@@ -12,6 +12,15 @@ from app.main import app
 from data.pipelines.rag import RagConfigError
 from data.process.rag import EmbeddingError
 
+_RAG_ONLY_INTENT = {
+    "use_rag": True,
+    "use_incident": False,
+    "use_inventory": False,
+    "incident_id": None,
+    "product_hint": None,
+    "reasoning": "test stub",
+}
+
 
 @pytest.fixture
 def client(monkeypatch: pytest.MonkeyPatch):
@@ -58,7 +67,13 @@ def test_empty_question_returns_200(client: TestClient) -> None:
 
 def test_no_context_path(client: TestClient) -> None:
     token = _register_and_login(client)
-    with patch("app.domains.agent.nodes.retrieve", return_value=[]):
+    with (
+        patch(
+            "app.domains.agent.nodes.classifier_fn",
+            side_effect=lambda q: dict(_RAG_ONLY_INTENT),
+        ),
+        patch("app.domains.agent.nodes.retrieve", return_value=[]),
+    ):
         response = client.post(
             "/api/v1/agent/query",
             headers={"Authorization": f"Bearer {token}"},
@@ -82,6 +97,10 @@ def test_happy_path_shape(client: TestClient) -> None:
         }
     ]
     with (
+        patch(
+            "app.domains.agent.nodes.classifier_fn",
+            side_effect=lambda q: dict(_RAG_ONLY_INTENT),
+        ),
         patch("app.domains.agent.nodes.retrieve", return_value=hits),
         patch(
             "app.domains.agent.nodes.generate_answer",
@@ -99,13 +118,20 @@ def test_happy_path_shape(client: TestClient) -> None:
     assert body["sources"]
     assert body["sources"][0]["source_document"] == "appointment-policy"
     assert body["trace_id"].startswith("run-")
+    assert body["sources_used"] == ["rag"]
 
 
 def test_embedding_error_maps_to_502(client: TestClient) -> None:
     token = _register_and_login(client)
-    with patch(
-        "app.domains.agent.nodes.retrieve",
-        side_effect=EmbeddingError("embed failed"),
+    with (
+        patch(
+            "app.domains.agent.nodes.classifier_fn",
+            side_effect=lambda q: dict(_RAG_ONLY_INTENT),
+        ),
+        patch(
+            "app.domains.agent.nodes.retrieve",
+            side_effect=EmbeddingError("embed failed"),
+        ),
     ):
         response = client.post(
             "/api/v1/agent/query",
@@ -120,9 +146,15 @@ def test_embedding_error_maps_to_502(client: TestClient) -> None:
 
 def test_rag_config_error_maps_to_503(client: TestClient) -> None:
     token = _register_and_login(client)
-    with patch(
-        "app.domains.agent.nodes.retrieve",
-        side_effect=RagConfigError("bad config"),
+    with (
+        patch(
+            "app.domains.agent.nodes.classifier_fn",
+            side_effect=lambda q: dict(_RAG_ONLY_INTENT),
+        ),
+        patch(
+            "app.domains.agent.nodes.retrieve",
+            side_effect=RagConfigError("bad config"),
+        ),
     ):
         response = client.post(
             "/api/v1/agent/query",

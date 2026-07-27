@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     rag_generation_temperature: float = 0.15
     rag_question_max_length: int = 1000
 
+    # Agent tools (self-HTTP to incident / inventory APIs)
+    internal_api_base_url: str = "http://localhost:8000"
+    tool_http_timeout_seconds: float = 5.0
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]

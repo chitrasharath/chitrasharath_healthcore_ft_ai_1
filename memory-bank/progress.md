@@ -2,7 +2,7 @@
 
 ## Current Status Summary
 
-The project is organized into milestone-based delivery (M1–M5 **delivered**; **M6 Data Pipeline in progress** — Design/Build on `feature/data_pipeline`; **DEV-53 Background Processing** on `feature/background-processing`; **M7 RAG Knowledge Base implemented on `feature/rag`** — pending live eval with `LLM_API_KEY` + PR; **LangGraph Support Agent implemented on `feature/agent_rag_langgraph`** — awaiting manual smoke before single commit).
+The project is organized into milestone-based delivery (M1–M5 **delivered**; **M6 Data Pipeline in progress** — Design/Build on `feature/data_pipeline`; **DEV-53 Background Processing** on `feature/background-processing`; **M7 RAG Knowledge Base implemented on `feature/rag`** — pending live eval with `LLM_API_KEY` + PR; **LangGraph Support Agent delivered on `feature/agent_rag_langgraph`**; **Agent Tools (incident + inventory) implemented on `feature/agent_tools_langgraph`** — pending commit).
 Milestone 4 public portal migration is **delivered** at `uis/website`. Milestone 5 backend and internal ops platform is **delivered** (`services/api`, backoffice landing on :3001, Docker Compose). Legacy `apps/healthcore_web_portal/` and `apps/src` remain unchanged.
 
 ## Major Milestones
@@ -238,19 +238,27 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
 - Plan: `memory-bank/references/rag/rag_milestone7_IMPLEMENTATION_PLAN.md`
 - Spec: `memory-bank/references/rag/rag_milestone7_specs.md`
 
-### LangGraph Support Agent (Implemented on `feature/agent_rag_langgraph` — pending manual smoke + commit)
+### LangGraph Support Agent (Implemented on `feature/agent_rag_langgraph`)
 
 - Goal: re-express M7 RAG as a compiled LangGraph graph with conditional routing, checkpointing, in-state traces, optional LangSmith, and sibling `POST /api/v1/agent/query` (no frontend).
-- **Status:** Code + tests implemented; **no commit yet** until manual smoke of the endpoint.
+- **Status:** Delivered on `feature/agent_rag_langgraph` (commit `c5a45a7`).
 - Spec: `memory-bank/references/agentic_engineering/agent_rag_langgraph_specs.md`
 - Plan: `memory-bank/references/agentic_engineering/agent_rag_langgraph_IMPLEMENTATION_PLAN.md`
-- Branch: `feature/agent_rag_langgraph` off `feature/rag`; PR → `feature/rag` after one commit post-manual-test
+
+### Agent Tools: Incident + Inventory (Implemented on `feature/agent_tools_langgraph` — pending commit)
+
+- Goal: multi-source LangGraph agent — RAG + incident HTTP tool + inventory HTTP tool with classifier fan-out, honest fallbacks, and trace `sources_used`.
+- **Status:** Code + tests implemented on `feature/agent_tools_langgraph` (off `feature/agent_rag_langgraph`); **no commit yet** until developer requests.
+- Spec: `memory-bank/references/agentic_engineering/agent_tools_incident_inventory_specs.md`
+- Plan: `memory-bank/references/agentic_engineering/agent_tools_incident_inventory_IMPLEMENTATION_PLAN.md`
 - **Delivered in working tree:**
-  - `generate_answer` / `build_assembled_prompt` factored from `data/pipelines/rag.query`
-  - `services/api/app/domains/agent/` — state, nodes, routing, MemorySaver graph, tracing, JWT `POST /api/v1/agent/query`
-  - Evals: `tests/pipelines/test_agent_evals.py` + grounding fixture; HTTP: `services/api/tests/test_agent.py`
-  - Deps: `langgraph`, `langsmith`; `LANGCHAIN_*` in `.example.env` files
-- **Verified:** `uv run pytest tests/pipelines/test_rag.py services/api/tests/test_knowledge.py tests/pipelines/test_agent_evals.py services/api/tests/test_agent.py` — 25 passed, 1 skipped (live grounding without key)
+  - `app/domains/agent/tools/` — typed incident/inventory contracts; httpx with timeout + retry-once on 5xx/timeout; never raise into graph
+  - Graph: `classify` → fan-out `{retrieve, incident_tool, inventory_tool}` → `gather` → `compose` | `honest_fallback` (Part 1 `query`/`no_context` removed)
+  - JWT forwarded from `/agent/query` into state for incident auth; response adds optional `sources_used`
+  - Settings: `INTERNAL_API_BASE_URL`, `TOOL_HTTP_TIMEOUT_SECONDS`
+  - Evals: tool / RAG / both / failure + retry unit; Part 1 node-order subsequence; HTTP tests updated
+- **Verified:** `uv run pytest tests/pipelines/test_rag.py services/api/tests/test_knowledge.py tests/pipelines/test_agent_evals.py services/api/tests/test_agent.py` — **30 passed, 1 skipped**
+- **Next:** manual smoke; commit when requested; PR → `feature/agent_rag_langgraph`
 
 ## Future Feature Additions
 

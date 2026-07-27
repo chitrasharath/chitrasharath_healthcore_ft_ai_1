@@ -17,3 +17,4 @@ class AgentQueryResponse(BaseModel):
     answer: str
     trace_id: str
     sources: list[AgentSource]
+    sources_used: list[str] = Field(default_factory=list)

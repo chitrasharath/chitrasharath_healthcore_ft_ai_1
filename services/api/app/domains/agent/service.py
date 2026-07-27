@@ -33,14 +33,21 @@ def _map_sources(raw: list[dict[str, Any]] | None) -> list[AgentSource]:
     return sources
 
 
-def invoke_graph(question: str) -> AgentQueryResponse:
+def invoke_graph(
+    question: str, *, auth_token: str | None = None
+) -> AgentQueryResponse:
     trace_id = "run-" + uuid.uuid4().hex[:12]
     initial_state: dict[str, Any] = {
         "question": question,
         "normalized_question": None,
+        "auth_token": auth_token,
+        "intent": None,
         "retrieved_context": None,
+        "incident_result": None,
+        "inventory_result": None,
         "answer": None,
         "sources": None,
+        "sources_used": [],
         "trace_id": trace_id,
         "trace_steps": [],
         "error": None,
@@ -82,4 +89,5 @@ def invoke_graph(question: str) -> AgentQueryResponse:
         answer=answer,
         trace_id=trace_id,
         sources=_map_sources(final_state.get("sources")),
+        sources_used=list(final_state.get("sources_used") or []),
     )

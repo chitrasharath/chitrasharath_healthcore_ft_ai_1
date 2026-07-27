@@ -352,6 +352,29 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision: No frontend and no feedback JSONL wiring in this milestone; single commit only after build + manual smoke.
 - Why: Locked planning Q&A; feedback depends on future UI.
 
+## Agent Tools: Incident + Inventory
+
+- Decision: Branch `feature/agent_tools_langgraph` off `feature/agent_rag_langgraph`; extend existing `/agent/query` — no new endpoint or frontend.
+- Why: Spec Part 2 continuation; keep RAG and tool answers behind one authenticated contract.
+
+- Decision: Tools call this API over **httpx** (`INTERNAL_API_BASE_URL`) with explicit timeouts and **retry-once** on 5xx/timeout; typed results never raise into the graph.
+- Why: Recovery contract; matches RAG `_generate` retry spirit without new dependencies.
+
+- Decision: LLM `classify` node emits multi-label intent; fan-out to RAG/incident/inventory; `gather` barrier then `compose` or `honest_fallback`.
+- Why: Spec routing + explicit recovery; supports “both” questions.
+
+- Decision: Fold Part 1 `no_context` into `honest_fallback`; verbatim tool fallbacks joined with newline; `RagConfigError`/`GenerationError` stay in `compose` error mapping (not honest_fallback).
+- Why: Locked planning Q&A — recovery is for empty/failed sources; infra errors keep Part 1 HTTP mapping.
+
+- Decision: Forward caller JWT into graph state for incident tool auth; never log the token; add optional `sources_used` on response.
+- Why: Incidents require auth; inventory list is public but token forwarded harmlessly; trace visibility for callers/evals.
+
+- Decision: Classifier extracts only `incident_id` + `product_hint` this milestone; list filters stay typed but unused.
+- Why: Avoid classifier complexity; by-id / name-hint covers acceptance scenarios.
+
+- Decision: Keep current proxy generation models; no Docker Compose changes for tool base URL.
+- Why: Locked planning Q&A.
+
 - Decision: Landing-aliased UI at `uis/backoffice/knowledge/` on port 3001 (not a standalone Next app); hub nav card tagged New.
 - Why: Match inventory / incident-manager / reporting pattern; single AuthGuard.
 
