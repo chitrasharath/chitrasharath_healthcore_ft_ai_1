@@ -352,6 +352,23 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision: No frontend and no feedback JSONL wiring in this milestone; single commit only after build + manual smoke.
 - Why: Locked planning Q&A; feedback depends on future UI.
 
+## Company Tools MCP + Agent Migration
+
+- Decision: Branch `feature/agent_mcp_langgraph` off `feature/agent_tools_langgraph`; MCP server lives under `mcps/company-tools/` (not `services/`).
+- Why: Spec/reference layout — MCP servers are reusable company gateways, separate from the FastAPI monolith.
+
+- Decision: Use **`mcpauth`** (not FastMCP built-in auth) + **Streamable HTTP**; serve RFC 9728 PRM ourselves because installed `mcpauth` 0.1.1 still uses AuthServerConfig / AS metadata mode.
+- Why: Spec requires mcpauth + PRM behavior; pin and adapt to published SDK.
+
+- Decision: **Split identity** — Keycloak JWT authenticates MCP; caller FastAPI HS256 JWT forwarded via `X-Downstream-Authorization` for `/api/v1/incidents*` (and optional inventory).
+- Why: FastAPI login stays untouched; live incident calls still need API-accepted tokens.
+
+- Decision: Agent obtains MCP token via Keycloak **`client_credentials`** (`agent-support`); password grant only for Inspector/Playground.
+- Why: Non-interactive agent runtime; interactive users for manual validation.
+
+- Decision: Compose adds **Keycloak only**; MCP runs via `uv run company-tools` on `:9000`. Hard-delete direct agent tool modules (no feature flag).
+- Why: Locked planning scope; single path to operational data through MCP.
+
 ## Agent Tools: Incident + Inventory
 
 - Decision: Branch `feature/agent_tools_langgraph` off `feature/agent_rag_langgraph`; extend existing `/agent/query` — no new endpoint or frontend.

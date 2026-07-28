@@ -23,8 +23,6 @@ from app.domains.agent.nodes import (
     EMPTY_QUESTION_ANSWER,
     INCIDENT_FALLBACK,
 )
-from app.domains.agent.tools.incident import IncidentToolResult
-from app.domains.agent.tools.inventory import InventoryToolResult
 from data.pipelines.rag import FALLBACK_ANSWER
 
 _FIXTURE_PATH = (
@@ -69,8 +67,8 @@ def run_agent(
     retrieve_fn=None,
     classifier_fn=None,
     auth_token: str | None = "test-token",
-    run_incident_tool_fn=None,
-    run_inventory_tool_fn=None,
+    run_incident_via_mcp_fn=None,
+    run_inventory_via_mcp_fn=None,
     compose_generate_fn=None,
 ) -> dict:
     """Invoke compiled_graph once; optional seams for deterministic evals."""
@@ -112,16 +110,20 @@ def run_agent(
             stack.enter_context(
                 patch.object(agent_nodes, "retrieve", side_effect=retrieve_fn)
             )
-        if run_incident_tool_fn is not None:
+        if run_incident_via_mcp_fn is not None:
             stack.enter_context(
                 patch.object(
-                    agent_nodes, "run_incident_tool", side_effect=run_incident_tool_fn
+                    agent_nodes,
+                    "run_incident_via_mcp",
+                    side_effect=run_incident_via_mcp_fn,
                 )
             )
-        if run_inventory_tool_fn is not None:
+        if run_inventory_via_mcp_fn is not None:
             stack.enter_context(
                 patch.object(
-                    agent_nodes, "run_inventory_tool", side_effect=run_inventory_tool_fn
+                    agent_nodes,
+                    "run_inventory_via_mcp",
+                    side_effect=run_inventory_via_mcp_fn,
                 )
             )
         return compiled_graph.invoke(initial, config=config)
@@ -249,12 +251,19 @@ def test_resolves_with_incident_tool() -> None:
             "reasoning": "incident status",
         }
 
-    def _incident_tool(inp, *, auth_token=None):
-        assert inp.incident_id == 42
+    def _incident_tool(*, action="get", ticket_id=None, auth_token=None, **kwargs):
+        assert ticket_id == 42
         assert auth_token == "test-token"
-        return IncidentToolResult(ok=True, incident=incident)
+        return {
+            "source": "incident_tool",
+            "ok": True,
+            "incident": incident,
+            "incidents": [],
+            "error": None,
+            "empty": False,
+        }
 
-    def _inventory_tool(inp, *, auth_token=None):
+    def _inventory_tool(**kwargs):
         raise AssertionError("inventory tool must not be called")
 
     def _retrieve(q: str, **kwargs):
@@ -267,8 +276,8 @@ def test_resolves_with_incident_tool() -> None:
     final = run_agent(
         "What is the status of incident 42?",
         classifier_fn=_clf,
-        run_incident_tool_fn=_incident_tool,
-        run_inventory_tool_fn=_inventory_tool,
+        run_incident_via_mcp_fn=_incident_tool,
+        run_inventory_via_mcp_fn=_inventory_tool,
         retrieve_fn=_retrieve,
         compose_generate_fn=_compose,
     )
@@ -298,12 +307,12 @@ def test_resolves_with_rag_only() -> None:
     def _clf(q: str) -> dict:
         return dict(_RAG_ONLY_INTENT)
 
-    def _incident_tool(inp, *, auth_token=None):
-        incident_calls.append(inp)
+    def _incident_tool(**kwargs):
+        incident_calls.append(kwargs)
         raise AssertionError("incident tool must not be called")
 
-    def _inventory_tool(inp, *, auth_token=None):
-        inventory_calls.append(inp)
+    def _inventory_tool(**kwargs):
+        inventory_calls.append(kwargs)
         raise AssertionError("inventory tool must not be called")
 
     def _retrieve(q: str, **kwargs):
@@ -317,8 +326,8 @@ def test_resolves_with_rag_only() -> None:
         classifier_fn=_clf,
         retrieve_fn=_retrieve,
         generate_fn=_generate,
-        run_incident_tool_fn=_incident_tool,
-        run_inventory_tool_fn=_inventory_tool,
+        run_incident_via_mcp_fn=_incident_tool,
+        run_inventory_via_mcp_fn=_inventory_tool,
     )
     nodes = _node_names(final["trace_steps"])
     assert final.get("sources_used") == ["rag"]
@@ -365,13 +374,18 @@ def test_resolves_with_both_rag_and_inventory() -> None:
     def _retrieve(q: str, **kwargs):
         return hits
 
-    def _inventory_tool(inp, *, auth_token=None):
-        assert inp.name_hint == "mask"
-        return InventoryToolResult(
-            ok=True, products=[product], matched=[product], empty=False
-        )
+    def _inventory_tool(*, name_hint=None, auth_token=None, **kwargs):
+        assert name_hint == "mask"
+        return {
+            "source": "inventory_tool",
+            "ok": True,
+            "products": [product],
+            "matched": [product],
+            "error": None,
+            "empty": False,
+        }
 
-    def _incident_tool(inp, *, auth_token=None):
+    def _incident_tool(**kwargs):
         raise AssertionError("incident tool must not be called")
 
     def _compose(prompt: str) -> str:
@@ -382,8 +396,8 @@ def test_resolves_with_both_rag_and_inventory() -> None:
         "What's our mask policy and do we have any in stock?",
         classifier_fn=_clf,
         retrieve_fn=_retrieve,
-        run_inventory_tool_fn=_inventory_tool,
-        run_incident_tool_fn=_incident_tool,
+        run_inventory_via_mcp_fn=_inventory_tool,
+        run_incident_via_mcp_fn=_incident_tool,
         compose_generate_fn=_compose,
     )
     used = final.get("sources_used") or []
@@ -411,8 +425,15 @@ def test_tool_failure_honest_fallback() -> None:
             "reasoning": "incident only",
         }
 
-    def _incident_tool(inp, *, auth_token=None):
-        return IncidentToolResult(ok=False, error="timeout")
+    def _incident_tool(**kwargs):
+        return {
+            "source": "incident_tool",
+            "ok": False,
+            "incident": None,
+            "incidents": [],
+            "error": "timeout",
+            "empty": False,
+        }
 
     def _retrieve(q: str, **kwargs):
         raise AssertionError("retrieve must not be called")
@@ -420,7 +441,7 @@ def test_tool_failure_honest_fallback() -> None:
     final = run_agent(
         "Status of incident 99?",
         classifier_fn=_clf,
-        run_incident_tool_fn=_incident_tool,
+        run_incident_via_mcp_fn=_incident_tool,
         retrieve_fn=_retrieve,
     )
     nodes = _node_names(final["trace_steps"])
@@ -439,7 +460,7 @@ def test_tool_failure_honest_fallback() -> None:
 
 def test_inventory_match_handles_plural_hint() -> None:
     """Smoke #3 regression: 'surgical masks' must match 'Surgical mask (pack of 50)'."""
-    from app.domains.agent.tools.inventory import _match_products
+    from company_tools.tools.inventory import match_products
 
     products = [
         {
@@ -449,67 +470,28 @@ def test_inventory_match_handles_plural_hint() -> None:
             "current_stock": 182,
         }
     ]
-    matched = _match_products(products, "surgical masks")
+    matched = match_products(products, "surgical masks")
     assert len(matched) == 1
     assert matched[0]["sku"] == "MASK-50"
-    assert _match_products(products, "mask")
-    assert not _match_products(products, "gloves")
+    assert match_products(products, "mask")
+    assert not match_products(products, "gloves")
 
 
-def test_tool_http_retry_once_on_500() -> None:
-    """Retry-once: first 500, second 200 succeeds."""
-    from app.domains.agent.tools import base as tool_base
+def test_mcp_incident_error_mapping_timeout() -> None:
+    """MCP client maps structured timeout errors without raising."""
+    from app.domains.agent import mcp_client
 
-    calls = {"n": 0}
+    async def _fake_ainvoke(tool_name, arguments, *, auth_token=None):
+        return {
+            "ok": False,
+            "incident": None,
+            "error_code": "UPSTREAM_TIMEOUT",
+            "error_message": "Upstream HTTP call timed out.",
+        }
 
-    class _FakeResp:
-        def __init__(self, status_code: int, payload):
-            self.status_code = status_code
-            self._payload = payload
-            self.text = str(payload)
-
-        def json(self):
-            return self._payload
-
-    class _FakeClient:
-        def __init__(self, *args, **kwargs):
-            pass
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            return False
-
-        def request(self, method, url, headers=None, params=None):
-            calls["n"] += 1
-            if calls["n"] == 1:
-                return _FakeResp(500, {"detail": "boom"})
-            return _FakeResp(
-                200,
-                {
-                    "id": 1,
-                    "title": "t",
-                    "description": "d",
-                    "category": "service",
-                    "status": "open",
-                    "origin": "web",
-                    "branch": "Austin",
-                    "created_at": "2026-01-01T00:00:00",
-                    "updated_at": "2026-01-01T00:00:00",
-                },
-            )
-
-    with patch.object(tool_base.httpx, "Client", _FakeClient):
-        from app.domains.agent.tools.incident import (
-            IncidentToolInput,
-            run_incident_tool,
+    with patch.object(mcp_client, "_ainvoke_tool", side_effect=_fake_ainvoke):
+        result = mcp_client.run_incident_via_mcp(
+            action="get", ticket_id=1, auth_token="tok"
         )
-
-        result = run_incident_tool(
-            IncidentToolInput(incident_id=1), auth_token="tok"
-        )
-    assert calls["n"] == 2
-    assert result.ok is True
-    assert result.incident is not None
-    assert result.incident["status"] == "open"
+    assert result["ok"] is False
+    assert result["error"] == "timeout"

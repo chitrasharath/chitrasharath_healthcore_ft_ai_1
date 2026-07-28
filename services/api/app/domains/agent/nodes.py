@@ -8,8 +8,7 @@ from typing import Any, Callable
 import httpx
 
 from app.domains.agent.state import AgentState
-from app.domains.agent.tools.incident import IncidentToolInput, run_incident_tool
-from app.domains.agent.tools.inventory import InventoryToolInput, run_inventory_tool
+from app.domains.agent.mcp_client import run_incident_via_mcp, run_inventory_via_mcp
 from app.domains.agent.tracing import trace_step
 from data.pipelines.rag import (
     GenerationError,
@@ -255,10 +254,16 @@ def retrieve_node(state: AgentState) -> dict[str, Any]:
 def incident_tool_node(state: AgentState) -> dict[str, Any]:
     order = _next_order(state)
     intent = state.get("intent") or {}
-    inp = IncidentToolInput(incident_id=intent.get("incident_id"))
-    result = run_incident_tool(inp, auth_token=state.get("auth_token"))
-    dumped = result.model_dump()
-    summary = f"ok={result.ok} empty={result.empty} error={result.error}"
+    incident_id = intent.get("incident_id")
+    dumped = run_incident_via_mcp(
+        action="get",
+        ticket_id=int(incident_id) if incident_id is not None else None,
+        auth_token=state.get("auth_token"),
+    )
+    summary = (
+        f"ok={dumped.get('ok')} empty={dumped.get('empty')} "
+        f"error={dumped.get('error')}"
+    )
     return {
         "incident_result": dumped,
         "sources_used": ["incident_tool"],
@@ -270,12 +275,13 @@ def inventory_tool_node(state: AgentState) -> dict[str, Any]:
     order = _next_order(state)
     intent = state.get("intent") or {}
     hint = intent.get("product_hint")
-    inp = InventoryToolInput(name_hint=str(hint) if hint else None)
-    result = run_inventory_tool(inp, auth_token=state.get("auth_token"))
-    dumped = result.model_dump()
+    dumped = run_inventory_via_mcp(
+        name_hint=str(hint) if hint else None,
+        auth_token=state.get("auth_token"),
+    )
     summary = (
-        f"ok={result.ok} empty={result.empty} error={result.error} "
-        f"matched={len(result.matched)}"
+        f"ok={dumped.get('ok')} empty={dumped.get('empty')} "
+        f"error={dumped.get('error')} matched={len(dumped.get('matched') or [])}"
     )
     return {
         "inventory_result": dumped,

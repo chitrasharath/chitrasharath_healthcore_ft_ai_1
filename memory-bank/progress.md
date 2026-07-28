@@ -2,7 +2,7 @@
 
 ## Current Status Summary
 
-The project is organized into milestone-based delivery (M1–M5 **delivered**; **M6 Data Pipeline in progress** — Design/Build on `feature/data_pipeline`; **DEV-53 Background Processing** on `feature/background-processing`; **M7 RAG Knowledge Base implemented on `feature/rag`** — pending live eval with `LLM_API_KEY` + PR; **LangGraph Support Agent delivered on `feature/agent_rag_langgraph`**; **Agent Tools (incident + inventory) implemented on `feature/agent_tools_langgraph`** — pending commit).
+The project is organized into milestone-based delivery (M1–M5 **delivered**; **M6 Data Pipeline in progress** — Design/Build on `feature/data_pipeline`; **DEV-53 Background Processing** on `feature/background-processing`; **M7 RAG Knowledge Base implemented on `feature/rag`** — pending live eval with `LLM_API_KEY` + PR; **LangGraph Support Agent delivered on `feature/agent_rag_langgraph`**; **Agent Tools delivered on `feature/agent_tools_langgraph`**; **Company Tools MCP + agent migration in progress on `feature/agent_mcp_langgraph`**).
 Milestone 4 public portal migration is **delivered** at `uis/website`. Milestone 5 backend and internal ops platform is **delivered** (`services/api`, backoffice landing on :3001, Docker Compose). Legacy `apps/healthcore_web_portal/` and `apps/src` remain unchanged.
 
 ## Major Milestones
@@ -245,20 +245,28 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
 - Spec: `memory-bank/references/agentic_engineering/agent_rag_langgraph_specs.md`
 - Plan: `memory-bank/references/agentic_engineering/agent_rag_langgraph_IMPLEMENTATION_PLAN.md`
 
-### Agent Tools: Incident + Inventory (Implemented on `feature/agent_tools_langgraph` — pending commit)
+### Agent Tools: Incident + Inventory (Implemented on `feature/agent_tools_langgraph`)
 
 - Goal: multi-source LangGraph agent — RAG + incident HTTP tool + inventory HTTP tool with classifier fan-out, honest fallbacks, and trace `sources_used`.
-- **Status:** Code + tests implemented on `feature/agent_tools_langgraph` (off `feature/agent_rag_langgraph`); **no commit yet** until developer requests.
+- **Status:** Delivered and committed on `feature/agent_tools_langgraph` (`63e124f`).
 - Spec: `memory-bank/references/agentic_engineering/agent_tools_incident_inventory_specs.md`
 - Plan: `memory-bank/references/agentic_engineering/agent_tools_incident_inventory_IMPLEMENTATION_PLAN.md`
+
+### Company Tools MCP + Agent Migration (In progress on `feature/agent_mcp_langgraph`)
+
+- Goal: extract incident/inventory tools into FastMCP Streamable HTTP server under `mcps/company-tools/`, gate with `mcpauth` + Keycloak, rewire agent via `langchain-mcp-adapters`, delete direct HTTP tool modules.
+- **Status:** Implemented + **live smoke passed** on `feature/agent_mcp_langgraph` (off `feature/agent_tools_langgraph`); awaiting developer commit request.
+- Spec: `memory-bank/references/agentic_engineering/mcp_company_tools_specs.md`
+- Plan: `memory-bank/references/agentic_engineering/mcp_company_tools_IMPLEMENTATION_PLAN.md`
 - **Delivered in working tree:**
-  - `app/domains/agent/tools/` — typed incident/inventory contracts; httpx with timeout + retry-once on 5xx/timeout; never raise into graph
-  - Graph: `classify` → fan-out `{retrieve, incident_tool, inventory_tool}` → `gather` → `compose` | `honest_fallback` (Part 1 `query`/`no_context` removed)
-  - JWT forwarded from `/agent/query` into state for incident auth; response adds optional `sources_used`
-  - Settings: `INTERNAL_API_BASE_URL`, `TOOL_HTTP_TIMEOUT_SECONDS`
-  - Evals: tool / RAG / both / failure + retry unit; Part 1 node-order subsequence; HTTP tests updated
-- **Verified:** `uv run pytest tests/pipelines/test_rag.py services/api/tests/test_knowledge.py tests/pipelines/test_agent_evals.py services/api/tests/test_agent.py` — **30 passed, 1 skipped**
-- **Next:** manual smoke; commit when requested; PR → `feature/agent_rag_langgraph`
+  - `mcps/company-tools/` — FastMCP tools `manage_incident_ticket` / `query_inventory`; `mcpauth` JWT middleware; RFC 9728 PRM route; structured logs; exit codes 78/69
+  - Keycloak in `docker-compose.yml` + `keycloak/realm-export.json` (realm `healthcore`)
+  - Split identity: Keycloak → MCP; FastAPI JWT via `X-Downstream-Authorization` → API
+  - Agent `mcp_client.py`; direct `tools/incident.py` + `inventory.py` deleted
+  - Evals stub MCP client; MCP unit tests offline
+- **Verified (offline):** `uv run pytest mcps/company-tools/tests tests/pipelines/test_agent_evals.py services/api/tests/test_agent.py tests/pipelines/test_rag.py services/api/tests/test_knowledge.py` — **41 passed, 1 skipped**
+- **Verified (live):** Keycloak + MCP PRM/401; Inspector tools/list; inventory read; incident create → update → get; write-forbid pytest; readonly `AUTH_INSUFFICIENT_SCOPE`; agent RAG `sources_used: ["rag"]`
+- **Next:** commit when requested; PR → `feature/agent_tools_langgraph`
 
 ## Future Feature Additions
 

@@ -30,9 +30,13 @@ class Settings(BaseSettings):
     rag_generation_temperature: float = 0.15
     rag_question_max_length: int = 1000
 
-    # Agent tools (self-HTTP to incident / inventory APIs)
-    internal_api_base_url: str = "http://localhost:8000"
-    tool_http_timeout_seconds: float = 5.0
+    # Agent → company-tools MCP (Keycloak client_credentials)
+    mcp_company_tools_url: str = "http://localhost:9000/mcp"
+    keycloak_token_url: str = (
+        "http://localhost:8080/realms/healthcore/protocol/openid-connect/token"
+    )
+    keycloak_client_id: str = "agent-support"
+    keycloak_client_secret: str = "agent-support-dev-secret"
 
     @property
     def cors_origin_list(self) -> list[str]:
