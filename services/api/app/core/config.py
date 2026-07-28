@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     keycloak_client_id: str = "agent-support"
     keycloak_client_secret: str = "agent-support-dev-secret"
 
+    # Agent harness / guardrails (in-process; kill-switch disables IG/ISO/OG/OBS)
+    guardrails_enabled: bool = True
+    guardrail_classifier_enabled: bool = True
+    guardrail_phi_detection_enabled: bool = True
+    guardrail_preview_max_chars: int = 80
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]

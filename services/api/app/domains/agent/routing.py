@@ -8,6 +8,13 @@ _HARD_RETRIEVE_ERRORS = frozenset({"RagConfigError", "EmbeddingError"})
 def after_receive(state: AgentState) -> str:
     if state.get("error") == "empty_question" or not state.get("normalized_question"):
         return "end"
+    return "input_guards"
+
+
+def after_input_guards(state: AgentState) -> str:
+    action = state.get("guardrail_action")
+    if action in {"block", "redirect"} and state.get("answer"):
+        return "observability"
     return "classify"
 
 
@@ -41,3 +48,8 @@ def after_gather(state: AgentState) -> str:
     if not rag_ok and not inc_ok and not inv_ok:
         return "honest_fallback"
     return "compose"
+
+
+def after_external_content(state: AgentState) -> str:
+    """Route to compose or honest_fallback using the same rules as after_gather."""
+    return after_gather(state)

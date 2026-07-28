@@ -621,7 +621,19 @@ uv run pytest tests/pipelines/test_agent_evals.py services/api/tests/test_agent.
 LLM_API_KEY=… uv run pytest tests/pipelines/test_agent_evals.py -q
 ```
 
-No frontend for the agent — use curl / Swagger. Knowledge UI remains for the RAG endpoint.
+No frontend for the agent curl path — use Swagger or the backoffice **Knowledge** UI (`/knowledge`), which is wired to the **guarded** `/agent/query` + `/agent/feedback` endpoints.
+
+### Agent harness / guardrails (`feature/agent_harness`)
+
+Input/output guardrails (IG/ISO/OG/OBS) wrap the LangGraph agent: jailbreak refusal, personal-use block, casual redirect, PHI controls (HIPAA/UK GDPR), untrusted wrapping of RAG + **MCP** tool JSON, and `GET /api/v1/agent/guardrails/metrics`.
+
+**Knowledge UI + agent tools are read-only for ops data:** inventory = stock lookup only; incidents = get-by-id only. MCP can create/update incidents, but the agent does not. Create/write questions in `/knowledge` will not mutate data. Details: [`services/api/README.md`](./services/api/README.md) → *Agent + Knowledge UI — tool capabilities (read-only)*.
+
+**Manual test matrix (2–3 questions per type):** see [`services/api/README.md`](./services/api/README.md) → *Manual guardrail testing*.
+
+```bash
+uv run pytest tests/pipelines/test_guardrails_injection.py -q
+```
 
 ---
 

@@ -11,25 +11,28 @@ describe("knowledge-api", () => {
     mockHealthcoreFetch.mockReset();
   });
 
-  it("queryKnowledge posts the question and returns JSON", async () => {
+  it("queryKnowledge posts to /agent/query and maps trace_id to query_id", async () => {
     mockHealthcoreFetch.mockResolvedValue({
       ok: true,
       json: async () => ({
-        query_id: "q1",
+        trace_id: "run-abc123",
         answer: "Fee is 50 USD",
         sources: [{ source_document: "appointment-policy", section: "Cancellation", score: 0.9 }],
+        sources_used: ["rag"],
       }),
     });
 
     const { queryKnowledge } = await import("@backoffice/knowledge/lib/knowledge-api");
     const result = await queryKnowledge("cancellation fee?");
 
-    expect(mockHealthcoreFetch).toHaveBeenCalledWith("/knowledge/query", {
+    expect(mockHealthcoreFetch).toHaveBeenCalledWith("/agent/query", {
       method: "POST",
       body: JSON.stringify({ question: "cancellation fee?" }),
     });
+    expect(result.query_id).toBe("run-abc123");
     expect(result.answer).toContain("50 USD");
     expect(result.sources).toHaveLength(1);
+    expect(result.sources_used).toEqual(["rag"]);
   });
 
   it("queryKnowledge throws a friendly error on failure", async () => {
@@ -38,13 +41,17 @@ describe("knowledge-api", () => {
     await expect(queryKnowledge("hi")).rejects.toThrow("Something went wrong");
   });
 
-  it("submitFeedback posts rating with query_id", async () => {
+  it("submitFeedback posts to /agent/feedback with trace_id", async () => {
     mockHealthcoreFetch.mockResolvedValue({ ok: true });
     const { submitFeedback } = await import("@backoffice/knowledge/lib/knowledge-api");
-    await submitFeedback({ query_id: "q1", rating: "down", comment: "unclear" });
-    expect(mockHealthcoreFetch).toHaveBeenCalledWith("/knowledge/feedback", {
+    await submitFeedback({ query_id: "run-abc123", rating: "down", comment: "unclear" });
+    expect(mockHealthcoreFetch).toHaveBeenCalledWith("/agent/feedback", {
       method: "POST",
-      body: JSON.stringify({ query_id: "q1", rating: "down", comment: "unclear" }),
+      body: JSON.stringify({
+        trace_id: "run-abc123",
+        rating: "down",
+        comment: "unclear",
+      }),
     });
   });
 

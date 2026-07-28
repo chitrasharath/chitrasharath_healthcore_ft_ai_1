@@ -103,7 +103,7 @@ def test_happy_path_shape(client: TestClient) -> None:
         ),
         patch("app.domains.agent.nodes.retrieve", return_value=hits),
         patch(
-            "app.domains.agent.nodes.generate_answer",
+            "app.domains.agent.nodes.compose_generate_fn",
             return_value="The late cancellation fee is 50 USD.",
         ),
     ):

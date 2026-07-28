@@ -87,8 +87,30 @@ def _run_coro(coro: Any) -> Any:
 
 
 def _parse_tool_payload(raw: Any) -> dict[str, Any]:
+    """Normalize langchain-mcp-adapters / MCP tool return shapes to a dict."""
     if isinstance(raw, dict):
+        # Prefer structuredContent when adapters nest it
+        structured = raw.get("structuredContent")
+        if isinstance(structured, dict):
+            return structured
+        if "ok" in raw or "error_code" in raw:
+            return raw
+        # Single text content block shaped as dict
+        if raw.get("type") == "text" and isinstance(raw.get("text"), str):
+            return _parse_tool_payload(raw["text"])
         return raw
+    if isinstance(raw, list):
+        # langchain StructuredTool often returns [{"type":"text","text":"{...json...}"}]
+        for item in raw:
+            parsed = _parse_tool_payload(item)
+            if isinstance(parsed, dict) and (
+                "ok" in parsed or "error_code" in parsed or "incident" in parsed
+                or "products" in parsed or "matched" in parsed
+            ):
+                return parsed
+        if raw:
+            return _parse_tool_payload(raw[0])
+        return {"ok": False, "error_code": "UPSTREAM_ERROR", "error_message": "empty tool result"}
     if isinstance(raw, str):
         import json
 

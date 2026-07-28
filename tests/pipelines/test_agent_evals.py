@@ -80,26 +80,38 @@ def run_agent(
         "retrieved_context": None,
         "incident_result": None,
         "inventory_result": None,
+        "compose_context_blocks": None,
         "answer": None,
         "sources": None,
         "sources_used": [],
         "trace_id": "run-" + uuid.uuid4().hex[:12],
         "trace_steps": [],
         "error": None,
+        "guardrail_action": None,
+        "guardrail_type": None,
+        "guardrail_events": [],
+        "final_answer_overridden": None,
     }
     config = {"configurable": {"thread_id": initial["trace_id"]}}
 
     with ExitStack() as stack:
+        # Guardrails pass-through for routing/grounding evals (benign inputs).
+        from app.core import config as app_config
+
+        stack.enter_context(
+            patch.object(app_config.settings, "guardrails_enabled", False)
+        )
         clf = classifier_fn if classifier_fn is not None else (
             lambda q: dict(_RAG_ONLY_INTENT)
         )
         stack.enter_context(patch.object(agent_nodes, "classifier_fn", clf))
         if generate_fn is not None:
+            # Legacy seam — map to compose_generate_fn (RAG-only no longer uses generate_answer).
             stack.enter_context(
                 patch.object(
                     agent_nodes,
-                    "generate_answer",
-                    side_effect=lambda q, ctx, **kw: generate_fn(q, ctx),
+                    "compose_generate_fn",
+                    side_effect=lambda assembled: generate_fn(question, []),
                 )
             )
         if compose_generate_fn is not None:

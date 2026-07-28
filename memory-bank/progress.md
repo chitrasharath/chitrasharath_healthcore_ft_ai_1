@@ -2,7 +2,7 @@
 
 ## Current Status Summary
 
-The project is organized into milestone-based delivery (M1–M5 **delivered**; **M6 Data Pipeline in progress** — Design/Build on `feature/data_pipeline`; **DEV-53 Background Processing** on `feature/background-processing`; **M7 RAG Knowledge Base implemented on `feature/rag`** — pending live eval with `LLM_API_KEY` + PR; **LangGraph Support Agent delivered on `feature/agent_rag_langgraph`**; **Agent Tools delivered on `feature/agent_tools_langgraph`**; **Company Tools MCP + agent migration in progress on `feature/agent_mcp_langgraph`**).
+The project is organized into milestone-based delivery (M1–M5 **delivered**; **M6 Data Pipeline in progress** — Design/Build on `feature/data_pipeline`; **DEV-53 Background Processing** on `feature/background-processing`; **M7 RAG Knowledge Base implemented on `feature/rag`** — pending live eval with `LLM_API_KEY` + PR; **LangGraph Support Agent delivered on `feature/agent_rag_langgraph`**; **Agent Tools delivered on `feature/agent_tools_langgraph`**; **Company Tools MCP delivered on `feature/agent_mcp_langgraph`**; **Agent Harness / guardrails implemented on `feature/agent_harness`**).
 Milestone 4 public portal migration is **delivered** at `uis/website`. Milestone 5 backend and internal ops platform is **delivered** (`services/api`, backoffice landing on :3001, Docker Compose). Legacy `apps/healthcore_web_portal/` and `apps/src` remain unchanged.
 
 ## Major Milestones
@@ -252,21 +252,27 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
 - Spec: `memory-bank/references/agentic_engineering/agent_tools_incident_inventory_specs.md`
 - Plan: `memory-bank/references/agentic_engineering/agent_tools_incident_inventory_IMPLEMENTATION_PLAN.md`
 
-### Company Tools MCP + Agent Migration (In progress on `feature/agent_mcp_langgraph`)
+### Company Tools MCP + Agent Migration (Delivered on `feature/agent_mcp_langgraph`)
 
 - Goal: extract incident/inventory tools into FastMCP Streamable HTTP server under `mcps/company-tools/`, gate with `mcpauth` + Keycloak, rewire agent via `langchain-mcp-adapters`, delete direct HTTP tool modules.
-- **Status:** Implemented + **live smoke passed** on `feature/agent_mcp_langgraph` (off `feature/agent_tools_langgraph`); awaiting developer commit request.
+- **Status:** Delivered on `feature/agent_mcp_langgraph`.
 - Spec: `memory-bank/references/agentic_engineering/mcp_company_tools_specs.md`
 - Plan: `memory-bank/references/agentic_engineering/mcp_company_tools_IMPLEMENTATION_PLAN.md`
-- **Delivered in working tree:**
-  - `mcps/company-tools/` — FastMCP tools `manage_incident_ticket` / `query_inventory`; `mcpauth` JWT middleware; RFC 9728 PRM route; structured logs; exit codes 78/69
-  - Keycloak in `docker-compose.yml` + `keycloak/realm-export.json` (realm `healthcore`)
-  - Split identity: Keycloak → MCP; FastAPI JWT via `X-Downstream-Authorization` → API
-  - Agent `mcp_client.py`; direct `tools/incident.py` + `inventory.py` deleted
-  - Evals stub MCP client; MCP unit tests offline
-- **Verified (offline):** `uv run pytest mcps/company-tools/tests tests/pipelines/test_agent_evals.py services/api/tests/test_agent.py tests/pipelines/test_rag.py services/api/tests/test_knowledge.py` — **41 passed, 1 skipped**
-- **Verified (live):** Keycloak + MCP PRM/401; Inspector tools/list; inventory read; incident create → update → get; write-forbid pytest; readonly `AUTH_INSUFFICIENT_SCOPE`; agent RAG `sources_used: ["rag"]`
-- **Next:** commit when requested; PR → `feature/agent_tools_langgraph`
+
+### Agent Harness / RAG Guardrails (Implemented on `feature/agent_harness`)
+
+- Goal: IG/ISO/OG/OBS guardrails around the LangGraph agent; hardened system prompt; metrics + agent feedback; Knowledge UI → `/agent/query`.
+- **Status:** Implemented on `feature/agent_harness` (off `feature/agent_mcp_langgraph`).
+- Spec: `memory-bank/references/agentic_engineering/agent_harness_guardrails_specs.md`
+- Plan: `memory-bank/references/agentic_engineering/agent_harness_guardrails_IMPLEMENTATION_PLAN.md`
+- **Delivered:**
+  - `app/domains/agent/harness/` + `prompts/system.py`; graph nodes IG/ISO/OG/OBS
+  - `GET /agent/guardrails/metrics`, `POST /agent/feedback`, interaction recording
+  - Knowledge UI repointed to agent; tool attribution for MCP sources
+  - MCP client list-payload parse fix for langchain-mcp-adapters
+  - Injection suite `tests/pipelines/test_guardrails_injection.py`
+- **Verified (offline):** guardrails + agent + feedback + evals — **30 passed, 1 skipped**
+- **Next:** PR → `feature/agent_mcp_langgraph`
 
 ## Future Feature Additions
 
