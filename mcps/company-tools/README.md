@@ -47,6 +47,20 @@ npx @modelcontextprotocol/inspector --cli \
 
 Do **not** use OAuth / Dynamic Client Registration in the web UI for this milestone.
 
+### MCP Playground limitation (cannot fully validate here)
+
+[MCP Playground](https://www.mcpplayground.tech/connect) can reach a **publicly forwarded** MCP URL and accept a Keycloak bearer via **Add auth headers** (`Authorization: Bearer …`).
+
+It typically **cannot** set the custom header `X-Downstream-Authorization`. Because incident tools require **both** Keycloak and FastAPI tokens, Playground **cannot completely test** `manage_incident_ticket` (create / update_status / get). Those flows must be validated with **Inspector CLI** (`--header` twice) or another client that allows arbitrary headers.
+
+What Playground *can* cover with Keycloak alone:
+
+- Tool discovery / schemas
+- `query_inventory` (inventory GET is public downstream)
+- Insufficient-scope checks (readonly Keycloak token on write actions)
+
+Treat Playground as a partial smoke client; the authoritative incident round-trip remains Step 5.5 (Inspector CLI) in this README.
+
 ### Valid incident enums (API rejects others with HTTP 400)
 
 | Field | Valid values |
@@ -507,6 +521,7 @@ curl -s http://localhost:8000/api/v1/agent/query \
 | MCP exit **78** | Missing env | Fix root `.env` or export vars |
 | Port 9000 in use | MCP already running | Keep using it; don’t start a second |
 | `auth_required` / DCR / Trusted Hosts | Inspector tried OAuth after MCP 401 | Remint `$KC_TOKEN`; use CLI `--header` only |
+| Playground incident → `AUTH_MISSING_TOKEN` | No `X-Downstream-Authorization` (UI can’t set it) | Use Inspector CLI with both headers; Playground is inventory/discovery only |
 | Inventory `UPSTREAM_ERROR` | API down | Restart uvicorn on `:8000` |
 | Incident HTTP **401** | Bad/empty `$API_TOKEN` | Remint login; check `API_TOKEN length` |
 | Incident HTTP **400** | Bad enums | Use `ADMINISTRATIVE` / `internal` / `US-TX-01` |
