@@ -1,4 +1,11 @@
 services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - healthcore_net
+
   api:
     build:
       context: .
@@ -14,6 +21,10 @@ services:
       - ./uis:/app/uis
     env_file:
       - .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - redis
     networks:
       - healthcore_net
 

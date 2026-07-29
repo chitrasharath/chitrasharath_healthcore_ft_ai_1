@@ -123,9 +123,12 @@ Plans: [`IMPLEMENTATION_PLAN_auth_1.md`](../../memory-bank/references/authentica
 | `/api/v1/inventory/orders` | GET | No | Combined delivery + consumption history |
 | `/api/v1/knowledge/query` | POST | Yes | RAG knowledge assistant (legacy; Knowledge UI now uses agent) |
 | `/api/v1/knowledge/feedback` | POST | Yes | Thumbs feedback for knowledge answers |
-| `/api/v1/agent/query` | POST | Yes | Guarded LangGraph agent (RAG + MCP incident/inventory) |
+| `/api/v1/agent/query` | POST | Yes | Guarded LangGraph agent (RAG + MCP incident/inventory + memory) |
 | `/api/v1/agent/feedback` | POST | Yes | Thumbs feedback keyed on `trace_id` |
 | `/api/v1/agent/guardrails/metrics` | GET | Yes | In-memory guardrail counts (`?session=` optional) |
+| `/api/v1/agent/memory` | GET | Yes | List caller-scoped long-term memories |
+| `/api/v1/agent/memory/decision` | POST | Yes | Approve / edit / reject a pending memory proposal |
+| `/api/v1/agent/memory/{id}` | DELETE | Yes | Delete one memory entry (caller scope) |
 
 Inventory plans: [`milestone5_backend_implementation_plan.md`](../../memory-bank/references/milestone5_ai_plan/milestone5_backend_implementation_plan.md), [`milestone5_frontend_implementation_plan.md`](../../memory-bank/references/milestone5_ai_plan/milestone5_frontend_implementation_plan.md)
 
@@ -227,4 +230,6 @@ curl -s "http://localhost:8000/api/v1/agent/guardrails/metrics" \
 
 Counters are **in-memory / per-process** (reset on restart). They are **not mutually exclusive**: a casual redirect increments both `content` (failure type) and `redirects` (action subset). `content` therefore includes redirects. Structural PHI-in-output and RAG-injection cases are covered by `tests/pipelines/test_guardrails_injection.py`.
 
-**UI:** backoffice `/knowledge` now posts to `/agent/query` (and feedback to `/agent/feedback`). Guarded refusals show a subtle “limited by safety rules” note when sources are empty. Tool-only answers attribute **Inventory tool (MCP)** / **Incident tool (MCP)** when `sources_used` is set. See **Agent + Knowledge UI — tool capabilities (read-only)** above.
+**Agent memory:** Redis (`docker compose up -d redis`) + Qdrant collection `agent_memory`. See `app/domains/agent/memory/README.md` for Cycles A/B, TTL policy, and consolidation (`uv run python scripts/consolidate_agent_memory.py`). Demo users: `memory-north@example.com` / `memory-demo-1` (clinic `"2"`). Kill-switch: `MEMORY_ENABLED=false`.
+
+**UI:** backoffice `/knowledge` now posts to `/agent/query` (and feedback to `/agent/feedback`). Guarded refusals show a subtle “limited by safety rules” note when sources are empty. Tool-only answers attribute **Inventory tool (MCP)** / **Incident tool (MCP)** when `sources_used` is set. Memory proposals show Approve/Edit/Reject; a panel lists and deletes saved memories. See **Agent + Knowledge UI — tool capabilities (read-only)** above.

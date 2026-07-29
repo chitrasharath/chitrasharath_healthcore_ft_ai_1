@@ -2,7 +2,7 @@
 
 ## Current Status Summary
 
-The project is organized into milestone-based delivery (M1–M5 **delivered**; **M6 Data Pipeline in progress** — Design/Build on `feature/data_pipeline`; **DEV-53 Background Processing** on `feature/background-processing`; **M7 RAG Knowledge Base implemented on `feature/rag`** — pending live eval with `LLM_API_KEY` + PR; **LangGraph Support Agent delivered on `feature/agent_rag_langgraph`**; **Agent Tools delivered on `feature/agent_tools_langgraph`**; **Company Tools MCP delivered on `feature/agent_mcp_langgraph`**; **Agent Harness / guardrails implemented on `feature/agent_harness`**).
+The project is organized into milestone-based delivery (M1–M5 **delivered**; **M6 Data Pipeline in progress** — Design/Build on `feature/data_pipeline`; **DEV-53 Background Processing** on `feature/background-processing`; **M7 RAG Knowledge Base implemented on `feature/rag`** — pending live eval with `LLM_API_KEY` + PR; **LangGraph Support Agent delivered on `feature/agent_rag_langgraph`**; **Agent Tools delivered on `feature/agent_tools_langgraph`**; **Company Tools MCP delivered on `feature/agent_mcp_langgraph`**; **Agent Harness / guardrails implemented on `feature/agent_harness`**; **Agent Memory implemented on `feature/agent_memory`** — pending commit/PR).
 Milestone 4 public portal migration is **delivered** at `uis/website`. Milestone 5 backend and internal ops platform is **delivered** (`services/api`, backoffice landing on :3001, Docker Compose). Legacy `apps/healthcore_web_portal/` and `apps/src` remain unchanged.
 
 ## Major Milestones
@@ -273,6 +273,21 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
   - Injection suite `tests/pipelines/test_guardrails_injection.py`
 - **Verified (offline):** guardrails + agent + feedback + evals — **30 passed, 1 skipped**
 - **Next:** PR → `feature/agent_mcp_langgraph`
+
+### Agent Memory (In progress on `feature/agent_memory`)
+
+- Goal: consent-gated, PHI-safe long-term memory (Redis SoT + Qdrant `agent_memory`) for the support agent.
+- **Status:** Implemented on `feature/agent_memory` (off `feature/agent_harness`); commit pending push/PR.
+- Spec: `memory-bank/references/agentic_engineering/agent_memory_specs.md`
+- Plan: `memory-bank/references/agentic_engineering/agent_memory_IMPLEMENTATION_PLAN.md`
+- **Delivered:**
+  - `app/domains/agent/memory/` store, PHI, audit, proposal, consent, consolidate, graph nodes
+  - Redis Compose service + settings; TinyDB `clinic_id` + demo seed users
+  - Endpoints: query `memory_proposal`, decision, list, DELETE; Knowledge UI buttons + panel
+  - Tests: `test_agent_memory.py`, `test_memory_consent.py`; Cycles A/B in memory README
+  - Latency pass: propose/read fastpath heuristics; Redis-first recall (no request-path reindex); defer consolidate LLM to script
+  - Guardrail fixes: clock-time ≠ age PHI; Tom Callahan not a leak canary; ephemeral “today” delays not proposed
+- **Next:** PR → `feature/agent_harness`
 
 ## Future Feature Additions
 

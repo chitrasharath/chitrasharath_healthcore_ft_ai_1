@@ -392,6 +392,20 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision: Keep current proxy generation models; no Docker Compose changes for tool base URL.
 - Why: Locked planning Q&A.
 
+## Agent Memory
+
+- Decision: Branch `feature/agent_memory` off `feature/agent_harness`; Redis (SoT + pending + audit TTL) + Qdrant `agent_memory` recall; no Mem0/LangMem.
+- Why: Spec-selected architecture; native TTL; compliance control over PHI validation.
+
+- Decision: Scope filter on both `clinic_id` + `staff_id` (no clinic-shared semantic in MVP); TinyDB `clinic_id` as inventory catalog string ids `"1"`…`"9"`; demo seed users create-if-missing.
+- Why: Locked planning Q&A; aligns with inventory CLINICS catalog.
+
+- Decision: Pending consent in Redis `mem:pending:{staff_id}` (30m TTL); approve/reject turns confirm-only; free-text corrected wording = edit; `DELETE /agent/memory/{id}` for panel + GDPR erasure.
+- Why: Spec turn model + frontend scope.
+
+- Decision: Consolidation on hard-cap + `uv run` script (not DEV-53 jobs); keep `deepseek-v4-flash`; fakeredis for pytest.
+- Why: Locked planning Q&A; keep PR self-contained.
+
 - Decision: Landing-aliased UI at `uis/backoffice/knowledge/` on port 3001 (not a standalone Next app); hub nav card tagged New.
 - Why: Match inventory / incident-manager / reporting pattern; single AuthGuard.
 

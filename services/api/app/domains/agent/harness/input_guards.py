@@ -58,6 +58,22 @@ _MRN_DOB_RE = re.compile(
     r"\bMRN[-:\s]?\d{5,}\b|\bDOB\b|\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b",
     re.I,
 )
+# Strip clock times / site ids before age matching so "8:00 AM" / "clinic 2" ≠ age.
+_CLOCK_TIME_RE = re.compile(
+    r"\b\d{1,2}:\d{2}(?::\d{2})?\s*(?:am|pm)?\b|\b\d{1,2}\s*(?:am|pm)\b",
+    re.I,
+)
+_SITE_ID_RE = re.compile(
+    r"\b(?:clinic|site|branch|location)\s*#?\s*\d+\b",
+    re.I,
+)
+
+
+def _text_for_age_detection(text: str) -> str:
+    """Remove non-age numeric phrases that falsely trip quasi-identifier age."""
+    cleaned = _CLOCK_TIME_RE.sub(" ", text or "")
+    cleaned = _SITE_ID_RE.sub(" ", cleaned)
+    return cleaned
 
 
 @dataclass
@@ -107,12 +123,13 @@ def detect_phi(user_message: str) -> bool:
     if _MRN_DOB_RE.search(text):
         return True
 
+    age_text = _text_for_age_detection(text)
     has_name = bool(
         _PATIENT_NAME_RE.search(text)
         or _TITLECASE_NAME_RE.search(text)
-        or _LOWER_NAME_NEAR_AGE_RE.search(text)
+        or _LOWER_NAME_NEAR_AGE_RE.search(age_text)
     )
-    has_age = bool(_AGE_RE.search(text))
+    has_age = bool(_AGE_RE.search(age_text))
     has_diag = bool(_DIAG_RE.search(text))
     has_loc = bool(_LOC_RE.search(text))
     # Quasi-identifier: name + age + (diagnosis or location), or age+diag+loc

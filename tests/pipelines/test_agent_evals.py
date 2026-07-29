@@ -76,11 +76,17 @@ def run_agent(
         "question": question,
         "normalized_question": None,
         "auth_token": auth_token,
+        "staff_id": "eval-staff",
+        "clinic_id": "2",
         "intent": None,
         "retrieved_context": None,
         "incident_result": None,
         "inventory_result": None,
         "compose_context_blocks": None,
+        "memory_block": None,
+        "recalled_mem_ids": None,
+        "memory_proposal": None,
+        "memory_consent_resolved": None,
         "answer": None,
         "sources": None,
         "sources_used": [],
@@ -100,6 +106,9 @@ def run_agent(
 
         stack.enter_context(
             patch.object(app_config.settings, "guardrails_enabled", False)
+        )
+        stack.enter_context(
+            patch.object(app_config.settings, "memory_enabled", False)
         )
         clf = classifier_fn if classifier_fn is not None else (
             lambda q: dict(_RAG_ONLY_INTENT)

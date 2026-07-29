@@ -3,6 +3,7 @@
 import { KnowledgeAnswer } from "./knowledge-answer";
 import { KnowledgeForm } from "./knowledge-form";
 import { KnowledgeHero } from "./knowledge-hero";
+import { MemoryPanel } from "./memory-panel";
 import { useKnowledgeQuery } from "../hooks/use-knowledge-query";
 
 export const KnowledgeAssistant = () => {
@@ -11,6 +12,7 @@ export const KnowledgeAssistant = () => {
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
       <KnowledgeHero />
+      <MemoryPanel />
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <KnowledgeForm
           question={question}
@@ -29,7 +31,7 @@ export const KnowledgeAssistant = () => {
           </p>
         ) : null}
       </div>
-      {result ? <KnowledgeAnswer result={result} /> : null}
+      {result ? <KnowledgeAnswer key={result.query_id} result={result} /> : null}
     </div>
   );
 };

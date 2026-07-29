@@ -41,11 +41,17 @@ def _initial(question: str, *, trace_id: str | None = None) -> dict:
         "question": question,
         "normalized_question": None,
         "auth_token": "test-token",
+        "staff_id": "guard-staff",
+        "clinic_id": "2",
         "intent": None,
         "retrieved_context": None,
         "incident_result": None,
         "inventory_result": None,
         "compose_context_blocks": None,
+        "memory_block": None,
+        "recalled_mem_ids": None,
+        "memory_proposal": None,
+        "memory_consent_resolved": None,
         "answer": None,
         "sources": None,
         "sources_used": [],
@@ -68,9 +74,14 @@ def _run(
     scope_classifier_fn=None,
     trace_id: str | None = None,
 ) -> dict:
+    from app.core import config as app_config
+
     initial = _initial(question, trace_id=trace_id)
     config = {"configurable": {"thread_id": initial["trace_id"]}}
     with ExitStack() as stack:
+        stack.enter_context(
+            patch.object(app_config.settings, "memory_enabled", False)
+        )
         stack.enter_context(
             patch.object(
                 agent_nodes,

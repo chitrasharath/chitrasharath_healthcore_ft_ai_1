@@ -44,6 +44,18 @@ class Settings(BaseSettings):
     guardrail_phi_detection_enabled: bool = True
     guardrail_preview_max_chars: int = 80
 
+    # Agent long-term memory (Redis SoT + Qdrant recall; kill-switch disables nodes)
+    memory_enabled: bool = True
+    redis_url: str = "redis://localhost:6379/0"
+    memory_qdrant_collection: str = "agent_memory"
+    memory_recall_k: int = 5
+    memory_entry_ttl_days: int = 90
+    memory_pending_ttl_minutes: int = 30
+    memory_max_entries_per_scope: int = 50
+    memory_dedupe_threshold: float = 0.92
+    memory_low_relevance_days: int = 30
+    memory_summarize_min_cluster: int = 3
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]

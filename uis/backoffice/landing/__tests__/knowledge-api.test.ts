@@ -62,4 +62,34 @@ describe("knowledge-api", () => {
       "feedback failed",
     );
   });
+
+  it("queryKnowledge maps memory_proposal when present", async () => {
+    mockHealthcoreFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        trace_id: "run-mem",
+        answer: "Noted.",
+        sources: [],
+        memory_proposal: {
+          id: "mp-1",
+          text: "Referrals fail Monday mornings",
+          options: ["approve", "edit", "reject"],
+        },
+      }),
+    });
+    const { queryKnowledge } = await import("@backoffice/knowledge/lib/knowledge-api");
+    const result = await queryKnowledge("referrals?");
+    expect(result.memory_proposal?.id).toBe("mp-1");
+    expect(result.memory_proposal?.text).toContain("Referrals");
+  });
+
+  it("postMemoryDecision posts approve payload", async () => {
+    mockHealthcoreFetch.mockResolvedValue({ ok: true });
+    const { postMemoryDecision } = await import("@backoffice/knowledge/lib/knowledge-api");
+    await postMemoryDecision({ proposal_id: "mp-1", decision: "approve" });
+    expect(mockHealthcoreFetch).toHaveBeenCalledWith("/agent/memory/decision", {
+      method: "POST",
+      body: JSON.stringify({ proposal_id: "mp-1", decision: "approve" }),
+    });
+  });
 });

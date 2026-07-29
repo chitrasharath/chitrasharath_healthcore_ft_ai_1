@@ -10,6 +10,10 @@ from app.domains.agent.schemas import (
     AgentQueryRequest,
     AgentQueryResponse,
     GuardrailMetricsResponse,
+    MemoryDecisionRequest,
+    MemoryDecisionResponse,
+    MemoryDeleteResponse,
+    MemoryListResponse,
 )
 
 router = APIRouter(prefix="/agent", tags=["agent"])
@@ -45,3 +49,26 @@ def agent_guardrail_metrics(
     _ = current_user
     # In-memory / per-process only — not durable across workers or restarts.
     return service.guardrail_metrics(session)
+
+
+@router.post("/memory/decision", response_model=MemoryDecisionResponse)
+def memory_decision(
+    body: MemoryDecisionRequest,
+    current_user: dict = Depends(get_current_user),
+) -> MemoryDecisionResponse:
+    return service.decide_memory(body, user_id=str(current_user["id"]))
+
+
+@router.get("/memory", response_model=MemoryListResponse)
+def memory_list(
+    current_user: dict = Depends(get_current_user),
+) -> MemoryListResponse:
+    return service.list_memories(user_id=str(current_user["id"]))
+
+
+@router.delete("/memory/{mem_id}", response_model=MemoryDeleteResponse)
+def memory_delete(
+    mem_id: str,
+    current_user: dict = Depends(get_current_user),
+) -> MemoryDeleteResponse:
+    return service.delete_memory(user_id=str(current_user["id"]), mem_id=mem_id)

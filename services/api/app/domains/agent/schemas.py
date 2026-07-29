@@ -15,11 +15,18 @@ class AgentSource(BaseModel):
     score: float
 
 
+class MemoryProposalResponse(BaseModel):
+    id: str
+    text: str
+    options: list[str] = Field(default_factory=lambda: ["approve", "edit", "reject"])
+
+
 class AgentQueryResponse(BaseModel):
     answer: str
     trace_id: str
     sources: list[AgentSource]
     sources_used: list[str] = Field(default_factory=list)
+    memory_proposal: MemoryProposalResponse | None = None
 
 
 class AgentFeedbackRequest(BaseModel):
@@ -49,3 +56,31 @@ class GuardrailMetricsResponse(BaseModel):
         default=0,
         description="casual redirect subset; also counted under content",
     )
+
+
+class MemoryDecisionRequest(BaseModel):
+    proposal_id: str = Field(..., min_length=1)
+    decision: Literal["approve", "edit", "reject"]
+    edited_text: str | None = Field(default=None, max_length=2000)
+
+
+class MemoryDecisionResponse(BaseModel):
+    status: str
+
+
+class MemoryListItem(BaseModel):
+    id: str
+    type: Literal["semantic", "procedural"]
+    text: str
+    created_at: int
+    last_recalled_at: int
+    recall_count: int
+
+
+class MemoryListResponse(BaseModel):
+    memories: list[MemoryListItem]
+    clinic_id: str
+
+
+class MemoryDeleteResponse(BaseModel):
+    status: str
