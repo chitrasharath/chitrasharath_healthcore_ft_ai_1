@@ -24,12 +24,14 @@ from data.process.rag import (  # noqa: E402
     bootstrap_env,
     embed,
     get_qdrant_client,
+    sleep_for_rate_limit,
 )
 
 logger = logging.getLogger(__name__)
 
 _HTTP_TIMEOUT = httpx.Timeout(60.0, connect=10.0)
 _MAX_RETRIES = 1
+_RATE_LIMIT_RETRIES = 12
 
 FALLBACK_ANSWER = (
     "I don't have that in our knowledge base yet — let me check with the team "
@@ -199,10 +201,14 @@ def _generate(assembled_prompt: str) -> str:
         ],
     }
     last_error: Exception | None = None
-    for attempt in range(_MAX_RETRIES + 1):
+    max_attempts = max(_MAX_RETRIES, _RATE_LIMIT_RETRIES) + 1
+    for attempt in range(max_attempts):
         try:
             with httpx.Client(timeout=_HTTP_TIMEOUT) as client:
                 response = client.post(url, headers=headers, json=payload)
+            if response.status_code == 429 and attempt < _RATE_LIMIT_RETRIES:
+                sleep_for_rate_limit(response.text)
+                continue
             if response.status_code >= 500 and attempt < _MAX_RETRIES:
                 last_error = GenerationError(
                     f"Generation proxy {response.status_code}: {response.text[:200]}"

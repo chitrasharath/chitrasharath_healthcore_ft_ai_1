@@ -640,7 +640,7 @@ Set in `services/api/.env` (manual) or root `.env` (Docker), from `.example.env`
 | `LLM_API_KEY` | Required for embed / generate / seed |
 | `EMBEDDING_MODEL` / `GENERATION_MODEL` | Proxy model ids |
 | `QDRANT_PATH` / `QDRANT_COLLECTION` | Local vector store |
-| `RAG_TOP_K` / `RAG_MIN_SCORE` | Retrieval knobs (default `3` / `0.30`) |
+| `RAG_TOP_K` / `RAG_MIN_SCORE` | Retrieval knobs (default `3` / `0.38`) |
 | `FEEDBACK_PATH` | Interaction + thumbs JSONL |
 
 ### Seed the knowledge base

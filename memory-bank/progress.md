@@ -2,7 +2,7 @@
 
 ## Current Status Summary
 
-The project is organized into milestone-based delivery (M1–M5 **delivered**; **M6 Data Pipeline** on `main`; **DEV-53 Background Processing** on `main`; **DEV-55 Message Queues** on `feature/message-queues` (PR #12); **M7 RAG** through **M9 RFP approvals** on `main` via PR #24; **Sales forecast + CV diagnosis** on `main` via PR #13).
+The project is organized into milestone-based delivery (M1–M5 **delivered**; **M6 Data Pipeline** on `main`; **DEV-53 Background Processing** on `main`; **DEV-55 Message Queues** on `main` (PR #12); **M7 RAG** through **M9 RFP approvals** on `main` via PR #24 (`RAG_MIN_SCORE=0.38`); **Sales forecast + CV diagnosis** on `main` via PR #13).
 Milestone 4 public portal migration is **delivered** at `uis/website`. Milestone 5 backend and internal ops platform is **delivered** (`services/api`, backoffice landing on :3001, Docker Compose). Legacy `apps/healthcore_web_portal/` and `apps/src` remain unchanged.
 
 ## Major Milestones
@@ -235,7 +235,8 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
   - `uis/backoffice/knowledge/` aliased into landing `/knowledge`; hub nav card; shared light/dark theme toggle
   - Golden set `data/eval/test-queries.json`; `data/eval/run_eval.py`; design doc `docs/rag-design.md`
   - Tests: `tests/pipelines/test_rag.py`, `services/api/tests/test_knowledge.py`, landing Jest knowledge/theme — full `uv run pytest` **171 passed**; `npm run verify` in landing passes
-- **Pending before hand-off:** run live `run_eval.py` with `LLM_API_KEY`, tune `RAG_MIN_SCORE`, record metrics in design doc; open PR `feature/rag` → `main`
+- **Pending before hand-off:** open PR `feature/rag` → `main`
+- **Live eval:** `run_eval.py` with `RAG_MIN_SCORE=0.38` — Recall@3 ~93%, false-answer rate 0, key-fact ~93%, guardrails pass (0.30 was too low: false-answer 0.5). Sample UI questions recorded in `docs/rag-design.md`. Embed/generate wait-and-retry on proxy 429.
 - Plan: `memory-bank/references/rag/rag_milestone7_IMPLEMENTATION_PLAN.md`
 - Spec: `memory-bank/references/rag/rag_milestone7_specs.md`
 

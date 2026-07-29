@@ -543,3 +543,9 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 
 - Decision: HTTP to LiteLLM via `httpx` (runtime dep); models/URLs/keys only via Settings/env; vector dim probed at setup.
 - Why: Spec recommendation; avoid openai SDK weight; safe model swaps.
+
+- Decision: Tune `RAG_MIN_SCORE` default to **0.38** (from starting 0.30) after live `run_eval.py`.
+- Why: At 0.30 false-answer rate was 0.5 on abstain queries; weakest correct top hit ≈ 0.38; at 0.38 all gates passed (Recall@3 ~93%, false-answer 0).
+
+- Decision: Embed/generate wait-and-retry on HTTP 429 using proxy “Limit resets at” (or ~65s), capped retries.
+- Why: LiteLLM team limit (~15 req/min) otherwise aborts full golden-set eval mid-run.

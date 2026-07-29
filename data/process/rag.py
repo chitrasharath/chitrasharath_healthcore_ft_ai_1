@@ -11,8 +11,10 @@ import logging
 import os
 import re
 import sys
+import time
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -42,6 +44,12 @@ SOFT_MAX_CHARS = 1200
 MIN_CHUNKS_PER_DOC = 3
 _HTTP_TIMEOUT = httpx.Timeout(30.0, connect=10.0)
 _MAX_RETRIES = 1
+# LiteLLM team limit is ~15 req/min — eval needs many embeds, so wait out 429s.
+_RATE_LIMIT_RETRIES = 12
+_RESET_AT_RE = re.compile(
+    r"Limit resets at:\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s*UTC",
+    re.I,
+)
 
 _client: QdrantClient | None = None
 _client_path: str | None = None
@@ -299,6 +307,23 @@ def assert_chunk_integrity(chunks: list[Chunk]) -> None:
                 )
 
 
+def sleep_for_rate_limit(response_text: str) -> None:
+    """Block until the proxy rate-limit window resets (plus a small buffer)."""
+    wait = 65.0
+    match = _RESET_AT_RE.search(response_text or "")
+    if match:
+        try:
+            reset = datetime.strptime(match.group(1), "%Y-%m-%d %H:%M:%S").replace(
+                tzinfo=timezone.utc
+            )
+            wait = max(1.0, (reset - datetime.now(timezone.utc)).total_seconds() + 1.5)
+        except ValueError:
+            pass
+    wait = min(wait, 120.0)
+    logger.warning("Rate limited (429); sleeping %.1fs then retrying", wait)
+    time.sleep(wait)
+
+
 def embed(text: str) -> list[float]:
     """Embed exactly the string given — no title/section enrichment here."""
     settings = _settings()
@@ -313,10 +338,14 @@ def embed(text: str) -> list[float]:
     }
     payload = {"model": settings.embedding_model, "input": text}
     last_error: Exception | None = None
-    for attempt in range(_MAX_RETRIES + 1):
+    max_attempts = max(_MAX_RETRIES, _RATE_LIMIT_RETRIES) + 1
+    for attempt in range(max_attempts):
         try:
             with httpx.Client(timeout=_HTTP_TIMEOUT) as client:
                 response = client.post(url, headers=headers, json=payload)
+            if response.status_code == 429 and attempt < _RATE_LIMIT_RETRIES:
+                sleep_for_rate_limit(response.text)
+                continue
             if response.status_code >= 500 and attempt < _MAX_RETRIES:
                 last_error = EmbeddingError(
                     f"Embedding proxy {response.status_code}: {response.text[:200]}"
