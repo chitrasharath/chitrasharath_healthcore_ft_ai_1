@@ -7,7 +7,7 @@ import threading
 from datetime import datetime, timezone
 from typing import Any
 
-from app.domains.knowledge.pii import redact_pii
+from app.domains.agent.harness.preview import scrub_message_preview
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +43,7 @@ def log_guardrail_event(
     message_preview: str,
     preview_max_chars: int = 80,
 ) -> None:
-    preview = redact_pii(message_preview) or ""
-    preview = preview[:preview_max_chars]
+    preview = scrub_message_preview(message_preview)[:preview_max_chars]
     payload = {
         "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "trace_id": trace_id,
@@ -63,6 +62,12 @@ def record_event(
     failure_type: str | None,
     action: str | None,
 ) -> None:
+    """Increment counters.
+
+    Note: a casual redirect increments both ``content`` (failure_type) and
+    ``redirects`` (action). Counters are not mutually exclusive — ``content``
+    includes redirects; ``redirects`` is the redirect subset.
+    """
     if not failure_type and action != "redirect":
         return
     with _lock:
@@ -76,6 +81,11 @@ def record_event(
 
 
 def get_metrics(session: str | None = None) -> dict[str, int]:
+    """Return per-session or process-global counts.
+
+    ``content`` includes personal/PHI blocks **and** casual redirects.
+    ``redirects`` counts only ``action=redirect`` events (subset of content).
+    """
     with _lock:
         if session:
             return dict(_session_counts.get(session, _empty_bucket()))

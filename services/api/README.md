@@ -225,6 +225,6 @@ curl -s "http://localhost:8000/api/v1/agent/guardrails/metrics" \
 # → {"security":N,"content":N,"structural":N,"redirects":N}
 ```
 
-Counters are **in-memory / per-process** (reset on restart). Structural PHI-in-output and RAG-injection cases are covered by `tests/pipelines/test_guardrails_injection.py`.
+Counters are **in-memory / per-process** (reset on restart). They are **not mutually exclusive**: a casual redirect increments both `content` (failure type) and `redirects` (action subset). `content` therefore includes redirects. Structural PHI-in-output and RAG-injection cases are covered by `tests/pipelines/test_guardrails_injection.py`.
 
 **UI:** backoffice `/knowledge` now posts to `/agent/query` (and feedback to `/agent/feedback`). Guarded refusals show a subtle “limited by safety rules” note when sources are empty. Tool-only answers attribute **Inventory tool (MCP)** / **Incident tool (MCP)** when `sources_used` is set. See **Agent + Knowledge UI — tool capabilities (read-only)** above.

@@ -33,7 +33,19 @@ class AgentFeedbackResponse(BaseModel):
 
 
 class GuardrailMetricsResponse(BaseModel):
+    """In-memory guardrail counters.
+
+    ``content`` includes personal/PHI blocks and casual redirects.
+    ``redirects`` counts only redirect actions (a subset of ``content``).
+    """
+
     security: int = 0
-    content: int = 0
+    content: int = Field(
+        default=0,
+        description="content-class blocks including casual redirects",
+    )
     structural: int = 0
-    redirects: int = 0
+    redirects: int = Field(
+        default=0,
+        description="casual redirect subset; also counted under content",
+    )

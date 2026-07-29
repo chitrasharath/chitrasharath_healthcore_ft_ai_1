@@ -22,6 +22,7 @@ from app.domains.agent.harness.templates import (
     PERSONAL_USE_BLOCK,
     PHI_REFUSAL,
 )
+from app.domains.agent.harness.preview import scrub_message_preview
 from app.domains.knowledge.pii import redact_pii
 
 logger = logging.getLogger(__name__)
@@ -29,9 +30,20 @@ logger = logging.getLogger(__name__)
 Action = Literal["pass", "block", "redirect"]
 FailureType = Literal["structural", "content", "security"]
 
-_NAME_RE = re.compile(
-    r"\b(?:patient|named?)\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\b"
-    r"|\b[A-Z][a-z]+\s+[A-Z][a-z]+\b"
+# Patient / named references (case-insensitive; optional comma after "patient").
+_PATIENT_NAME_RE = re.compile(
+    r"\b(?:patient|named|name(?:d)?\s+is)\s*[,:]?\s+"
+    r"([A-Za-z][A-Za-z'\-]{1,40})"
+    r"(?:\s+([A-Za-z][A-Za-z'\-]{1,40}))?\b",
+    re.I,
+)
+# Title-Case multi-token person names (e.g. Maria Lopez).
+_TITLECASE_NAME_RE = re.compile(r"\b[A-Z][a-z]{1,30}(?:\s+[A-Z][a-z]{1,30})+\b")
+# Lowercase first+last only when tightly bound to age (avoids policy bigrams alone).
+_LOWER_NAME_NEAR_AGE_RE = re.compile(
+    r"\b[a-z]{2,30}\s+[a-z]{2,30}\b.{0,48}\b(?:age[d\s:]*)?\d{1,3}\s*(?:years?\s*old|yo)?\b"
+    r"|\b(?:age[d\s:]*)?\d{1,3}\s*(?:years?\s*old|yo)?.{0,48}\b[a-z]{2,30}\s+[a-z]{2,30}\b",
+    re.I,
 )
 _AGE_RE = re.compile(r"\b(?:age[d\s:]*)?(\d{1,3})\s*(?:years?\s*old|yo)?\b", re.I)
 _DIAG_RE = re.compile(
@@ -95,8 +107,10 @@ def detect_phi(user_message: str) -> bool:
     if _MRN_DOB_RE.search(text):
         return True
 
-    has_name = bool(_NAME_RE.search(text)) or bool(
-        re.search(r"\b(?:John|Maria|Lopez)\b", text, re.I)
+    has_name = bool(
+        _PATIENT_NAME_RE.search(text)
+        or _TITLECASE_NAME_RE.search(text)
+        or _LOWER_NAME_NEAR_AGE_RE.search(text)
     )
     has_age = bool(_AGE_RE.search(text))
     has_diag = bool(_DIAG_RE.search(text))
@@ -219,17 +233,7 @@ def _event(
 ) -> dict[str, Any]:
     from app.core.config import settings
 
-    preview = redact_pii(message) or ""
-    if guardrail in {"phi_input", "phi_output"}:
-        # Extra scrub so names/locations never sit in previews (redact_pii is email/MRN-focused).
-        preview = re.sub(r"\b[A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})?\b", "[REDACTED_NAME]", preview)
-        preview = re.sub(
-            r"\b(Austin|London|clinic)\b",
-            "[REDACTED_LOC]",
-            preview,
-            flags=re.I,
-        )
-        preview = re.sub(r"\b\d{1,3}\b", "[REDACTED_AGE]", preview)
+    preview = scrub_message_preview(message)
     return {
         "guardrail": guardrail,
         "failure_type": failure_type,

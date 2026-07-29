@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.domains.agent.harness.preview import scrub_message_preview
 from app.domains.agent.harness.templates import SAFE_OUTPUT_REFUSAL
 from app.domains.agent.prompts.system import AGENT_SYSTEM_PROMPT
 from app.domains.knowledge.pii import redact_pii
@@ -67,6 +68,10 @@ def _has_phi_or_secrets(text: str) -> bool:
     return False
 
 
+def _preview(text: str, *, max_chars: int) -> str:
+    return scrub_message_preview(text)[:max_chars]
+
+
 def validate(response: str, *, context: dict[str, Any] | None = None) -> GuardResult:
     from app.core.config import settings
 
@@ -101,7 +106,9 @@ def validate(response: str, *, context: dict[str, Any] | None = None) -> GuardRe
                 "guardrail": "output_shape",
                 "failure_type": "structural",
                 "action": "block",
-                "message_preview": text[: settings.guardrail_preview_max_chars],
+                "message_preview": _preview(
+                    text, max_chars=settings.guardrail_preview_max_chars
+                ),
             },
         )
 
@@ -118,7 +125,9 @@ def validate(response: str, *, context: dict[str, Any] | None = None) -> GuardRe
                 "guardrail": "system_prompt_leak",
                 "failure_type": "structural",
                 "action": "block",
-                "message_preview": text[: settings.guardrail_preview_max_chars],
+                "message_preview": _preview(
+                    text, max_chars=settings.guardrail_preview_max_chars
+                ),
             },
         )
 
@@ -126,7 +135,7 @@ def validate(response: str, *, context: dict[str, Any] | None = None) -> GuardRe
         sanitized = redact_pii(text) or ""
         # Prefer refuse when a patient name / diagnosis cue remains after MRN/email scrub.
         still_risky = _has_phi_or_secrets(sanitized) or bool(
-            re.search(r"\bpatient\s+[A-Z][a-z]+", sanitized, re.I)
+            re.search(r"\bpatient\s+[A-Za-z]", sanitized, re.I)
         )
         if still_risky or not sanitized or sanitized == text:
             return GuardResult(
@@ -140,9 +149,9 @@ def validate(response: str, *, context: dict[str, Any] | None = None) -> GuardRe
                     "guardrail": "phi_output",
                     "failure_type": "structural",
                     "action": "block",
-                    "message_preview": (redact_pii(text) or "")[
-                        : settings.guardrail_preview_max_chars
-                    ],
+                    "message_preview": _preview(
+                        text, max_chars=settings.guardrail_preview_max_chars
+                    ),
                 },
             )
         return GuardResult(
@@ -156,7 +165,9 @@ def validate(response: str, *, context: dict[str, Any] | None = None) -> GuardRe
                 "guardrail": "phi_output",
                 "failure_type": "structural",
                 "action": "sanitize",
-                "message_preview": sanitized[: settings.guardrail_preview_max_chars],
+                "message_preview": _preview(
+                    sanitized, max_chars=settings.guardrail_preview_max_chars
+                ),
             },
         )
 
