@@ -17,7 +17,7 @@
 | Seed script | `scripts/seed_knowledge_base.py` (or uv script entry) |
 | UI module | `uis/backoffice/knowledge/` (aliased into landing) |
 | Theme | `uis/backoffice/shared/` + landing root layout |
-| Design doc | `docs/rag-design.md` |
+| Design doc | `docs/rag/rag-design.md` |
 
 **Status:** Implemented on `feature/rag` — unit/API/Jest green; live `run_eval.py` + tuned `RAG_MIN_SCORE` pending before PR.
 
@@ -366,7 +366,7 @@ LLM_API_KEY=… uv run python data/eval/run_eval.py
 
 ---
 
-## Phase 8 — Design doc (`docs/rag-design.md`)
+## Phase 8 — Design doc (`docs/rag/rag-design.md`)
 
 Author per spec §14: problem/goals, architecture flow, chunking + per-doc counts, models/URLs/dim probe, Qdrant lock caveat + seed strategy, payload/ID scheme, tuned `top_k`/`min_score`, dense-only + hybrid trigger, contextual embedding asymmetry, prompt + answer-language rule, guardrails/KPIs, PHI posture, **actual eval numbers**, feedback loop + retention/scrub, trade-offs / §18–§19 follow-ups.
 
@@ -409,7 +409,7 @@ Author per spec §14: problem/goals, architecture flow, chunking + per-doc count
 | `uis/backoffice/landing/next.config.ts`, `tsconfig.json`, `globals.css`, `jest.config.ts` | Alias + `@source` |
 | `uis/backoffice/landing/lib/nav-apps.ts` | Hub card |
 | `uis/backoffice/landing/__tests__/…` | Knowledge + theme tests as needed |
-| `docs/rag-design.md` | New |
+| `docs/rag/rag-design.md` | New |
 | `memory-bank/progress.md`, `decisions.md` | At delivery |
 
 ---
@@ -436,7 +436,7 @@ Author per spec §14: problem/goals, architecture flow, chunking + per-doc count
 - [ ] Landing-aliased UI with sources, feedback, hub card, shared theme toggle
 - [ ] Unit + Jest tests pass; full pytest + landing verify pass
 - [ ] `run_eval.py`: Recall@3 ≥ 80%, false-answer rate = 0, guardrails pass; `min_score` tuned
-- [ ] `docs/rag-design.md` with actual metrics
+- [ ] `docs/rag/rag-design.md` with actual metrics
 - [ ] No hardcoded secrets/URLs/models/dimensions
 
 ---

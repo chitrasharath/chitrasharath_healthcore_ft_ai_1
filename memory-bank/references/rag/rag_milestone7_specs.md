@@ -20,7 +20,7 @@ This is a policy/procedure/service-catalog assistant only. **No real or realisti
 2. A retrieval + generation pipeline (`data/pipelines/rag.py`).
 3. A JWT-protected FastAPI endpoint `POST /api/v1/knowledge/query`.
 4. A Next.js backoffice UI where a coordinator types a question and reads the answer.
-5. Unit tests (`tests/pipelines/test_rag.py`) and a design document (`docs/rag-design.md`).
+5. Unit tests (`tests/pipelines/test_rag.py`) and a design document (`docs/rag/rag-design.md`).
 
 **Explicitly out of scope:** any patient-record data, chat history/memory, multi-turn conversation, streaming responses, and re-ranking models (may be suggested as follow-ups, not built here).
 
@@ -397,7 +397,7 @@ Periodically (a human-run review, or a later scheduled job) mine the feedback:
 
 ---
 
-## 14. Design Document — `docs/rag-design.md`
+## 14. Design Document — `docs/rag/rag-design.md`
 
 Author a concise design doc covering:
 - **Problem & goals** (front-desk assistant, salesperson tone, no invented policy/PHI).
@@ -478,7 +478,7 @@ Author a concise design doc covering:
    LLM_API_KEY=… uv run python data/eval/run_eval.py
    ```
    Confirm the §12.5 gates: Recall@3 ≥ 80%, false-answer rate = 0, all guardrail scenarios pass.
-10. Write `docs/rag-design.md`, recording the tuned `min_score` and the actual eval numbers.
+10. Write `docs/rag/rag-design.md`, recording the tuned `min_score` and the actual eval numbers.
 11. Ensure `uv run pytest` (whole suite) and each app's `verify` (lint + build) pass before handing off.
 
 **Definition of done:** all five functions in place at the specified paths; endpoint returns `{"answer": …, "sources": […]}` for `{"question": …}` (sources empty on the no-answer fallback); UI renders the answer and its sources in both themes with error handling; **feedback capture works end-to-end (thumbs up/down → `/feedback` → interaction record persisted, PHI notice shown, feedback failure non-blocking)**; unit + frontend tests pass; **`run_eval.py` meets the §12.5 gates (Recall@3 ≥ 80%, false-answer rate = 0, guardrail scenarios pass) with actuals recorded in the design doc**; design doc written; no hardcoded secrets; idempotent setup verified; guardrails demonstrably enforced (including the no-answer fallback and Medicare/Medicaid rule).

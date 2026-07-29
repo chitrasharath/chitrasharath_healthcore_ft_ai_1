@@ -233,10 +233,10 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
   - `scripts/seed_knowledge_base.py` + API startup no-op when collection populated
   - `services/api/app/domains/knowledge/` — `POST /api/v1/knowledge/query` + `/feedback` (JWT); JSONL interactions + PII redact; schema includes nullable `session_id` / `parent_query_id`
   - `uis/backoffice/knowledge/` aliased into landing `/knowledge`; hub nav card; shared light/dark theme toggle
-  - Golden set `data/eval/test-queries.json`; `data/eval/run_eval.py`; design doc `docs/rag-design.md`
+  - Golden set `data/eval/test-queries.json`; `data/eval/run_eval.py`; design doc `docs/rag/rag-design.md`
   - Tests: `tests/pipelines/test_rag.py`, `services/api/tests/test_knowledge.py`, landing Jest knowledge/theme — full `uv run pytest` **171 passed**; `npm run verify` in landing passes
 - **Pending before hand-off:** open PR `feature/rag` → `main`
-- **Live eval:** `run_eval.py` with `RAG_MIN_SCORE=0.38` — Recall@3 ~93%, false-answer rate 0, key-fact ~93%, guardrails pass (0.30 was too low: false-answer 0.5). Sample UI questions recorded in `docs/rag-design.md`. Embed/generate wait-and-retry on proxy 429.
+- **Live eval:** `run_eval.py` with `RAG_MIN_SCORE=0.38` — Recall@3 ~93%, false-answer rate 0, key-fact ~93%, guardrails pass (0.30 was too low: false-answer 0.5). Sample UI questions recorded in `docs/rag/rag-design.md`. Embed/generate wait-and-retry on proxy 429.
 - Plan: `memory-bank/references/rag/rag_milestone7_IMPLEMENTATION_PLAN.md`
 - Spec: `memory-bank/references/rag/rag_milestone7_specs.md`
 
