@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     qdrant_path: str = "./data/qdrant"
     qdrant_collection: str = "company_knowledge_base"
     rag_top_k: int = 3
-    rag_min_score: float = 0.30
+    rag_min_score: float = 0.38
     feedback_path: str = "./data/eval/feedback.jsonl"
     rag_generation_temperature: float = 0.15
     rag_question_max_length: int = 1000
