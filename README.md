@@ -502,7 +502,7 @@ Plans: [`memory-bank/references/data_pipelines_ai_plan/`](./memory-bank/referenc
 
 JWT-protected knowledge assistant for patient coordinators. Indexes four English policy docs into **local on-disk Qdrant**, retrieves top-k chunks (dense vectors + `RAG_MIN_SCORE`), and generates grounded answers via the 4Geeks LiteLLM proxy. Backoffice UI at `/knowledge` shows the answer, sources, and thumbs feedback.
 
-Design: [`docs/rag-design.md`](./docs/rag-design.md). Spec / plan: [`memory-bank/references/rag/`](./memory-bank/references/rag/).
+Design: [`docs/rag/rag-design.md`](./docs/rag/rag-design.md). Spec / plan: [`memory-bank/references/rag/`](./memory-bank/references/rag/).
 
 ### What it delivers
 
@@ -591,7 +591,8 @@ healthcore-monorepo/
 │   └── eval/                  # RAG golden queries + eval runner
 ├── docs/
 │   ├── company-knowledge-base/  # Policy markdown sources for RAG
-│   ├── rag-design.md
+│   ├── rag/
+│   │   └── rag-design.md
 │   ├── telemetry/               # Telemetry design
 │   └── data_pipelines/          # KPI ETL design
 ├── services/api/              # FastAPI backend (incl. knowledge domain)
@@ -624,7 +625,7 @@ healthcore-monorepo/
 | [TESTING.md](./TESTING.md) | pytest, Jest, pre-commit guardrails, Docker test commands |
 | [docs/telemetry/telemetry-plan.md](./docs/telemetry/telemetry-plan.md) | Telemetry design, KPIs, event catalog |
 | [docs/data_pipelines/pipeline-design.md](./docs/data_pipelines/pipeline-design.md) | KPI ETL design, run command, Reporting UI (§12.1) |
-| [docs/rag-design.md](./docs/rag-design.md) | RAG architecture, retrieval, eval notes |
+| [docs/rag/rag-design.md](./docs/rag/rag-design.md) | RAG architecture, retrieval, eval notes |
 | [data/pipelines/README.md](./data/pipelines/README.md) | Pipeline package layout and CLI entry |
 | [memory-bank/](./memory-bank/) | Project brief, tech context, progress, decisions, conventions |
 | [AGENTS.md](./AGENTS.md) | Mandatory agent bootstrap and commit workflow |

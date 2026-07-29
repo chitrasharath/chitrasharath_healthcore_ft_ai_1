@@ -11,4 +11,4 @@
 - [ ] The interface allows a user to enter a query and displays the answer obtained from the endpoint.
 - [ ] Unit tests cover `retrieve()` and `query()` with mocks; they pass locally.
 - [ ] Company-specific values used in the implementation match the assigned `CONTEXT-company.md`.
-- [ ] `docs/rag-design.md` explains the RAG process, chunking strategy, and embedding practices applied — with choices justified for your company's documents.
+- [ ] `docs/rag/rag-design.md` explains the RAG process, chunking strategy, and embedding practices applied — with choices justified for your company's documents.
