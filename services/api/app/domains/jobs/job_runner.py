@@ -38,6 +38,24 @@ def create_pending(session: Session, job_name: str, target_date: date) -> JobRun
     return run
 
 
+def create_pending_for_key(
+    session: Session,
+    job_name: str,
+    target_key: str,
+    target_date: date,
+) -> JobRun:
+    run = JobRun(
+        job_name=job_name,
+        target_date=target_date,
+        target_key=target_key,
+        status="pending",
+        created_at=_utcnow(),
+    )
+    session.add(run)
+    session.flush()
+    return run
+
+
 def mark_processing(session: Session, run: JobRun) -> None:
     run.status = "processing"
     run.started_at = _utcnow()
@@ -58,6 +76,47 @@ def mark_failed(session: Session, run: JobRun, error: str) -> None:
     run.error_message = str(error)[:500]
     session.add(run)
     session.flush()
+
+
+def set_checkpoint(session: Session, run: JobRun, checkpoint: str) -> None:
+    run.checkpoint = checkpoint
+    session.add(run)
+    session.flush()
+
+
+def has_processing_lock_for_key(
+    session: Session,
+    job_name: str,
+    target_key: str,
+) -> bool:
+    cutoff = _stale_cutoff()
+    statement = select(JobRun).where(
+        JobRun.job_name == job_name,
+        JobRun.target_key == target_key,
+        JobRun.status == "processing",
+    )
+    for run in session.exec(statement).all():
+        if run.started_at is None:
+            return True
+        started = run.started_at
+        if started.tzinfo is None:
+            started = started.replace(tzinfo=timezone.utc)
+        if started >= cutoff:
+            return True
+    return False
+
+
+def find_active_or_completed_by_key(
+    session: Session,
+    job_name: str,
+    target_key: str,
+) -> JobRun | None:
+    statement = select(JobRun).where(
+        JobRun.job_name == job_name,
+        JobRun.target_key == target_key,
+        JobRun.status.in_(["pending", "processing", "completed"]),  # type: ignore[attr-defined]
+    )
+    return session.exec(statement).first()
 
 
 def _stale_cutoff() -> datetime:

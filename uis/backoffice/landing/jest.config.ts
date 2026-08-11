@@ -9,6 +9,7 @@ const config: Config = {
     "^@backoffice/shared/(.*)$": "<rootDir>/../shared/$1",
     "^@backoffice/inventory/(.*)$": "<rootDir>/../inventory/$1",
     "^@backoffice/knowledge/(.*)$": "<rootDir>/../knowledge/$1",
+    "^@backoffice/rfp-intake/(.*)$": "<rootDir>/../rfp-intake/$1",
   },
 };
 

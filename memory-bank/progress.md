@@ -2,7 +2,7 @@
 
 ## Current Status Summary
 
-The project is organized into milestone-based delivery (M1–M5 **delivered**; **M6 Data Pipeline in progress** — Design/Build on `feature/data_pipeline`; **DEV-53 Background Processing** on `feature/background-processing`; **M7 RAG Knowledge Base implemented on `feature/rag`** — pending live eval with `LLM_API_KEY` + PR; **LangGraph Support Agent delivered on `feature/agent_rag_langgraph`**; **Agent Tools delivered on `feature/agent_tools_langgraph`**; **Company Tools MCP delivered on `feature/agent_mcp_langgraph`**; **Agent Harness / guardrails implemented on `feature/agent_harness`**; **Agent Memory implemented on `feature/agent_memory`** — pending commit/PR).
+The project is organized into milestone-based delivery (M1–M5 **delivered**; **M6 Data Pipeline in progress** — Design/Build on `feature/data_pipeline`; **DEV-53 Background Processing** on `feature/background-processing`; **M7 RAG Knowledge Base implemented on `feature/rag`** — pending live eval with `LLM_API_KEY` + PR; **LangGraph Support Agent delivered on `feature/agent_rag_langgraph`**; **Agent Tools delivered on `feature/agent_tools_langgraph`**; **Company Tools MCP delivered on `feature/agent_mcp_langgraph`**; **Agent Harness / guardrails implemented on `feature/agent_harness`**; **Agent Memory implemented on `feature/agent_memory`**; **M9 Part 1 RFP Intake implemented on `feature/rfp-intake`** — pending commit/PR).
 Milestone 4 public portal migration is **delivered** at `uis/website`. Milestone 5 backend and internal ops platform is **delivered** (`services/api`, backoffice landing on :3001, Docker Compose). Legacy `apps/healthcore_web_portal/` and `apps/src` remain unchanged.
 
 ## Major Milestones
@@ -288,6 +288,22 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
   - Latency pass: propose/read fastpath heuristics; Redis-first recall (no request-path reindex); defer consolidate LLM to script
   - Guardrail fixes: clock-time ≠ age PHI; Tom Callahan not a leak canary; ephemeral “today” delays not proposed
 - **Next:** PR → `feature/agent_harness`
+
+### Milestone 9 Part 1: RFP Intake (Implemented on `feature/rfp-intake`)
+
+- Goal: authenticated PDF upload → Ticket + LangGraph intake under `data/pipelines/rfp_intake/` (convert → PHI → metadata → readability → classify → orchestrate → workers → synthesize) with Supabase persistence and backoffice UI.
+- **Status:** Implemented on `feature/rfp-intake` (off `feature/agent_memory`); commit pending.
+- Spec: `memory-bank/references/multi_agents/SPEC-rfp-intake-phase1.md`
+- Context: `memory-bank/references/multi_agents/CONTEXT-multi_agent.md`
+- Plan: `memory-bank/references/multi_agents/IMPLEMENTATION_PLAN-rfp-intake-phase1.md`
+- **Delivered:**
+  - `services/api/app/domains/rfp_intake/` — models, upload/list/detail/rerun API (JWT), SHA-256 idempotency
+  - `JobRun` extended with `target_key` + `checkpoint`; BackgroundTasks enqueue
+  - `data/pipelines/rfp_intake/` LangGraph (separate from CX agent); markitdown + readability deps
+  - `uis/backoffice/rfp-intake/` aliased into landing `/rfp-intake` + hub nav card
+  - Golden markdown fixtures; PHI detect/redact; classifier confidence &lt; 0.5 → human review
+  - Tests: `tests/pipelines/test_rfp_intake_pipeline.py`, `services/api/tests/test_rfp_intake.py` (21 passed); `npm run verify` landing includes `/rfp-intake`
+- **Next:** developer commit/PR → `feature/agent_memory`; Parts 2–3 out of scope
 
 ## Future Feature Additions
 

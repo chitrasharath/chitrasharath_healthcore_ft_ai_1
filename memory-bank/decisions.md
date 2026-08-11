@@ -409,6 +409,28 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision: Landing-aliased UI at `uis/backoffice/knowledge/` on port 3001 (not a standalone Next app); hub nav card tagged New.
 - Why: Match inventory / incident-manager / reporting pattern; single AuthGuard.
 
+## RFP Intake (Milestone 9 Part 1)
+
+- Decision: Branch `feature/rfp-intake` off `feature/agent_memory`; pipeline/graph under `data/pipelines/rfp_intake/`; HTTP domain under existing `services/api` (no new API process); do not touch CX agent graph.
+- Why: CONTEXT §2.4 + SPEC layout; Parts 2–3 reuse Ticket/DepartmentSection.
+
+- Decision: Scrubbed markdown in `RfpMetadata.markdown_text` DB column; PDF only under `data/raw/{ticket_id}.pdf`; `sales_summary` JSON on `RfpMetadata`.
+- Why: Least PHI-adjacent disk footprint; avoid new summary table in Part 1.
+
+- Decision: Extend `JobRun` with nullable `target_key` + `checkpoint`; per-ticket processing lock; FastAPI BackgroundTasks; mid-way re-run is from-scratch idempotent upsert.
+- Why: Reuse job lifecycle without coupling to nightly `target_date` semantics; simpler than checkpoint resume.
+
+- Decision: PHI mid-intake continues on redacted text to `intake_complete` with `contains_phi` banner; classifier confidence &lt; 0.5 → `analyzing` + human review (not discard); department extracts via keyword heuristics first.
+- Why: Locked planning Q&A; Part 3 owns hard-stop arbitration.
+
+- Decision: `covered_population` verbatim string + nullable `covered_population_n`; never invent when string absent.
+- Why: CONTEXT never-invent rule; numeric hook for later capacity checks.
+
+- Decision: Auth = existing `get_current_user` only; UI at landing `/rfp-intake`.
+- Why: Match knowledge/agent routers; no Revenue Cycle RBAC yet.
+
+## RAG / Knowledge (earlier)
+
 - Decision: CLI `scripts/seed_knowledge_base.py` is primary indexer; API startup no-ops if collection populated, seeds once if empty + `LLM_API_KEY` set.
 - Why: Local Qdrant file lock — only one process may open the store.
 

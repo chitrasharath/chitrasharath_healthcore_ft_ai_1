@@ -55,6 +55,14 @@ export const NAV_APPS: NavApp[] = [
     tagVariant: "new",
   },
   {
+    title: "RFP Intake",
+    description: "Upload institutional RFPs for multi-department intake analysis",
+    url: "/rfp-intake",
+    protected: true,
+    tag: "New",
+    tagVariant: "new",
+  },
+  {
     title: "Talent Pipeline Tracker",
     description: "Track recruitment and hiring pipeline",
     url: "/talent-tracker",

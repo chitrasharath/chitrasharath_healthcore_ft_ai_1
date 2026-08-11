@@ -27,9 +27,11 @@ from app.core.db import supabase_engine
 from app.domains.inventory import models as inventory_models  # noqa: F401
 from app.domains.incidents import models as incident_models  # noqa: F401
 from app.domains.jobs import models as job_models  # noqa: F401
+from app.domains.rfp_intake import models as rfp_intake_models  # noqa: F401
 from app.domains.telemetry import models as telemetry_models  # noqa: F401
 from app.domains.telemetry import reporting_models as telemetry_reporting_models  # noqa: F401
 from app.domains.telemetry.indexes import ensure_telemetry_indexes
+from app.domains.jobs.schema import ensure_job_run_columns
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +68,7 @@ def on_startup() -> None:
     if supabase_engine:
         SQLModel.metadata.create_all(supabase_engine)
         ensure_telemetry_indexes(supabase_engine)
+        ensure_job_run_columns(supabase_engine)
     _ensure_knowledge_base()
 
 

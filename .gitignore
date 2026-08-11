@@ -58,5 +58,9 @@ services/api/db.json
 data/process/snapshots/
 data/pipelines/load/snapshots/
 data/raw/*.csv
+data/raw/*.pdf
+data/raw/*.md
+!data/raw/README.md
+!data/raw/README.es.md
 data/qdrant/
 data/eval/feedback.jsonl
