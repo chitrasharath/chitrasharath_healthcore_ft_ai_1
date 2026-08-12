@@ -11,7 +11,12 @@ from sqlmodel import Session, SQLModel, create_engine
 
 from app.core.db import get_supabase_db
 from app.domains.jobs.models import JobRun  # noqa: F401
-from app.domains.rfp_intake.models import DepartmentSection, RfpMetadata, Ticket  # noqa: F401
+from app.domains.rfp_intake.models import (  # noqa: F401
+    DepartmentSection,
+    EvaluationResult,
+    RfpMetadata,
+    Ticket,
+)
 from app.main import app
 
 test_engine = create_engine(
@@ -120,3 +125,122 @@ def test_list_tickets(rfp_client: TestClient):
     response = rfp_client.get("/api/v1/rfp-intake/tickets")
     assert response.status_code == 200
     assert len(response.json()) >= 1
+
+
+def _seed_intake_complete(ticket_id: str) -> None:
+    with Session(test_engine) as session:
+        ticket = session.get(Ticket, ticket_id)
+        assert ticket is not None
+        ticket.status = "intake_complete"
+        ticket.updated_at = datetime.now(timezone.utc)
+        session.add(ticket)
+        for dept in ("revenue", "clinical", "compliance"):
+            session.add(
+                DepartmentSection(
+                    ticket_id=ticket_id,
+                    department_id=dept,
+                    key_aspects=[f"{dept} aspect"],
+                )
+            )
+        session.commit()
+
+
+def test_start_drafting_enqueues(rfp_client: TestClient):
+    with patch("app.domains.rfp_intake.service._run_background"):
+        uploaded = rfp_client.post(
+            "/api/v1/rfp-intake/uploads",
+            files={"file": ("rfp.pdf", io.BytesIO(_tiny_pdf()), "application/pdf")},
+        )
+    ticket_id = uploaded.json()["ticket_id"]
+    _seed_intake_complete(ticket_id)
+
+    with patch("app.domains.rfp_intake.service._run_drafting_background") as bg:
+        response = rfp_client.post(f"/api/v1/rfp-intake/tickets/{ticket_id}/start-drafting")
+    assert response.status_code == 202
+    assert response.json()["status"] == "drafting"
+    bg.assert_called_once()
+
+    detail = rfp_client.get(f"/api/v1/rfp-intake/tickets/{ticket_id}")
+    assert detail.json()["status"] == "drafting"
+
+
+def test_start_drafting_idempotent_when_already_drafting(rfp_client: TestClient):
+    with patch("app.domains.rfp_intake.service._run_background"):
+        uploaded = rfp_client.post(
+            "/api/v1/rfp-intake/uploads",
+            files={"file": ("rfp.pdf", io.BytesIO(_tiny_pdf()), "application/pdf")},
+        )
+    ticket_id = uploaded.json()["ticket_id"]
+    _seed_intake_complete(ticket_id)
+
+    with patch("app.domains.rfp_intake.service._run_drafting_background"):
+        first = rfp_client.post(f"/api/v1/rfp-intake/tickets/{ticket_id}/start-drafting")
+        second = rfp_client.post(f"/api/v1/rfp-intake/tickets/{ticket_id}/start-drafting")
+    assert first.status_code == 202
+    assert second.status_code == 202
+    assert second.json()["status"] == "drafting"
+
+
+def test_start_drafting_409_wrong_state(rfp_client: TestClient):
+    with patch("app.domains.rfp_intake.service._run_background"):
+        uploaded = rfp_client.post(
+            "/api/v1/rfp-intake/uploads",
+            files={"file": ("rfp.pdf", io.BytesIO(_tiny_pdf()), "application/pdf")},
+        )
+    ticket_id = uploaded.json()["ticket_id"]
+    # still analyzing
+    response = rfp_client.post(f"/api/v1/rfp-intake/tickets/{ticket_id}/start-drafting")
+    assert response.status_code == 409
+
+
+def test_redraft_only_needs_human_review(rfp_client: TestClient):
+    with patch("app.domains.rfp_intake.service._run_background"):
+        uploaded = rfp_client.post(
+            "/api/v1/rfp-intake/uploads",
+            files={"file": ("rfp.pdf", io.BytesIO(_tiny_pdf()), "application/pdf")},
+        )
+    ticket_id = uploaded.json()["ticket_id"]
+    _seed_intake_complete(ticket_id)
+    with Session(test_engine) as session:
+        ticket = session.get(Ticket, ticket_id)
+        assert ticket is not None
+        ticket.status = "under_evaluation"
+        session.add(ticket)
+        from sqlmodel import select
+
+        section = session.exec(
+            select(DepartmentSection).where(
+                DepartmentSection.ticket_id == ticket_id,
+                DepartmentSection.department_id == "revenue",
+            )
+        ).first()
+        assert section is not None
+        section.status = "passed"
+        session.add(section)
+        session.commit()
+
+    bad = rfp_client.post(
+        f"/api/v1/rfp-intake/tickets/{ticket_id}/redraft",
+        params={"department_id": "revenue"},
+    )
+    assert bad.status_code == 409
+
+    with Session(test_engine) as session:
+        section = session.exec(
+            select(DepartmentSection).where(
+                DepartmentSection.ticket_id == ticket_id,
+                DepartmentSection.department_id == "revenue",
+            )
+        ).first()
+        assert section is not None
+        section.status = "needs_human_review"
+        session.add(section)
+        session.commit()
+
+    with patch("app.domains.rfp_intake.service._run_drafting_background") as bg:
+        ok = rfp_client.post(
+            f"/api/v1/rfp-intake/tickets/{ticket_id}/redraft",
+            params={"department_id": "revenue"},
+        )
+    assert ok.status_code == 202
+    bg.assert_called_once()

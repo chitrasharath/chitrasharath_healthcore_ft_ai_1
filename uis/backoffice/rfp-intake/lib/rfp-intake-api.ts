@@ -48,3 +48,53 @@ export async function rerunTicket(ticketId: string): Promise<UploadAccepted> {
   }
   return (await response.json()) as UploadAccepted;
 }
+
+export async function startDrafting(ticketId: string): Promise<{ ticket_id: string; status: string }> {
+  const response = await healthcoreFetch(
+    `/rfp-intake/tickets/${encodeURIComponent(ticketId)}/start-drafting`,
+    { method: "POST" },
+  );
+  if (!response.ok) {
+    throw new Error(`Start drafting failed (${response.status}).`);
+  }
+  return (await response.json()) as { ticket_id: string; status: string };
+}
+
+export async function redraftSection(
+  ticketId: string,
+  departmentId: string,
+): Promise<{ ticket_id: string; department_id: string; status: string }> {
+  const qs = new URLSearchParams({ department_id: departmentId });
+  const response = await healthcoreFetch(
+    `/rfp-intake/tickets/${encodeURIComponent(ticketId)}/redraft?${qs}`,
+    { method: "POST" },
+  );
+  if (!response.ok) {
+    throw new Error(`Re-draft failed (${response.status}).`);
+  }
+  return (await response.json()) as {
+    ticket_id: string;
+    department_id: string;
+    status: string;
+  };
+}
+
+export async function releaseRedactedSection(
+  ticketId: string,
+  departmentId: string,
+): Promise<{ ticket_id: string; department_id: string; status: string; phi_cleared: boolean }> {
+  const qs = new URLSearchParams({ department_id: departmentId });
+  const response = await healthcoreFetch(
+    `/rfp-intake/tickets/${encodeURIComponent(ticketId)}/release-redacted?${qs}`,
+    { method: "POST" },
+  );
+  if (!response.ok) {
+    throw new Error(`Release redacted failed (${response.status}).`);
+  }
+  return (await response.json()) as {
+    ticket_id: string;
+    department_id: string;
+    status: string;
+    phi_cleared: boolean;
+  };
+}

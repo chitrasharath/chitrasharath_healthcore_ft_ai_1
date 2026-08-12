@@ -56,9 +56,23 @@ class Settings(BaseSettings):
     memory_low_relevance_days: int = 30
     memory_summarize_min_cluster: int = 3
 
+    # RFP drafting (Phase 2) — empty overrides fall back to generation_model
+    rfp_max_draft_iterations: int = 3
+    rfp_readability_max_grade: float = 12.0
+    rfp_generator_model: str = ""
+    rfp_evaluator_model: str = ""
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def effective_rfp_generator_model(self) -> str:
+        return self.rfp_generator_model.strip() or self.generation_model
+
+    @property
+    def effective_rfp_evaluator_model(self) -> str:
+        return self.rfp_evaluator_model.strip() or self.generation_model
 
 
 settings = Settings()

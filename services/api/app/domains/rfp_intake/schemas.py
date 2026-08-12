@@ -12,10 +12,28 @@ class UploadAccepted(BaseModel):
     status: str
 
 
+class EvaluationResultOut(BaseModel):
+    id: int
+    department_id: str
+    iteration: int
+    readability: dict[str, Any] | None = None
+    relevance: dict[str, Any] | None = None
+    compliance: dict[str, Any] | None = None
+    contains_phi: bool = False
+    overall_pass: bool = False
+    feedback_for_generator: str | None = None
+    created_at: datetime
+
+
 class DepartmentSectionOut(BaseModel):
     department_id: str
     key_aspects: list[Any] | dict[str, Any] | None = None
+    draft_content: str | None = None
     evaluation_results: dict[str, Any] | None = None
+    status: str | None = None
+    iteration: int = 0
+    latest_evaluation_id: int | None = None
+    evaluation_history: list[EvaluationResultOut] = Field(default_factory=list)
 
 
 class RfpMetadataOut(BaseModel):
@@ -48,6 +66,8 @@ class TicketSummary(BaseModel):
     contains_phi: bool = False
     needs_human_review: bool = False
     job_status: str | None = None
+    sections_needing_review: int = 0
+    phase2_complete: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -61,6 +81,8 @@ class TicketDetail(BaseModel):
     job_status: str | None = None
     job_checkpoint: str | None = None
     job_error: str | None = None
+    sections_needing_review: int = 0
+    phase2_complete: bool = False
     created_at: datetime
     updated_at: datetime
     metadata: RfpMetadataOut | None = None
@@ -71,3 +93,24 @@ class RerunAccepted(BaseModel):
     ticket_id: str
     status: str
     message: str = "rerun enqueued"
+
+
+class DraftingAccepted(BaseModel):
+    ticket_id: str
+    status: str
+    message: str = "drafting enqueued"
+
+
+class RedraftAccepted(BaseModel):
+    ticket_id: str
+    department_id: str
+    status: str
+    message: str = "redraft enqueued"
+
+
+class ReleaseRedactedAccepted(BaseModel):
+    ticket_id: str
+    department_id: str
+    status: str
+    phi_cleared: bool
+    message: str = "PHI redacted"

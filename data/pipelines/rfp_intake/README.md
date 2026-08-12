@@ -1,50 +1,63 @@
-# RFP Intake Pipeline (Milestone 9 Part 1)
+# RFP Intake Pipeline (Milestone 9 Parts 1–2)
 
-Dedicated LangGraph intake graph — **not** part of the CX support agent.
+Dedicated LangGraph graphs — **not** part of the CX support agent.
 
 ## Layout
 
 | Module | Role |
 |--------|------|
-| `convert.py` | PDF → markdown (`markitdown`) |
-| `phi.py` | Detect + redact via existing HealthCore PHI helpers |
-| `metadata.py` | Structured LLM extraction (no invented values) |
-| `readability.py` | `py-readability-metrics` with graceful degrade |
-| `extracts.py` | Heuristic department snippets |
+| `convert.py` / `phi.py` / `metadata.py` / `readability.py` | Part 1 intake |
 | `agents/` | classifier → orchestrator → workers → synthesizer |
-| `graph.py` | LangGraph `StateGraph` |
-| `runner.py` | BackgroundTasks / CLI entry |
-| `repository.py` | Supabase upserts |
+| `graph.py` / `runner.py` | Part 1 LangGraph + BackgroundTasks / CLI |
+| `agents/generator.py` | Part 2 per-department section generator |
+| `agents/evaluators/` | readability / relevance / compliance + aggregate |
+| `rules.py` | Compliance rule catalog (`phi-free`, BAA/DPA, currency) |
+| `drafting_graph.py` | generate → parallel evaluate → aggregate → loop/limit |
+| `drafting_runner.py` | `job_name=rfp_drafting` entry + concurrent sections |
+| `repository.py` | Supabase upserts (intake + drafting) |
 
-## Checkpoints
+## Part 2 flow
 
-`converted` → `phi_scanned` → `metadata` → `readability` → `classified` → `orchestrated` → `workers_done` → `synthesized`
+1. Ticket at `intake_complete` → sales clicks **Start drafting**
+2. `POST /api/v1/rfp-intake/tickets/{id}/start-drafting` → `Ticket.status=drafting` + `JobRun(rfp_drafting)`
+3. Independent loops per department (concurrent): generate → evaluators (ThreadPool) → aggregate
+4. Ticket flips to `under_evaluation` when any section enters evaluation
+5. On pass → section `passed`; on iteration limit / PHI → `needs_human_review`
+6. Phase 2 complete when every section ∈ {`passed`, `needs_human_review`}; ticket **stays** `under_evaluation`
 
-Stored on `JobRun.checkpoint` (`job_name=rfp_intake`, `target_key=ticket_id`).
+### Concurrency
 
-## Re-run
+- Evaluators write disjoint state keys then a **single** aggregate DB write per iteration.
+- Sections loop independently; one `needs_human_review` does not block others.
+
+### PHI hard stop
+
+Compliance runs detectors first. PHI → redact, `needs_human_review`, Compliance banner — **no** regenerate loop.
+
+## CLI
 
 ```bash
-# Requires DATABASE_URL
+# Part 1 re-run
 uv run python -m data.pipelines.rfp_intake.runner --ticket-id <uuid>
-# or API: POST /api/v1/rfp-intake/tickets/{ticket_id}/rerun
+
+# Part 2 drafting / single-section redraft
+uv run python -m data.pipelines.rfp_intake.drafting_runner --ticket-id <uuid>
+uv run python -m data.pipelines.rfp_intake.drafting_runner --ticket-id <uuid> --department-id revenue
 ```
 
-Re-runs are **from-scratch idempotent upserts** (not checkpoint resume).
+Requires `DATABASE_URL`. Soft-idempotent start-drafting if already `drafting`/`under_evaluation`.
 
-## PHI
+## Env
 
-- Detectors: `detect_phi`, `redact_pii`, `validate_no_phi`
-- On hit: `contains_phi=true`, redact before DB text / worker prompts / UI
-- PDF binary under `data/raw/{ticket_id}.pdf` is the only raw artifact
-- Never commit PHI fixtures with real patient strings
-
-## Readability
-
-If NLTK `punkt` is missing, metrics become `{ "status": "unavailable" }` and the job continues.
+| Variable | Default | Role |
+|----------|---------|------|
+| `RFP_MAX_DRAFT_ITERATIONS` | 3 | Generate→evaluate cycles |
+| `RFP_READABILITY_MAX_GRADE` | 12 | Flesch-Kincaid pass threshold |
+| `RFP_GENERATOR_MODEL` | (empty → `GENERATION_MODEL`) | Generator override |
+| `RFP_EVALUATOR_MODEL` | (empty → `GENERATION_MODEL`) | Relevance/compliance override |
 
 ## Status vocabulary
 
-`analyzing` | `discarded` | `intake_complete` (underscores only)
+**Ticket:** `analyzing` \| `discarded` \| `intake_complete` \| `drafting` \| `under_evaluation` (Part 3: `waiting_for_approval` \| `done` — not set here)
 
-Low classifier confidence (&lt; 0.5) keeps `analyzing` + `needs_human_review`.
+**Section:** `drafting` \| `under_evaluation` \| `passed` \| `needs_human_review`

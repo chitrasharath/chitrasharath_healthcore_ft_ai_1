@@ -6,19 +6,27 @@ type Props = {
   tickets: TicketSummary[];
   selectedId: string | null;
   onSelect: (ticketId: string) => void;
+  onStartDraft?: (ticketId: string) => void;
+  draftingId?: string | null;
 };
 
-export const RfpTicketList = ({ tickets, selectedId, onSelect }: Props) => (
+export const RfpTicketList = ({
+  tickets,
+  selectedId,
+  onSelect,
+  onStartDraft,
+  draftingId,
+}: Props) => (
   <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
     {tickets.length === 0 ? (
       <li className="px-4 py-6 text-sm text-slate-500">No tickets yet.</li>
     ) : (
       tickets.map((ticket) => (
-        <li key={ticket.ticket_id}>
+        <li key={ticket.ticket_id} className="flex items-stretch gap-2 px-2 py-1">
           <button
             type="button"
             onClick={() => onSelect(ticket.ticket_id)}
-            className={`flex w-full flex-col gap-1 px-4 py-3 text-left text-sm hover:bg-sky-50 ${
+            className={`flex flex-1 flex-col gap-1 px-2 py-2 text-left text-sm hover:bg-sky-50 ${
               selectedId === ticket.ticket_id ? "bg-sky-50" : ""
             }`}
           >
@@ -29,9 +37,21 @@ export const RfpTicketList = ({ tickets, selectedId, onSelect }: Props) => (
               {ticket.status}
               {ticket.job_status === "failed" ? " · job failed" : ""}
               {ticket.contains_phi ? " · PHI flagged" : ""}
-              {ticket.needs_human_review ? " · Human review" : ""}
+              {(ticket.sections_needing_review ?? 0) > 0
+                ? ` · ${ticket.sections_needing_review} need review`
+                : ""}
             </span>
           </button>
+          {ticket.status === "intake_complete" && onStartDraft ? (
+            <button
+              type="button"
+              disabled={draftingId === ticket.ticket_id}
+              className="self-center whitespace-nowrap rounded bg-sky-700 px-2 py-1 text-xs text-white disabled:opacity-50"
+              onClick={() => onStartDraft(ticket.ticket_id)}
+            >
+              Start drafting
+            </button>
+          ) : null}
         </li>
       ))
     )}

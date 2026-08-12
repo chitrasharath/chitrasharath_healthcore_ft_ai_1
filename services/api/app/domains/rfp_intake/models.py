@@ -93,9 +93,43 @@ class DepartmentSection(SQLModel, table=True):
         default=None,
         sa_column=Column(sa.JSON, nullable=True),
     )
+    status: str | None = Field(default=None, index=True)
+    iteration: int = Field(default=0)
+    latest_evaluation_id: int | None = Field(default=None)
     approval_status: str | None = None
     approver: str | None = None
     approved_at: datetime | None = Field(
         default=None,
         sa_column=Column(sa.DateTime(timezone=True), nullable=True),
+    )
+
+
+class EvaluationResult(SQLModel, table=True):
+    __tablename__ = "rfp_evaluation_results"
+
+    id: int | None = Field(default=None, primary_key=True)
+    section_id: int = Field(foreign_key="rfp_department_sections.id", index=True)
+    ticket_id: str = Field(foreign_key="rfp_tickets.ticket_id", index=True)
+    department_id: str = Field(index=True)
+    iteration: int = Field(default=1)
+    readability: dict[str, Any] | None = Field(
+        default=None,
+        sa_column=Column(sa.JSON, nullable=True),
+    )
+    relevance: dict[str, Any] | None = Field(
+        default=None,
+        sa_column=Column(sa.JSON, nullable=True),
+    )
+    compliance: dict[str, Any] | None = Field(
+        default=None,
+        sa_column=Column(sa.JSON, nullable=True),
+    )
+    contains_phi: bool = False
+    overall_pass: bool = False
+    feedback_for_generator: str | None = Field(
+        default=None,
+        sa_column=Column(sa.Text, nullable=True),
+    )
+    created_at: datetime = Field(
+        sa_column=Column(sa.DateTime(timezone=True), nullable=False),
     )

@@ -7,6 +7,9 @@ from app.core.db import get_supabase_db
 from app.core.dependencies import get_current_user
 from app.domains.rfp_intake import service
 from app.domains.rfp_intake.schemas import (
+    DraftingAccepted,
+    RedraftAccepted,
+    ReleaseRedactedAccepted,
     RerunAccepted,
     TicketDetail,
     TicketSummary,
@@ -55,3 +58,49 @@ def rerun_ticket(
 ) -> RerunAccepted:
     _ = current_user
     return service.rerun_ticket(session, ticket_id, background_tasks)
+
+
+@router.post(
+    "/tickets/{ticket_id}/start-drafting",
+    response_model=DraftingAccepted,
+    status_code=202,
+)
+def start_drafting(
+    ticket_id: str,
+    background_tasks: BackgroundTasks,
+    session: Session = Depends(get_supabase_db),
+    current_user: dict = Depends(get_current_user),
+) -> DraftingAccepted:
+    _ = current_user
+    return service.start_drafting(session, ticket_id, background_tasks)
+
+
+@router.post(
+    "/tickets/{ticket_id}/redraft",
+    response_model=RedraftAccepted,
+    status_code=202,
+)
+def redraft_section(
+    ticket_id: str,
+    background_tasks: BackgroundTasks,
+    department_id: str,
+    session: Session = Depends(get_supabase_db),
+    current_user: dict = Depends(get_current_user),
+) -> RedraftAccepted:
+    _ = current_user
+    return service.redraft_section(session, ticket_id, department_id, background_tasks)
+
+
+@router.post(
+    "/tickets/{ticket_id}/release-redacted",
+    response_model=ReleaseRedactedAccepted,
+)
+def release_redacted(
+    ticket_id: str,
+    department_id: str,
+    session: Session = Depends(get_supabase_db),
+    current_user: dict = Depends(get_current_user),
+) -> ReleaseRedactedAccepted:
+    """Redact PHI from an existing draft and release if scrub succeeds."""
+    _ = current_user
+    return service.release_redacted_section(session, ticket_id, department_id)

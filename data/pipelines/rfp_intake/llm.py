@@ -37,7 +37,13 @@ def parse_fenced_json(raw: str) -> dict[str, Any]:
     return data
 
 
-def chat_json(system: str, user: str, *, temperature: float = 0.0) -> dict[str, Any]:
+def chat_json(
+    system: str,
+    user: str,
+    *,
+    temperature: float = 0.0,
+    model: str | None = None,
+) -> dict[str, Any]:
     from app.core.config import settings
 
     if not settings.llm_api_key:
@@ -49,7 +55,7 @@ def chat_json(system: str, user: str, *, temperature: float = 0.0) -> dict[str, 
         "Content-Type": "application/json",
     }
     payload = {
-        "model": settings.generation_model,
+        "model": model or settings.generation_model,
         "temperature": temperature,
         "messages": [
             {"role": "system", "content": system},

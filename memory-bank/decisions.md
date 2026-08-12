@@ -429,6 +429,32 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision: Auth = existing `get_current_user` only; UI at landing `/rfp-intake`.
 - Why: Match knowledge/agent routers; no Revenue Cycle RBAC yet.
 
+## RFP Response Generation (Milestone 9 Part 2)
+
+- Decision: Branch `feature/rfp-response-generation` off committed `feature/rfp-intake`; extend `data/pipelines/rfp_intake/` with drafting graph (do not touch CX agent).
+- Why: SPEC Phase 2 layout; Parts 1–3 share Ticket/DepartmentSection.
+
+- Decision: Dedicated `EvaluationResult` table (`rfp_evaluation_results`) plus section JSON sync for latest; section statuses `drafting` | `under_evaluation` | `passed` | `needs_human_review`.
+- Why: Iteration history + KPI querying; `passed`/`needs_human_review` are section-level Phase-2 extensions not in CONTEXT §2.3 ticket vocabulary.
+
+- Decision: `start-drafting` soft-idempotent (`202` current state if already `drafting`/`under_evaluation`); `409` for other wrong states. Ticket → `under_evaluation` as soon as any section enters evaluation; remains `under_evaluation` at Phase 2 complete (`phase2_complete` derived).
+- Why: Double-click safety; Part 3 owns `waiting_for_approval`/`done`.
+
+- Decision: PHI hard stop → redacted draft, `needs_human_review`, Compliance (Claire Whitfield) UI banner via `contains_phi` — no regenerate loop; no assignment table.
+- Why: Locked planning; Part 3 owns owner routing.
+
+- Decision: Concurrent independent section loops; evaluators run in parallel via ThreadPoolExecutor inside evaluate node; aggregate is sole Supabase writer per iteration. Max iterations 3; FK grade ≤12; relevance strict.
+- Why: SPEC defaults + LangGraph join safety.
+
+- Decision: `redraft` only for `needs_human_review` sections; reset that section’s loop (`iteration=0`), keep EvaluationResult history; other sections untouched.
+- Why: Locked planning.
+
+- Decision: Models via `generation_model` with optional `RFP_GENERATOR_MODEL` / `RFP_EVALUATOR_MODEL` env overrides.
+- Why: Follow environment variables without new SDKs.
+
+- Decision (revised): PHI in a draft is **auto-redacted**; if the scrubbed draft is PHI-free, evaluation continues and the section may `passed` for Phase 3. Residual PHI after scrub still → `needs_human_review`. UI **Redact PHI & release** releases already-stuck sections the same way. Diagnosis scrub is span-scoped (not whole-line) so BAA/currency clauses survive.
+- Why: Manual-test / Phase 3 readiness — raw PHI must never ship, but a clean redacted draft should not permanently block the ticket.
+
 ## RAG / Knowledge (earlier)
 
 - Decision: CLI `scripts/seed_knowledge_base.py` is primary indexer; API startup no-ops if collection populated, seeds once if empty + `LLM_API_KEY` set.

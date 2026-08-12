@@ -2,7 +2,7 @@
 
 ## Current Status Summary
 
-The project is organized into milestone-based delivery (M1–M5 **delivered**; **M6 Data Pipeline in progress** — Design/Build on `feature/data_pipeline`; **DEV-53 Background Processing** on `feature/background-processing`; **M7 RAG Knowledge Base implemented on `feature/rag`** — pending live eval with `LLM_API_KEY` + PR; **LangGraph Support Agent delivered on `feature/agent_rag_langgraph`**; **Agent Tools delivered on `feature/agent_tools_langgraph`**; **Company Tools MCP delivered on `feature/agent_mcp_langgraph`**; **Agent Harness / guardrails implemented on `feature/agent_harness`**; **Agent Memory implemented on `feature/agent_memory`**; **M9 Part 1 RFP Intake implemented on `feature/rfp-intake`** — pending commit/PR).
+The project is organized into milestone-based delivery (M1–M5 **delivered**; **M6 Data Pipeline in progress** — Design/Build on `feature/data_pipeline`; **DEV-53 Background Processing** on `feature/background-processing`; **M7 RAG Knowledge Base implemented on `feature/rag`** — pending live eval with `LLM_API_KEY` + PR; **LangGraph Support Agent delivered on `feature/agent_rag_langgraph`**; **Agent Tools delivered on `feature/agent_tools_langgraph`**; **Company Tools MCP delivered on `feature/agent_mcp_langgraph`**; **Agent Harness / guardrails implemented on `feature/agent_harness`**; **Agent Memory implemented on `feature/agent_memory`**; **M9 Part 1 RFP Intake committed on `feature/rfp-intake`**; **M9 Part 2 RFP Response Generation implemented on `feature/rfp-response-generation`** — pending commit/PR).
 Milestone 4 public portal migration is **delivered** at `uis/website`. Milestone 5 backend and internal ops platform is **delivered** (`services/api`, backoffice landing on :3001, Docker Compose). Legacy `apps/healthcore_web_portal/` and `apps/src` remain unchanged.
 
 ## Major Milestones
@@ -292,7 +292,7 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
 ### Milestone 9 Part 1: RFP Intake (Implemented on `feature/rfp-intake`)
 
 - Goal: authenticated PDF upload → Ticket + LangGraph intake under `data/pipelines/rfp_intake/` (convert → PHI → metadata → readability → classify → orchestrate → workers → synthesize) with Supabase persistence and backoffice UI.
-- **Status:** Implemented on `feature/rfp-intake` (off `feature/agent_memory`); commit pending.
+- **Status:** Implemented and committed on `feature/rfp-intake` (`c192f2f`).
 - Spec: `memory-bank/references/multi_agents/SPEC-rfp-intake-phase1.md`
 - Context: `memory-bank/references/multi_agents/CONTEXT-multi_agent.md`
 - Plan: `memory-bank/references/multi_agents/IMPLEMENTATION_PLAN-rfp-intake-phase1.md`
@@ -303,7 +303,23 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
   - `uis/backoffice/rfp-intake/` aliased into landing `/rfp-intake` + hub nav card
   - Golden markdown fixtures; PHI detect/redact; classifier confidence &lt; 0.5 → human review
   - Tests: `tests/pipelines/test_rfp_intake_pipeline.py`, `services/api/tests/test_rfp_intake.py` (21 passed); `npm run verify` landing includes `/rfp-intake`
-- **Next:** developer commit/PR → `feature/agent_memory`; Parts 2–3 out of scope
+- **Next:** Parts 2–3
+
+### Milestone 9 Part 2: RFP Response Generation (Implemented on `feature/rfp-response-generation`)
+
+- Goal: sales-triggered generator↔evaluator loops per department → evaluated drafts with iteration limit + PHI hard stop.
+- **Status:** Implemented on `feature/rfp-response-generation` (off committed `feature/rfp-intake`); commit pending.
+- Spec: `memory-bank/references/multi_agents/SPEC-rfp-intake-phase2.md`
+- Plan: `memory-bank/references/multi_agents/IMPLEMENTATION_PLAN-rfp-intake-phase2.md`
+- **Delivered:**
+  - `EvaluationResult` table + section `status`/`iteration`/`latest_evaluation_id`; DDL helper for ALTER
+  - Generator + parallel readability/relevance/compliance evaluators + aggregate single-writer
+  - `drafting_graph` / `drafting_runner` (`job_name=rfp_drafting`); concurrent section loops
+  - `POST .../start-drafting` (soft-idempotent) + `POST .../redraft` (needs_human_review only)
+  - Backoffice Start drafting button, section panels, Compliance PHI banner, re-draft action
+  - Settings: `RFP_MAX_DRAFT_ITERATIONS=3`, `RFP_READABILITY_MAX_GRADE=12`, optional model overrides
+  - Tests: `tests/pipelines/test_rfp_drafting.py` + extended API tests; `npm run verify` landing passes
+- **Next:** developer commit/PR → `feature/rfp-intake`; Part 3 out of scope
 
 ## Future Feature Additions
 

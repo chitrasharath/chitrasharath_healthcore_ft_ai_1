@@ -1,4 +1,17 @@
-export type TicketStatus = "analyzing" | "discarded" | "intake_complete";
+export type TicketStatus =
+  | "analyzing"
+  | "discarded"
+  | "intake_complete"
+  | "drafting"
+  | "under_evaluation"
+  | "waiting_for_approval"
+  | "done";
+
+export type SectionStatus =
+  | "drafting"
+  | "under_evaluation"
+  | "passed"
+  | "needs_human_review";
 
 export type TicketSummary = {
   ticket_id: string;
@@ -10,14 +23,34 @@ export type TicketSummary = {
   contains_phi: boolean;
   needs_human_review: boolean;
   job_status?: string | null;
+  sections_needing_review?: number;
+  phase2_complete?: boolean;
   created_at: string;
   updated_at: string;
+};
+
+export type EvaluationResult = {
+  id: number;
+  department_id: string;
+  iteration: number;
+  readability: Record<string, unknown> | null;
+  relevance: Record<string, unknown> | null;
+  compliance: Record<string, unknown> | null;
+  contains_phi: boolean;
+  overall_pass: boolean;
+  feedback_for_generator: string | null;
+  created_at: string;
 };
 
 export type DepartmentSection = {
   department_id: string;
   key_aspects: string[] | Record<string, unknown> | null;
+  draft_content?: string | null;
   evaluation_results: Record<string, unknown> | null;
+  status?: SectionStatus | string | null;
+  iteration?: number;
+  latest_evaluation_id?: number | null;
+  evaluation_history?: EvaluationResult[];
 };
 
 export type RfpMetadata = {
@@ -46,6 +79,8 @@ export type TicketDetail = {
   job_status?: string | null;
   job_checkpoint?: string | null;
   job_error?: string | null;
+  sections_needing_review?: number;
+  phase2_complete?: boolean;
   created_at: string;
   updated_at: string;
   metadata: RfpMetadata | null;

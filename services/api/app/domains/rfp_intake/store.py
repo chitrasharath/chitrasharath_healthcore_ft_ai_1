@@ -5,15 +5,22 @@ from typing import Any
 
 from sqlmodel import Session, select
 
-from app.domains.rfp_intake.models import DepartmentSection, RfpMetadata, Ticket
+from app.domains.rfp_intake.models import (
+    DepartmentSection,
+    EvaluationResult,
+    RfpMetadata,
+    Ticket,
+)
 from app.domains.rfp_intake.schemas import (
     DepartmentSectionOut,
+    EvaluationResultOut,
     RfpMetadataOut,
     TicketDetail,
     TicketSummary,
 )
 
 PREVIEW_CHARS = 800
+TERMINAL_SECTION_STATUSES = frozenset({"passed", "needs_human_review"})
 
 
 def _utcnow() -> datetime:
@@ -90,6 +97,10 @@ def upsert_section(
     *,
     key_aspects: Any | None = None,
     evaluation_results: dict[str, Any] | None = None,
+    draft_content: str | None = None,
+    status: str | None = None,
+    iteration: int | None = None,
+    latest_evaluation_id: int | None = None,
 ) -> DepartmentSection:
     statement = select(DepartmentSection).where(
         DepartmentSection.ticket_id == ticket_id,
@@ -102,9 +113,61 @@ def upsert_section(
         section.key_aspects = key_aspects
     if evaluation_results is not None:
         section.evaluation_results = evaluation_results
+    if draft_content is not None:
+        section.draft_content = draft_content
+    if status is not None:
+        section.status = status
+    if iteration is not None:
+        section.iteration = iteration
+    if latest_evaluation_id is not None:
+        section.latest_evaluation_id = latest_evaluation_id
     session.add(section)
     session.flush()
     return section
+
+
+def list_evaluations(
+    session: Session,
+    ticket_id: str,
+    *,
+    department_id: str | None = None,
+) -> list[EvaluationResult]:
+    statement = select(EvaluationResult).where(EvaluationResult.ticket_id == ticket_id)
+    if department_id:
+        statement = statement.where(EvaluationResult.department_id == department_id)
+    statement = statement.order_by(EvaluationResult.iteration.asc())  # type: ignore[arg-type]
+    return list(session.exec(statement).all())
+
+
+def reset_section_for_redraft(
+    session: Session,
+    ticket_id: str,
+    department_id: str,
+) -> DepartmentSection:
+    section = upsert_section(
+        session,
+        ticket_id,
+        department_id,
+        draft_content="",
+        status=None,
+        iteration=0,
+        latest_evaluation_id=None,
+        evaluation_results={"contains_phi": False},
+    )
+    # Clear draft explicitly (empty string above); status None means unset until runner
+    section.draft_content = None
+    section.status = None
+    session.add(section)
+    session.flush()
+    return section
+
+
+def phase2_rollup(sections: list[DepartmentSection]) -> tuple[int, bool]:
+    needing = sum(1 for s in sections if s.status == "needs_human_review")
+    if not sections:
+        return 0, False
+    complete = all((s.status or "") in TERMINAL_SECTION_STATUSES for s in sections)
+    return needing, complete
 
 
 def set_ticket_status(
@@ -130,7 +193,9 @@ def to_summary(
     meta: RfpMetadata | None,
     *,
     job_status: str | None = None,
+    sections: list[DepartmentSection] | None = None,
 ) -> TicketSummary:
+    needing, phase2_done = phase2_rollup(sections or [])
     return TicketSummary(
         ticket_id=ticket.ticket_id,
         rfp_id=ticket.rfp_id,
@@ -141,8 +206,25 @@ def to_summary(
         contains_phi=bool(meta.contains_phi) if meta else False,
         needs_human_review=ticket.needs_human_review,
         job_status=job_status,
+        sections_needing_review=needing,
+        phase2_complete=phase2_done,
         created_at=ticket.created_at,
         updated_at=ticket.updated_at,
+    )
+
+
+def _eval_out(row: EvaluationResult) -> EvaluationResultOut:
+    return EvaluationResultOut(
+        id=row.id or 0,
+        department_id=row.department_id,
+        iteration=row.iteration,
+        readability=row.readability,
+        relevance=row.relevance,
+        compliance=row.compliance,
+        contains_phi=row.contains_phi,
+        overall_pass=row.overall_pass,
+        feedback_for_generator=row.feedback_for_generator,
+        created_at=row.created_at,
     )
 
 
@@ -154,6 +236,7 @@ def to_detail(
     job_status: str | None = None,
     job_checkpoint: str | None = None,
     job_error: str | None = None,
+    evaluations: list[EvaluationResult] | None = None,
 ) -> TicketDetail:
     metadata_out: RfpMetadataOut | None = None
     if meta is not None:
@@ -176,6 +259,30 @@ def to_detail(
             classifier_result=meta.classifier_result,
             markdown_preview=preview,
         )
+    needing, phase2_done = phase2_rollup(sections)
+    evals_by_dept: dict[str, list[EvaluationResultOut]] = {}
+    for row in evaluations or []:
+        evals_by_dept.setdefault(row.department_id, []).append(_eval_out(row))
+
+    section_outs: list[DepartmentSectionOut] = []
+    for s in sections:
+        draft = s.draft_content
+        contains_phi = bool((s.evaluation_results or {}).get("contains_phi"))
+        if contains_phi and draft:
+            # Never return raw PHI — store already redacted; still truncate
+            draft = draft[:PREVIEW_CHARS]
+        section_outs.append(
+            DepartmentSectionOut(
+                department_id=s.department_id,
+                key_aspects=s.key_aspects,
+                draft_content=draft,
+                evaluation_results=s.evaluation_results,
+                status=s.status,
+                iteration=s.iteration or 0,
+                latest_evaluation_id=s.latest_evaluation_id,
+                evaluation_history=evals_by_dept.get(s.department_id, []),
+            )
+        )
     return TicketDetail(
         ticket_id=ticket.ticket_id,
         rfp_id=ticket.rfp_id,
@@ -185,15 +292,10 @@ def to_detail(
         job_status=job_status,
         job_checkpoint=job_checkpoint,
         job_error=job_error,
+        sections_needing_review=needing,
+        phase2_complete=phase2_done,
         created_at=ticket.created_at,
         updated_at=ticket.updated_at,
         metadata=metadata_out,
-        sections=[
-            DepartmentSectionOut(
-                department_id=s.department_id,
-                key_aspects=s.key_aspects,
-                evaluation_results=s.evaluation_results,
-            )
-            for s in sections
-        ],
+        sections=section_outs,
     )

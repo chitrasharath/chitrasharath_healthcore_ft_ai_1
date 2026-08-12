@@ -2,10 +2,24 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { getTicket, listTickets, rerunTicket, uploadRfpPdf } from "../lib/rfp-intake-api";
+import {
+  getTicket,
+  listTickets,
+  redraftSection,
+  releaseRedactedSection,
+  rerunTicket,
+  startDrafting,
+  uploadRfpPdf,
+} from "../lib/rfp-intake-api";
 import type { TicketDetail, TicketSummary } from "../types/rfp-intake";
 
 const POLL_MS = 3000;
+
+const isActive = (status: string, jobStatus?: string | null, review?: boolean) => {
+  if (jobStatus === "failed") return false;
+  if (status === "analyzing" && !review) return true;
+  return status === "drafting" || status === "under_evaluation";
+};
 
 export function useRfpIntake() {
   const [tickets, setTickets] = useState<TicketSummary[]>([]);
@@ -13,15 +27,14 @@ export function useRfpIntake() {
   const [detail, setDetail] = useState<TicketDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [drafting, setDrafting] = useState(false);
 
   const refreshList = useCallback(async () => {
-    const rows = await listTickets();
-    setTickets(rows);
+    setTickets(await listTickets());
   }, []);
 
   const refreshDetail = useCallback(async (ticketId: string) => {
-    const row = await getTicket(ticketId);
-    setDetail(row);
+    setDetail(await getTicket(ticketId));
   }, []);
 
   useEffect(() => {
@@ -37,21 +50,16 @@ export function useRfpIntake() {
   }, [selectedId, refreshDetail]);
 
   useEffect(() => {
-    const analyzing = tickets.some(
-      (t) => t.status === "analyzing" && !t.needs_human_review && t.job_status !== "failed",
+    const listActive = tickets.some((t) =>
+      isActive(t.status, t.job_status, t.needs_human_review),
     );
-    const detailRunning =
-      detail?.status === "analyzing" &&
-      !detail.needs_human_review &&
-      detail.job_status !== "failed";
-    if (!analyzing && !detailRunning) {
-      return;
-    }
+    const detailActive = detail
+      ? isActive(detail.status, detail.job_status, detail.needs_human_review)
+      : false;
+    if (!listActive && !detailActive) return;
     const id = window.setInterval(() => {
       void refreshList().catch(() => undefined);
-      if (selectedId) {
-        void refreshDetail(selectedId).catch(() => undefined);
-      }
+      if (selectedId) void refreshDetail(selectedId).catch(() => undefined);
     }, POLL_MS);
     return () => window.clearInterval(id);
   }, [tickets, detail, selectedId, refreshList, refreshDetail]);
@@ -60,9 +68,7 @@ export function useRfpIntake() {
     setError(null);
     try {
       await refreshList();
-      if (selectedId) {
-        await refreshDetail(selectedId);
-      }
+      if (selectedId) await refreshDetail(selectedId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Refresh failed");
     }
@@ -94,6 +100,45 @@ export function useRfpIntake() {
     }
   };
 
+  const startDraft = async (ticketId?: string) => {
+    const id = ticketId || selectedId;
+    if (!id) return;
+    setDrafting(true);
+    setError(null);
+    try {
+      setSelectedId(id);
+      await startDrafting(id);
+      await refreshList();
+      await refreshDetail(id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Start drafting failed");
+    } finally {
+      setDrafting(false);
+    }
+  };
+
+  const redraft = async (departmentId: string) => {
+    if (!selectedId) return;
+    setError(null);
+    try {
+      await redraftSection(selectedId, departmentId);
+      await refreshAll();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Re-draft failed");
+    }
+  };
+
+  const releaseRedacted = async (departmentId: string) => {
+    if (!selectedId) return;
+    setError(null);
+    try {
+      await releaseRedactedSection(selectedId, departmentId);
+      await refreshAll();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Release redacted failed");
+    }
+  };
+
   return {
     tickets,
     selectedId,
@@ -101,8 +146,12 @@ export function useRfpIntake() {
     detail,
     error,
     uploading,
+    drafting,
     upload,
     refreshAll,
     rerun,
+    startDraft,
+    redraft,
+    releaseRedacted,
   };
 }
