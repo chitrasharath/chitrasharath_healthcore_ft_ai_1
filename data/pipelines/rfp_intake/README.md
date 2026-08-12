@@ -56,6 +56,12 @@ Requires `DATABASE_URL`. Soft-idempotent start-drafting if already `drafting`/`u
 | `RFP_GENERATOR_MODEL` | (empty → `GENERATION_MODEL`) | Generator override |
 | `RFP_EVALUATOR_MODEL` | (empty → `GENERATION_MODEL`) | Relevance/compliance override |
 
+## Readability
+
+`compute_readability` auto-downloads NLTK `punkt` / `punkt_tab` on first use if missing. The API Docker image also pre-downloads them at build time.
+
+If tokenizer data is missing or the text is too short (&lt; ~100 words for Flesch-Kincaid), metrics become `{ "status": "unavailable" }` and Part 2 soft-passes readability so the job continues.
+
 ## Status vocabulary
 
 **Ticket:** `analyzing` \| `discarded` \| `intake_complete` \| `drafting` \| `under_evaluation` (Part 3: `waiting_for_approval` \| `done` — not set here)
