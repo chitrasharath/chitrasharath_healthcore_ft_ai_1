@@ -338,7 +338,9 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
   - Non-RFP discard (run-all halt); re-run intake restores step-by-step buttons; action messages reset per click
   - Re-draft keeps last draft+feedback; LLM TLS verify off by default (`LLM_SSL_VERIFY`) for expired LiteLLM cert
   - Tests: `test_rfp_approval.py`, `test_rfp_approval_graph.py`, extended API tests (incl. delete)
-- **Next:** PR into `feature/rfp-response-generation`
+  - Spec §9.11 three-phase continuity: `tests/pipelines/test_rfp_three_phase_consistency.py` runs the Meridian US formal fixture through real P1→P2→P3 runners (mocked LLM, simulated owners); asserts legal status path, `key_aspects`→`draft_content`→`approval_status`→`FinalDocument`, execution log, USD, and no PHI leak
+  - Checkpointer fail-loud: empty `DATABASE_URL` or Postgres setup/connect failure raises (`CheckpointerError`); `MemorySaver` only via `use_memory=True`. Typo fix: PHI-redacted sections message in `final_document.py`
+- **Next:** Remaining Phase 3 test gaps (thread isolation, node-logging PHI); then PR into `feature/rfp-response-generation`
 
 ## Future Feature Additions
 

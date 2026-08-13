@@ -12,8 +12,10 @@ logger = logging.getLogger(__name__)
 _postgres_saver: Any = None
 _pool: Any = None
 _setup_done = False
-# Process-wide fallback so BackgroundTasks start + HTTP resume share one saver
-_process_memory_saver: MemorySaver | None = None
+
+
+class CheckpointerError(RuntimeError):
+    """Raised when a durable Postgres checkpoint cannot be established."""
 
 
 def thread_config(ticket_id: str) -> dict[str, Any]:
@@ -29,11 +31,13 @@ def _normalize_conn_string(url: str) -> str:
 
 
 def get_checkpointer(*, use_memory: bool = False):
-    """Return PostgresSaver when DATABASE_URL is set; shared MemorySaver otherwise.
+    """Return PostgresSaver when DATABASE_URL is set.
 
     Unit tests pass ``use_memory=True`` for an isolated in-memory saver.
+    Empty DATABASE_URL or a Postgres setup/connect failure raises — never
+    silently degrade to MemorySaver (that would lose interrupts on restart).
     """
-    global _postgres_saver, _pool, _setup_done, _process_memory_saver
+    global _postgres_saver, _pool, _setup_done
     if use_memory:
         return MemorySaver()
 
@@ -41,12 +45,10 @@ def get_checkpointer(*, use_memory: bool = False):
 
     url = (settings.database_url or "").strip()
     if not url:
-        if _process_memory_saver is None:
-            _process_memory_saver = MemorySaver()
-            logger.warning(
-                "DATABASE_URL empty — using process-wide MemorySaver for approval graph"
-            )
-        return _process_memory_saver
+        raise CheckpointerError(
+            "DATABASE_URL is not set — refusing in-memory approval checkpoints. "
+            "Pass use_memory=True for unit tests."
+        )
 
     if _postgres_saver is not None:
         return _postgres_saver
@@ -83,10 +85,11 @@ def get_checkpointer(*, use_memory: bool = False):
         except Exception:
             pass
         return _postgres_saver
-    except Exception:
+    except Exception as exc:
         logger.exception(
-            "Postgres checkpointer failed — falling back to process-wide MemorySaver"
+            "Postgres checkpointer failed — refusing MemorySaver fallback"
         )
-        if _process_memory_saver is None:
-            _process_memory_saver = MemorySaver()
-        return _process_memory_saver
+        raise CheckpointerError(
+            "Postgres checkpointer failed — approval interrupts require a durable "
+            "checkpoint. MemorySaver is test-only (use_memory=True)."
+        ) from exc

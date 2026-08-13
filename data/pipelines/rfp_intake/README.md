@@ -31,7 +31,7 @@ Dedicated LangGraph graphs — **not** part of the CX support agent.
 
 ### Checkpointer
 
-`langgraph-checkpoint-postgres` + `psycopg` pool over `DATABASE_URL`. Call `.setup()` once on first use. Unit tests use `MemorySaver` (`use_memory=True`).
+`langgraph-checkpoint-postgres` + `psycopg` pool over `DATABASE_URL`. Call `.setup()` once on first use. Unit tests use `MemorySaver` (`use_memory=True`). Empty `DATABASE_URL` or a Postgres connect/setup failure **raises** — there is no silent MemorySaver fallback.
 
 Pool connections use `prepare_threshold=None` (disable server prepared statements) so Supabase/PgBouncer and concurrent writers do not raise `DuplicatePreparedStatement` (`_pg3_*`).
 

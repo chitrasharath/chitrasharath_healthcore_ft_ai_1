@@ -484,6 +484,12 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision: Re-draft **keeps the last `draft_content` + `feedback_for_generator`** and resets the iteration counter. Generator revises in place (especially readability). RFP LLM httpx uses **`LLM_SSL_VERIFY` default false** (retry once without verify on cert errors).
 - Why: Wiping the draft forced many Re-draft clicks; Codespaces against `llm.4geeks.ai` hit expired-certificate ConnectErrors.
 
+- Decision: Spec §9.11 full three-phase run is a **real runner integration test** (`test_rfp_three_phase_consistency.py`): Meridian fixture → `run_intake` → `run_drafting` → `start_approval` / `resume_approval` with Tom / Dr. Marcus Reid / Claire Whitfield simulated approvals. LLM is denied (`LlmConfigError` + `respx` network block); SQLite stands in for Supabase; approval checkpoints share one `MemorySaver` so start/resume stay on `thread_id = ticket_id`.
+- Why: SPEC §9 requires mocked LLM, simulated approvals, no live network, no real PHI — while still driving the actual P1→P2→P3 graphs and asserting §5.9 consistency (no status jump, dropped field, or PHI leak).
+
+- Decision: Approval checkpointer **fails loud** when `DATABASE_URL` is empty or PostgresSaver setup/connect fails. `MemorySaver` is only for `use_memory=True` (pytest). No process-wide in-memory fallback.
+- Why: Silent MemorySaver after a Postgres blip pins the process to RAM checkpoints; interrupts then vanish on restart (and disagree across workers). Spec §7.1 requires durable Postgres so an interrupt survives an API restart. Approve/reject remains DB-first as a separate safety net.
+
 ## RAG / Knowledge (earlier)
 
 - Decision: CLI `scripts/seed_knowledge_base.py` is primary indexer; API startup no-ops if collection populated, seeds once if empty + `LLM_API_KEY` set.

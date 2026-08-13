@@ -168,7 +168,7 @@ def generate_final_document(session: Session, ticket_id: str) -> FinalDocument:
             raise ValueError(f"section {section.department_id} still contains PHI")
 
     if not compliance_cleared_redactions(sections):
-        raise ValueError("PHI redactionsactions sections not cleared by Compliance")
+        raise ValueError("PHI-redacted sections not cleared by Compliance")
 
     compliance = next((s for s in sections if s.department_id == "compliance"), None)
     if compliance is None or compliance.approval_status != "approved":
