@@ -65,6 +65,8 @@ def _run_one_section(
     key_aspects: Any,
     open_questions: list[Any],
     shared_metadata: dict[str, Any],
+    draft_content: str = "",
+    feedback_for_generator: str = "",
 ) -> None:
     initial = {
         "ticket_id": ticket_id,
@@ -77,8 +79,8 @@ def _run_one_section(
         "subtask": f"Draft the {department_id} proposal section answering key_aspects.",
         "iteration": 0,
         "max_iterations": int(settings.rfp_max_draft_iterations),
-        "feedback_for_generator": "",
-        "draft_content": "",
+        "feedback_for_generator": feedback_for_generator or "",
+        "draft_content": draft_content or "",
     }
     get_drafting_graph().invoke(initial)
 
@@ -147,6 +149,10 @@ def run_drafting(
                 "key_aspects": s.key_aspects,
                 "open_questions": open_questions,
                 "shared_metadata": meta,
+                "draft_content": s.draft_content or "",
+                "feedback_for_generator": str(
+                    (s.evaluation_results or {}).get("feedback_for_generator") or ""
+                ),
             }
             for s in sections
             if s.id is not None
@@ -164,6 +170,8 @@ def run_drafting(
                     key_aspects=item["key_aspects"],
                     open_questions=item["open_questions"],
                     shared_metadata=item["shared_metadata"],
+                    draft_content=item.get("draft_content") or "",
+                    feedback_for_generator=item.get("feedback_for_generator") or "",
                 )
                 for item in work
             ]

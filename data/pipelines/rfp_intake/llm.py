@@ -71,13 +71,22 @@ def chat_json(
 
     last_exc: Exception | None = None
     response: httpx.Response | None = None
+    verify_tls = bool(settings.llm_ssl_verify)
     for attempt in range(1, _LLM_MAX_ATTEMPTS + 1):
         try:
-            with httpx.Client(timeout=_LLM_TIMEOUT) as client:
+            with httpx.Client(timeout=_LLM_TIMEOUT, verify=verify_tls) as client:
                 response = client.post(url, headers=headers, json=payload)
             break
         except (httpx.TimeoutException, httpx.TransportError) as exc:
             last_exc = exc
+            ssl_fail = "CERTIFICATE_VERIFY_FAILED" in str(exc) or "SSL" in type(exc).__name__
+            if ssl_fail and verify_tls:
+                logger.warning(
+                    "LLM TLS verify failed (%s); retrying with verify=False",
+                    exc,
+                )
+                verify_tls = False
+                continue
             logger.warning(
                 "LLM request %s on attempt %s/%s: %s",
                 type(exc).__name__,
@@ -85,9 +94,9 @@ def chat_json(
                 _LLM_MAX_ATTEMPTS,
                 exc,
             )
-            if attempt < _LLM_MAX_ATTEMPTS:
-                time.sleep(_LLM_RETRY_SLEEP_S * attempt)
-            continue
+            if ssl_fail or attempt >= _LLM_MAX_ATTEMPTS:
+                break
+            time.sleep(_LLM_RETRY_SLEEP_S * attempt)
     else:
         raise LlmCallError(
             f"LLM request failed after {_LLM_MAX_ATTEMPTS} attempts: {last_exc}"

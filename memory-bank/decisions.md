@@ -481,6 +481,9 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision: Classifier **discards all non-RFPs** (`is_rfp=false`); human review is only for uncertain *true* RFPs. Run-all drafts only after `intake_complete`. Re-run intake supersedes `rfp_run_all` so step-by-step Start drafting / Run Phase 3 return.
 - Why: Manual-test: vendor PDFs continued past intake; re-run after Run all hid later-phase buttons.
 
+- Decision: Re-draft **keeps the last `draft_content` + `feedback_for_generator`** and resets the iteration counter. Generator revises in place (especially readability). RFP LLM httpx uses **`LLM_SSL_VERIFY` default false** (retry once without verify on cert errors).
+- Why: Wiping the draft forced many Re-draft clicks; Codespaces against `llm.4geeks.ai` hit expired-certificate ConnectErrors.
+
 ## RAG / Knowledge (earlier)
 
 - Decision: CLI `scripts/seed_knowledge_base.py` is primary indexer; API startup no-ops if collection populated, seeds once if empty + `LLM_API_KEY` set.

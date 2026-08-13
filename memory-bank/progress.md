@@ -336,6 +336,7 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
   - Run-all auto-starts Phase 3 when all sections `passed` (incl. after Re-draft); re-run intake clears Phase 2/3 + stale job locks
   - UI: Run all phases, Run Phase 3, Approve/Reject, delete ticket, action status feedback, concurrent per-dept re-draft, hub toolbar + logo
   - Non-RFP discard (run-all halt); re-run intake restores step-by-step buttons; action messages reset per click
+  - Re-draft keeps last draft+feedback; LLM TLS verify off by default (`LLM_SSL_VERIFY`) for expired LiteLLM cert
   - Tests: `test_rfp_approval.py`, `test_rfp_approval_graph.py`, extended API tests (incl. delete)
 - **Next:** PR into `feature/rfp-response-generation`
 
