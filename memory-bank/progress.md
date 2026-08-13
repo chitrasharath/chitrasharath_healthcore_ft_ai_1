@@ -2,7 +2,7 @@
 
 ## Current Status Summary
 
-The project is organized into milestone-based delivery (M1–M5 **delivered**; **M6 Data Pipeline in progress** — Design/Build on `feature/data_pipeline`; **DEV-53 Background Processing** on `feature/background-processing`; **M7 RAG Knowledge Base implemented on `feature/rag`** — pending live eval with `LLM_API_KEY` + PR; **LangGraph Support Agent delivered on `feature/agent_rag_langgraph`**; **Agent Tools delivered on `feature/agent_tools_langgraph`**; **Company Tools MCP delivered on `feature/agent_mcp_langgraph`**; **Agent Harness / guardrails implemented on `feature/agent_harness`**; **Agent Memory implemented on `feature/agent_memory`**; **M9 Part 1 RFP Intake committed on `feature/rfp-intake`**; **M9 Part 2 RFP Response Generation implemented on `feature/rfp-response-generation`** — pending commit/PR).
+The project is organized into milestone-based delivery (M1–M5 **delivered**; **M6 Data Pipeline in progress** — Design/Build on `feature/data_pipeline`; **DEV-53 Background Processing** on `feature/background-processing`; **M7 RAG Knowledge Base implemented on `feature/rag`** — pending live eval with `LLM_API_KEY` + PR; **LangGraph Support Agent delivered on `feature/agent_rag_langgraph`**; **Agent Tools delivered on `feature/agent_tools_langgraph`**; **Company Tools MCP delivered on `feature/agent_mcp_langgraph`**; **Agent Harness / guardrails implemented on `feature/agent_harness`**; **Agent Memory implemented on `feature/agent_memory`**; **M9 Part 1 RFP Intake committed on `feature/rfp-intake`**; **M9 Part 2 RFP Response Generation on `feature/rfp-response-generation`** — local hardening commit pending push).
 Milestone 4 public portal migration is **delivered** at `uis/website`. Milestone 5 backend and internal ops platform is **delivered** (`services/api`, backoffice landing on :3001, Docker Compose). Legacy `apps/healthcore_web_portal/` and `apps/src` remain unchanged.
 
 ## Major Milestones
@@ -308,7 +308,7 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
 ### Milestone 9 Part 2: RFP Response Generation (Implemented on `feature/rfp-response-generation`)
 
 - Goal: sales-triggered generator↔evaluator loops per department → evaluated drafts with iteration limit + PHI hard stop.
-- **Status:** Implemented on `feature/rfp-response-generation` (off committed `feature/rfp-intake`); commit pending.
+- **Status:** Implemented on `feature/rfp-response-generation` (off committed `feature/rfp-intake`); follow-up hardening unpushed.
 - Spec: `memory-bank/references/multi_agents/SPEC-rfp-intake-phase2.md`
 - Plan: `memory-bank/references/multi_agents/IMPLEMENTATION_PLAN-rfp-intake-phase2.md`
 - **Delivered:**
@@ -319,7 +319,8 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
   - Backoffice Start drafting button, section panels, Compliance PHI banner, re-draft action
   - Settings: `RFP_MAX_DRAFT_ITERATIONS=3`, `RFP_READABILITY_MAX_GRADE=12`, optional model overrides
   - Tests: `tests/pipelines/test_rfp_drafting.py` + extended API tests; `npm run verify` landing passes
-- **Next:** developer commit/PR → `feature/rfp-intake`; Part 3 out of scope
+  - Follow-up: per-dept re-draft locks; keep last draft+feedback on Re-draft; action status board; LLM timeout/retries + TLS verify fallback (`LLM_SSL_VERIFY`)
+- **Next:** push/PR → `feature/rfp-intake`; Part 3 out of scope here
 
 ## Future Feature Additions
 

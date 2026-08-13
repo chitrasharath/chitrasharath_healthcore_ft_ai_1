@@ -144,19 +144,18 @@ def reset_section_for_redraft(
     ticket_id: str,
     department_id: str,
 ) -> DepartmentSection:
-    section = upsert_section(
-        session,
-        ticket_id,
-        department_id,
-        draft_content="",
-        status=None,
-        iteration=0,
-        latest_evaluation_id=None,
-        evaluation_results={"contains_phi": False},
-    )
-    # Clear draft explicitly (empty string above); status None means unset until runner
-    section.draft_content = None
+    """Reset loop counters but keep the last draft + evaluator feedback."""
+    sections = list_sections(session, ticket_id)
+    section = next((s for s in sections if s.department_id == department_id), None)
+    if section is None:
+        section = upsert_section(session, ticket_id, department_id)
+
+    ev = dict(section.evaluation_results or {})
+    ev["contains_phi"] = False
+    section.iteration = 0
     section.status = None
+    section.latest_evaluation_id = None
+    section.evaluation_results = ev
     session.add(section)
     session.flush()
     return section

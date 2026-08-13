@@ -70,7 +70,14 @@ export async function redraftSection(
     { method: "POST" },
   );
   if (!response.ok) {
-    throw new Error(`Re-draft failed (${response.status}).`);
+    let detail = `Re-draft failed (${response.status}).`;
+    try {
+      const body = (await response.json()) as { detail?: string };
+      if (body.detail) detail = body.detail;
+    } catch {
+      /* keep status fallback */
+    }
+    throw new Error(detail);
   }
   return (await response.json()) as {
     ticket_id: string;

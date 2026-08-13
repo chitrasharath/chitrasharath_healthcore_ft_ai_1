@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   getTicket,
@@ -23,11 +23,57 @@ const isActive = (status: string, jobStatus?: string | null, review?: boolean) =
 
 export function useRfpIntake() {
   const [tickets, setTickets] = useState<TicketSummary[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedIdState] = useState<string | null>(null);
   const [detail, setDetail] = useState<TicketDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [drafting, setDrafting] = useState(false);
+  const [busyDepts, setBusyDepts] = useState<string[]>([]);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const statusClearTimer = useRef<number | null>(null);
+
+  const cancelStatusTimer = useCallback(() => {
+    if (statusClearTimer.current != null) {
+      window.clearTimeout(statusClearTimer.current);
+      statusClearTimer.current = null;
+    }
+  }, []);
+
+  const beginAction = useCallback(
+    (message: string) => {
+      cancelStatusTimer();
+      setError(null);
+      setStatusMessage(message);
+    },
+    [cancelStatusTimer],
+  );
+
+  const clearBoard = useCallback(() => {
+    cancelStatusTimer();
+    setError(null);
+    setStatusMessage(null);
+  }, [cancelStatusTimer]);
+
+  const flashStatus = useCallback(
+    (message: string, clearAfterMs = 3000) => {
+      cancelStatusTimer();
+      setError(null);
+      setStatusMessage(message);
+      statusClearTimer.current = window.setTimeout(() => {
+        setStatusMessage(null);
+        statusClearTimer.current = null;
+      }, clearAfterMs);
+    },
+    [cancelStatusTimer],
+  );
+
+  const setSelectedId = useCallback(
+    (id: string | null) => {
+      clearBoard();
+      setSelectedIdState(id);
+    },
+    [clearBoard],
+  );
 
   const refreshList = useCallback(async () => {
     setTickets(await listTickets());
@@ -40,6 +86,12 @@ export function useRfpIntake() {
   useEffect(() => {
     void refreshList().catch((err: Error) => setError(err.message));
   }, [refreshList]);
+
+  useEffect(() => {
+    return () => {
+      cancelStatusTimer();
+    };
+  }, [cancelStatusTimer]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -65,24 +117,28 @@ export function useRfpIntake() {
   }, [tickets, detail, selectedId, refreshList, refreshDetail]);
 
   const refreshAll = useCallback(async () => {
-    setError(null);
+    beginAction("Refreshing…");
     try {
       await refreshList();
       if (selectedId) await refreshDetail(selectedId);
+      flashStatus("Refreshed.");
     } catch (err) {
+      setStatusMessage(null);
       setError(err instanceof Error ? err.message : "Refresh failed");
     }
-  }, [refreshList, refreshDetail, selectedId]);
+  }, [refreshList, refreshDetail, selectedId, beginAction, flashStatus]);
 
   const upload = async (file: File) => {
     setUploading(true);
-    setError(null);
+    beginAction(`Uploading ${file.name} (Phase 1)…`);
     try {
       const accepted = await uploadRfpPdf(file);
-      setSelectedId(accepted.ticket_id);
+      setSelectedIdState(accepted.ticket_id);
       await refreshList();
       await refreshDetail(accepted.ticket_id);
+      setStatusMessage("Phase 1 intake started.");
     } catch (err) {
+      setStatusMessage(null);
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setUploading(false);
@@ -91,11 +147,14 @@ export function useRfpIntake() {
 
   const rerun = async () => {
     if (!selectedId) return;
-    setError(null);
+    beginAction("Re-running intake…");
     try {
       await rerunTicket(selectedId);
-      await refreshAll();
+      await refreshList();
+      await refreshDetail(selectedId);
+      setStatusMessage("Intake re-run queued.");
     } catch (err) {
+      setStatusMessage(null);
       setError(err instanceof Error ? err.message : "Re-run failed");
     }
   };
@@ -104,13 +163,15 @@ export function useRfpIntake() {
     const id = ticketId || selectedId;
     if (!id) return;
     setDrafting(true);
-    setError(null);
+    beginAction("Starting drafting…");
     try {
-      setSelectedId(id);
+      setSelectedIdState(id);
       await startDrafting(id);
       await refreshList();
       await refreshDetail(id);
+      setStatusMessage("Drafting queued.");
     } catch (err) {
+      setStatusMessage(null);
       setError(err instanceof Error ? err.message : "Start drafting failed");
     } finally {
       setDrafting(false);
@@ -119,23 +180,43 @@ export function useRfpIntake() {
 
   const redraft = async (departmentId: string) => {
     if (!selectedId) return;
-    setError(null);
+    if (busyDepts.includes(departmentId)) {
+      beginAction(`Already re-drafting ${departmentId}…`);
+      return;
+    }
+    setBusyDepts((prev) => [...prev, departmentId]);
+    beginAction(`Re-drafting ${departmentId}…`);
     try {
       await redraftSection(selectedId, departmentId);
-      await refreshAll();
+      await refreshList();
+      await refreshDetail(selectedId);
+      setStatusMessage(`Re-draft started for ${departmentId}.`);
     } catch (err) {
+      setStatusMessage(null);
       setError(err instanceof Error ? err.message : "Re-draft failed");
+    } finally {
+      setBusyDepts((prev) => prev.filter((d) => d !== departmentId));
     }
   };
 
   const releaseRedacted = async (departmentId: string) => {
     if (!selectedId) return;
-    setError(null);
+    if (busyDepts.includes(departmentId)) {
+      beginAction(`${departmentId} is busy — try again in a moment.`);
+      return;
+    }
+    setBusyDepts((prev) => [...prev, departmentId]);
+    beginAction(`Redacting PHI for ${departmentId}…`);
     try {
       await releaseRedactedSection(selectedId, departmentId);
-      await refreshAll();
+      await refreshList();
+      await refreshDetail(selectedId);
+      setStatusMessage(`PHI redacted for ${departmentId}.`);
     } catch (err) {
+      setStatusMessage(null);
       setError(err instanceof Error ? err.message : "Release redacted failed");
+    } finally {
+      setBusyDepts((prev) => prev.filter((d) => d !== departmentId));
     }
   };
 
@@ -145,8 +226,10 @@ export function useRfpIntake() {
     setSelectedId,
     detail,
     error,
+    statusMessage,
     uploading,
     drafting,
+    busyDepts,
     upload,
     refreshAll,
     rerun,

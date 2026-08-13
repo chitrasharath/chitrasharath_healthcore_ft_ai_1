@@ -7,8 +7,21 @@ import { useRfpIntake } from "../hooks/use-rfp-intake";
 
 export const RfpIntakeApp = () => {
   const {
-    tickets, selectedId, setSelectedId, detail, error, uploading, drafting,
-    upload, refreshAll, rerun, startDraft, redraft, releaseRedacted,
+    tickets,
+    selectedId,
+    setSelectedId,
+    detail,
+    error,
+    statusMessage,
+    uploading,
+    drafting,
+    busyDepts,
+    upload,
+    refreshAll,
+    rerun,
+    startDraft,
+    redraft,
+    releaseRedacted,
   } = useRfpIntake();
 
   return (
@@ -21,6 +34,7 @@ export const RfpIntakeApp = () => {
       </header>
       <RfpUploadForm uploading={uploading} onUpload={(file) => void upload(file)} />
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
+      {statusMessage ? <p className="text-sm text-sky-800">{statusMessage}</p> : null}
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-sm font-medium text-slate-800">Tickets</h2>
         <div className="flex gap-3">
@@ -44,6 +58,7 @@ export const RfpIntakeApp = () => {
           <RfpTicketDetail
             detail={detail}
             drafting={drafting}
+            busyDepts={busyDepts}
             onStartDraft={() => void startDraft()}
             onRedraft={(dept) => void redraft(dept)}
             onReleaseRedacted={(dept) => void releaseRedacted(dept)}

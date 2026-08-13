@@ -269,8 +269,17 @@ def redraft_section(
         )
 
     job_runner.reclaim_stale_locks(session, DRAFT_JOB_NAME)
+    dept_lock = f"{ticket_id}:{department_id}"
+    if job_runner.has_processing_lock_for_key(session, DRAFT_JOB_NAME, dept_lock):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Re-draft already processing for {department_id}",
+        )
     if job_runner.has_processing_lock_for_key(session, DRAFT_JOB_NAME, ticket_id):
-        raise HTTPException(status_code=409, detail="Drafting already processing for this ticket")
+        raise HTTPException(
+            status_code=409,
+            detail="Full-ticket drafting is still running — try again shortly",
+        )
 
     store.reset_section_for_redraft(session, ticket_id, department_id)
     if ticket.status not in ("drafting", "under_evaluation"):
@@ -279,7 +288,7 @@ def redraft_section(
     run = job_runner.create_pending_for_key(
         session,
         DRAFT_JOB_NAME,
-        ticket_id,
+        dept_lock,
         date.today(),
     )
     session.commit()

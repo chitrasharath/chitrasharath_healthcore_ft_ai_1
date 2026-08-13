@@ -45,7 +45,10 @@ def _system_prompt(department_id: str) -> str:
         "US → include a Business Associate Agreement (BAA) clause and USD pricing; "
         "UK → include a Data Processing Agreement / UK GDPR clause and GBP pricing; "
         "unresolved open_questions become an 'Open items / to confirm' bullet list — "
-        "never fabricate figures."
+        "never fabricate figures. "
+        "If prior_draft is present, REVISE that draft in place (keep substance; apply "
+        "feedback_for_generator). For readability failures: shorten sentences and use "
+        "simpler words rather than rewriting from scratch."
     )
 
 

@@ -455,6 +455,12 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision (revised): PHI in a draft is **auto-redacted**; if the scrubbed draft is PHI-free, evaluation continues and the section may `passed` for Phase 3. Residual PHI after scrub still → `needs_human_review`. UI **Redact PHI & release** releases already-stuck sections the same way. Diagnosis scrub is span-scoped (not whole-line) so BAA/currency clauses survive.
 - Why: Manual-test / Phase 3 readiness — raw PHI must never ship, but a clean redacted draft should not permanently block the ticket.
 
+- Decision: Re-draft **keeps the last `draft_content` + `feedback_for_generator`** and resets the iteration counter (does not wipe and start from an empty draft). Generator revises in place, especially for readability.
+- Why: Manual-test — wiping the draft made readability failures require many Re-draft clicks.
+
+- Decision: RFP LLM httpx uses 120s timeout, 3 attempts, and **`LLM_SSL_VERIFY` default false** (retry once without verify if a cert error occurs).
+- Why: Codespaces against `llm.4geeks.ai` hit expired-certificate ConnectErrors; retries with verify=true never succeed.
+
 ## RAG / Knowledge (earlier)
 
 - Decision: CLI `scripts/seed_knowledge_base.py` is primary indexer; API startup no-ops if collection populated, seeds once if empty + `LLM_API_KEY` set.

@@ -5,11 +5,17 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 from typing import Any
 
 import httpx
 
 logger = logging.getLogger(__name__)
+
+# Synthesizer / drafting can exceed 60s on the proxy; allow headroom + retries.
+_LLM_TIMEOUT = httpx.Timeout(120.0, connect=15.0)
+_LLM_MAX_ATTEMPTS = 3
+_LLM_RETRY_SLEEP_S = 1.5
 
 
 class LlmConfigError(RuntimeError):
@@ -62,8 +68,41 @@ def chat_json(
             {"role": "user", "content": user},
         ],
     }
-    with httpx.Client(timeout=httpx.Timeout(60.0, connect=10.0)) as client:
-        response = client.post(url, headers=headers, json=payload)
+
+    last_exc: Exception | None = None
+    response: httpx.Response | None = None
+    verify_tls = bool(settings.llm_ssl_verify)
+    for attempt in range(1, _LLM_MAX_ATTEMPTS + 1):
+        try:
+            with httpx.Client(timeout=_LLM_TIMEOUT, verify=verify_tls) as client:
+                response = client.post(url, headers=headers, json=payload)
+            break
+        except (httpx.TimeoutException, httpx.TransportError) as exc:
+            last_exc = exc
+            ssl_fail = "CERTIFICATE_VERIFY_FAILED" in str(exc) or "SSL" in type(exc).__name__
+            if ssl_fail and verify_tls:
+                logger.warning(
+                    "LLM TLS verify failed (%s); retrying with verify=False",
+                    exc,
+                )
+                verify_tls = False
+                continue
+            logger.warning(
+                "LLM request %s on attempt %s/%s: %s",
+                type(exc).__name__,
+                attempt,
+                _LLM_MAX_ATTEMPTS,
+                exc,
+            )
+            if ssl_fail or attempt >= _LLM_MAX_ATTEMPTS:
+                break
+            time.sleep(_LLM_RETRY_SLEEP_S * attempt)
+    else:
+        raise LlmCallError(
+            f"LLM request failed after {_LLM_MAX_ATTEMPTS} attempts: {last_exc}"
+        ) from last_exc
+
+    assert response is not None
     if response.status_code < 200 or response.status_code >= 300:
         raise LlmCallError(f"LLM proxy {response.status_code}: {response.text[:200]}")
     body = response.json()
@@ -73,4 +112,7 @@ def chat_json(
     content = (choices[0].get("message") or {}).get("content")
     if not isinstance(content, str) or not content.strip():
         raise LlmCallError("LLM malformed: empty content")
-    return parse_fenced_json(content)
+    try:
+        return parse_fenced_json(content)
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise LlmCallError(f"LLM malformed JSON: {exc}") from exc

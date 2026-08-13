@@ -16,6 +16,8 @@ class Settings(BaseSettings):
 
     llm_base_url: str = "https://llm.4geeks.ai"
     llm_api_key: str = ""
+    # 4Geeks LiteLLM proxy cert is often expired in Codespaces; set true when the chain is valid
+    llm_ssl_verify: bool = False
     embedding_model: str = (
         "downtown-miami/openrouter/perplexity/pplx-embed-v1-0.6b"
     )

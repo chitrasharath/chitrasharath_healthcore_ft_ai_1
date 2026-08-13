@@ -10,6 +10,7 @@ type Props = {
   onRedraft?: (departmentId: string) => void;
   onReleaseRedacted?: (departmentId: string) => void;
   drafting?: boolean;
+  busyDepts?: string[];
 };
 
 export const RfpTicketDetail = ({
@@ -18,6 +19,7 @@ export const RfpTicketDetail = ({
   onRedraft,
   onReleaseRedacted,
   drafting,
+  busyDepts,
 }: Props) => {
   const meta = detail.metadata;
   const canDraft = detail.status === "intake_complete" && onStartDraft;
@@ -58,6 +60,7 @@ export const RfpTicketDetail = ({
         <RfpSectionPanel
           key={section.department_id}
           section={section}
+          busyDepts={busyDepts}
           onRedraft={onRedraft}
           onReleaseRedacted={onReleaseRedacted}
         />

@@ -7,13 +7,18 @@ type Props = {
   maxIterations?: number;
   onRedraft?: (departmentId: string) => void;
   onReleaseRedacted?: (departmentId: string) => void;
+  busyDepts?: string[];
 };
 
 const asList = (value: unknown): string[] =>
   Array.isArray(value) ? value.map(String) : [];
 
 export const RfpSectionPanel = ({
-  section, maxIterations = 3, onRedraft, onReleaseRedacted,
+  section,
+  maxIterations = 3,
+  onRedraft,
+  onReleaseRedacted,
+  busyDepts = [],
 }: Props) => {
   const evals = section.evaluation_results || {};
   const compliance = (evals.compliance || {}) as {
@@ -27,6 +32,7 @@ export const RfpSectionPanel = ({
   const iteration = section.iteration ?? 0;
   const showRelease =
     (containsPhi || section.status === "needs_human_review") && onReleaseRedacted;
+  const sectionBusy = busyDepts.includes(section.department_id);
 
   return (
     <section className="space-y-2 rounded border border-slate-200 p-3">
@@ -41,14 +47,24 @@ export const RfpSectionPanel = ({
         </h3>
         <div className="flex gap-3">
           {showRelease ? (
-            <button type="button" className="text-xs text-emerald-800 underline"
-              onClick={() => onReleaseRedacted?.(section.department_id)}>
+            <button
+              type="button"
+              disabled={sectionBusy}
+              className="text-xs text-emerald-800 underline disabled:opacity-50"
+              onClick={() => onReleaseRedacted?.(section.department_id)}
+            >
               Redact PHI &amp; release
             </button>
           ) : null}
           {section.status === "needs_human_review" && onRedraft ? (
-            <button type="button" className="text-xs text-sky-800 underline"
-              onClick={() => onRedraft(section.department_id)}>Re-draft</button>
+            <button
+              type="button"
+              disabled={sectionBusy}
+              className="text-xs text-sky-800 underline disabled:opacity-50"
+              onClick={() => onRedraft(section.department_id)}
+            >
+              {sectionBusy ? "Re-drafting…" : "Re-draft"}
+            </button>
           ) : null}
         </div>
       </div>
