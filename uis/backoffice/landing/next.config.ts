@@ -10,6 +10,8 @@ const talentTracker = path.join(landingDir, "../talent-tracker");
 const inventory = path.join(landingDir, "../inventory");
 const incidentManager = path.join(landingDir, "../incident-manager");
 const reporting = path.join(landingDir, "../reporting");
+const knowledge = path.join(landingDir, "../knowledge");
+const rfpIntake = path.join(landingDir, "../rfp-intake");
 const backofficeShared = path.join(landingDir, "../shared");
 const repoShared = path.join(repoRoot, "packages/shared");
 const appsSrc = path.join(repoRoot, "apps/src");
@@ -22,6 +24,8 @@ const featureAliases = {
   "@backoffice/inventory": inventory,
   "@backoffice/incident-manager": incidentManager,
   "@backoffice/reporting": reporting,
+  "@backoffice/knowledge": knowledge,
+  "@backoffice/rfp-intake": rfpIntake,
   "@backoffice/shared": backofficeShared,
   "@repo/shared": repoShared,
   "@healthcore/src": appsSrc,
