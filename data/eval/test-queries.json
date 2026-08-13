@@ -1,0 +1,98 @@
+[
+  {
+    "question": "Is there a charge for cancelling 12 hours in advance?",
+    "expected_source_document": "appointment-policy",
+    "expected_key_facts": ["50 USD", "40 GBP"],
+    "should_abstain": false
+  },
+  {
+    "question": "Do Medicare or Medicaid patients pay a no-show fee?",
+    "expected_source_document": "appointment-policy",
+    "expected_key_facts": ["not charged", "Medicare", "Medicaid"],
+    "should_abstain": false
+  },
+  {
+    "question": "Is Medicaid accepted at Georgia clinics?",
+    "expected_source_document": "insurance-coverage",
+    "expected_key_facts": ["Georgia", "Medicaid", "not currently"],
+    "should_abstain": false
+  },
+  {
+    "question": "What private insurers do you accept in the UK?",
+    "expected_source_document": "insurance-coverage",
+    "expected_key_facts": ["Bupa", "AXA Health"],
+    "should_abstain": false
+  },
+  {
+    "question": "What discount do uninsured patients get if they pay the same day?",
+    "expected_source_document": "insurance-coverage",
+    "expected_key_facts": ["20%"],
+    "should_abstain": false
+  },
+  {
+    "question": "Can I get a discount if I pay the same day?",
+    "expected_source_document": "insurance-coverage",
+    "expected_key_facts": ["20%"],
+    "should_abstain": false
+  },
+  {
+    "question": "What insurance coverage do you accept?",
+    "expected_source_document": "insurance-coverage",
+    "expected_key_facts": ["United States", "United Kingdom"],
+    "should_abstain": false
+  },
+  {
+    "question": "How long does an internal referral usually take, and when should I escalate?",
+    "expected_source_document": "referral-process",
+    "expected_key_facts": ["11 days", "5 business days", "Marcus Reid"],
+    "should_abstain": false
+  },
+  {
+    "question": "What do I need to bring to my first appointment?",
+    "expected_source_document": "new-patient-checklist",
+    "expected_key_facts": ["valid ID", "Insurance card"],
+    "should_abstain": false
+  },
+  {
+    "question": "Do you accept Kaiser?",
+    "expected_source_document": "insurance-coverage",
+    "expected_key_facts": ["Tom Callahan", "billing"],
+    "should_abstain": false
+  },
+  {
+    "question": "Do you take Kaiser?",
+    "expected_source_document": "insurance-coverage",
+    "expected_key_facts": ["Tom Callahan", "billing"],
+    "should_abstain": false
+  },
+  {
+    "question": "Do you take Medicaid?",
+    "expected_source_document": "insurance-coverage",
+    "expected_key_facts": ["Medicaid"],
+    "should_abstain": false
+  },
+  {
+    "question": "A patient asks about an insurer that is not on our accepted list. Can I confirm coverage?",
+    "expected_source_document": "insurance-coverage",
+    "expected_key_facts": ["Tom Callahan", "verifying", "billing"],
+    "should_abstain": false
+  },
+  {
+    "question": "¿Cuál es el cargo por cancelar con menos de 24 horas?",
+    "expected_source_document": "appointment-policy",
+    "expected_key_facts": ["50 USD", "40 GBP"],
+    "should_abstain": false
+  },
+  {
+    "question": "Do you offer dental cleanings?",
+    "expected_source_document": null,
+    "expected_key_facts": [],
+    "should_abstain": true
+  },
+  {
+    "question": "What is your MRI wait time for cardiology?",
+    "expected_source_document": null,
+    "expected_key_facts": [],
+    "should_abstain": true
+  }
+]

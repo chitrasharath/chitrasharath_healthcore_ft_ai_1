@@ -22,6 +22,7 @@ def _utc_now() -> datetime:
 def to_user_response(doc: dict) -> UserResponse:
     payload = dict(doc)
     payload.setdefault("name", "")
+    payload.setdefault("clinic_id", None)
     created_at = payload["created_at"]
     if isinstance(created_at, str):
         payload["created_at"] = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
@@ -38,6 +39,8 @@ def create_user(body: UserCreate) -> UserResponse:
         "is_active": True,
         "created_at": _utc_now().isoformat(),
     }
+    if body.clinic_id is not None:
+        doc["clinic_id"] = body.clinic_id
     user_id = store.insert_user(doc)
     created = store.get_by_id(user_id)
     assert created is not None

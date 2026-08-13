@@ -1,0 +1,14 @@
+{
+  "question": "Is Medicaid accepted at Georgia clinics?",
+  "expected_source_document": "insurance-coverage",
+  "expected_entities": ["Georgia", "Medicaid", "not currently"],
+  "stub_answer": "Per our insurance coverage policy, Medicaid is not currently accepted at Georgia clinics.",
+  "stub_hits": [
+    {
+      "source_document": "insurance-coverage",
+      "section": "United States — Medicaid",
+      "text": "Medicaid is not currently accepted at Georgia clinics.",
+      "score": 0.82
+    }
+  ]
+}
