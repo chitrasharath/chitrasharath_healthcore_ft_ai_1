@@ -28,9 +28,12 @@ from app.domains.inventory import models as inventory_models  # noqa: F401
 from app.domains.incidents import models as incident_models  # noqa: F401
 from app.domains.jobs import models as job_models  # noqa: F401
 from app.domains.async_tasks import models as async_tasks_models  # noqa: F401
+from app.domains.rfp_intake import models as rfp_intake_models  # noqa: F401
 from app.domains.telemetry import models as telemetry_models  # noqa: F401
 from app.domains.telemetry import reporting_models as telemetry_reporting_models  # noqa: F401
 from app.domains.telemetry.indexes import ensure_telemetry_indexes
+from app.domains.jobs.schema import ensure_job_run_columns
+from app.domains.rfp_intake.schema_ddl import ensure_rfp_phase2_columns
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +70,28 @@ def on_startup() -> None:
     if supabase_engine:
         SQLModel.metadata.create_all(supabase_engine)
         ensure_telemetry_indexes(supabase_engine)
+        ensure_job_run_columns(supabase_engine)
+        ensure_rfp_phase2_columns(supabase_engine)
+    _ensure_knowledge_base()
+
+
+def _ensure_knowledge_base() -> None:
+    """Idempotent startup: no-op if collection populated; seed once if empty."""
+    try:
+        from data.process.rag import collection_is_populated, setup
+
+        if collection_is_populated():
+            logger.info("Knowledge base collection already populated — skip seed")
+            return
+        if not settings.llm_api_key:
+            logger.warning(
+                "Knowledge base empty and LLM_API_KEY unset — skip startup seed"
+            )
+            return
+        logger.info("Knowledge base empty — running idempotent setup()")
+        setup()
+    except Exception:
+        logger.exception("Knowledge base startup seed skipped due to error")
 
 
 @app.get("/health")

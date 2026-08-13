@@ -6,6 +6,7 @@ from app.domains.procurement.suppliers import store
 from app.domains.procurement.suppliers.seed_data import SUPPLIERS_SEED
 from app.domains.inventory.seed import seed_inventory
 from app.domains.telemetry.seed_reporting import seed_reporting_demo
+from app.domains.users.seed_memory_users import seed_memory_demo_users
 
 
 def run_seed() -> tuple[int, int]:
@@ -28,6 +29,10 @@ def main() -> None:
     print(f"Inserted {inserted} supplier(s). Skipped {skipped} existing.")
     seed_inventory()
     seed_reporting_demo()
+    mem_ins, mem_skip = seed_memory_demo_users()
+    print(
+        f"Memory demo users: inserted {mem_ins}, skipped {mem_skip} existing."
+    )
 
 
 if __name__ == "__main__":

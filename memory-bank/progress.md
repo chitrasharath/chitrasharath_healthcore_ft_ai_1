@@ -2,7 +2,7 @@
 
 ## Current Status Summary
 
-The project is organized into milestone-based delivery (M1–M5 **delivered**; **M6 Data Pipeline** delivered on `main`; **DEV-53 Background Processing** delivered; **DEV-55 Message Queues** on `feature/message-queues`).
+The project is organized into milestone-based delivery (M1–M5 **delivered**; **M6 Data Pipeline** on `main`; **DEV-53 Background Processing** on `main`; **DEV-55 Message Queues** on `feature/message-queues` (PR #12); **M7 RAG** through **M9 RFP approvals** on `main` via PR #24; **Sales forecast + CV diagnosis** on `main` via PR #13).
 Milestone 4 public portal migration is **delivered** at `uis/website`. Milestone 5 backend and internal ops platform is **delivered** (`services/api`, backoffice landing on :3001, Docker Compose). Legacy `apps/healthcore_web_portal/` and `apps/src` remain unchanged.
 
 ## Major Milestones
@@ -222,7 +222,126 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
 - **Part 3 — Build 2 (implemented on branch):** Subflows; `tests/pipelines/`; pytest path isolation; `/reporting` dashboard (summary + KPI tabs, clinic-location jurisdiction filter, supply filter coercion, tab-aware filter visibility). Eval-gap follow-ups: private `analysis.py` helpers restored; KPI value assertion test; reporting demo seed (~12 months KPIs + pipeline run history); recent pipeline runs API/UI; README Build 2 + seed docs. Pending PR to `main`.
 - **Background processes (DEV-53 — delivered on `main`):** Nightly OS-cron job — `scripts/nightly_export.py` exports yesterday’s `telemetry_events` to `data/raw/telemetry_YYYY-MM-DD.csv`, then subprocess-triggers `data/pipelines/pipeline.py --start/--end` for that UTC day. New `job_runs` table + `app/domains/jobs/` state machine (`pending → processing → completed|failed`); `processing` is the distributed lock with 6h stale reclaim. Pipeline CLI gains optional `--start`/`--end` (no-arg behaviour unchanged). Cron `0 2 * * *` documented in README (cwd/`.env` trap + root → `services/api/.env` fallback). Tests: `test_job_runner.py`, `tests/jobs/test_nightly_export.py`. Plan: `memory-bank/references/async_processing_ai_plan/`.
 - **Message queues (DEV-55 — implemented on `feature/message-queues`):** Celery + Redis + Flower; additive `POST /telemetry/pipelines/runs/enqueue` (202 + `task_id`); worker runs `telemetry_etl_flow(run_id)`; retries with exponential backoff (`MAX_ATTEMPTS=3`); Postgres `dead_letter_tasks`; `GET /tasks/{id}` + `GET /tasks/dlq`. Compose services `redis` / `worker` / `flower` (manual testing: skip `ui`). Spec/plan: `memory-bank/references/async_processing_ai_plan/message_queues_*`.
-- **Next:** Open DEV-55 PR from `feature/message-queues` against `main` with `async-tasks` label; exercise §8 checklist (Flower screenshots, retry log, API stop independence).
+- **Next:** Merge PR #12 into `main`; exercise §8 checklist (Flower screenshots, retry log, API stop independence).
+
+### Milestone 7: RAG Knowledge Base (Implemented on `feature/rag`)
+
+- Goal: JWT-protected RAG assistant for coordinators — index four English policy docs, retrieve + generate faithful answers, backoffice UI with sources and thumbs feedback.
+- **Implemented:**
+  - `data/process/rag.py` — semantic chunker, integrity assert, `embed`, `store_vector`, idempotent `setup` (per-doc delete-before-upsert, contextual embedding)
+  - `data/pipelines/rag.py` — `normalize_query`, dense `retrieve`, `query` with labeled prompt + no-answer fallback
+  - `scripts/seed_knowledge_base.py` + API startup no-op when collection populated
+  - `services/api/app/domains/knowledge/` — `POST /api/v1/knowledge/query` + `/feedback` (JWT); JSONL interactions + PII redact; schema includes nullable `session_id` / `parent_query_id`
+  - `uis/backoffice/knowledge/` aliased into landing `/knowledge`; hub nav card; shared light/dark theme toggle
+  - Golden set `data/eval/test-queries.json`; `data/eval/run_eval.py`; design doc `docs/rag-design.md`
+  - Tests: `tests/pipelines/test_rag.py`, `services/api/tests/test_knowledge.py`, landing Jest knowledge/theme — full `uv run pytest` **171 passed**; `npm run verify` in landing passes
+- **Pending before hand-off:** run live `run_eval.py` with `LLM_API_KEY`, tune `RAG_MIN_SCORE`, record metrics in design doc; open PR `feature/rag` → `main`
+- Plan: `memory-bank/references/rag/rag_milestone7_IMPLEMENTATION_PLAN.md`
+- Spec: `memory-bank/references/rag/rag_milestone7_specs.md`
+
+### LangGraph Support Agent (Implemented on `feature/agent_rag_langgraph`)
+
+- Goal: re-express M7 RAG as a compiled LangGraph graph with conditional routing, checkpointing, in-state traces, optional LangSmith, and sibling `POST /api/v1/agent/query` (no frontend).
+- **Status:** Delivered on `feature/agent_rag_langgraph` (commit `c5a45a7`).
+- Spec: `memory-bank/references/agentic_engineering/agent_rag_langgraph_specs.md`
+- Plan: `memory-bank/references/agentic_engineering/agent_rag_langgraph_IMPLEMENTATION_PLAN.md`
+
+### Agent Tools: Incident + Inventory (Implemented on `feature/agent_tools_langgraph`)
+
+- Goal: multi-source LangGraph agent — RAG + incident HTTP tool + inventory HTTP tool with classifier fan-out, honest fallbacks, and trace `sources_used`.
+- **Status:** Delivered and committed on `feature/agent_tools_langgraph` (`63e124f`).
+- Spec: `memory-bank/references/agentic_engineering/agent_tools_incident_inventory_specs.md`
+- Plan: `memory-bank/references/agentic_engineering/agent_tools_incident_inventory_IMPLEMENTATION_PLAN.md`
+
+### Company Tools MCP + Agent Migration (Delivered on `feature/agent_mcp_langgraph`)
+
+- Goal: extract incident/inventory tools into FastMCP Streamable HTTP server under `mcps/company-tools/`, gate with `mcpauth` + Keycloak, rewire agent via `langchain-mcp-adapters`, delete direct HTTP tool modules.
+- **Status:** Delivered on `feature/agent_mcp_langgraph`.
+- Spec: `memory-bank/references/agentic_engineering/mcp_company_tools_specs.md`
+- Plan: `memory-bank/references/agentic_engineering/mcp_company_tools_IMPLEMENTATION_PLAN.md`
+
+### Agent Harness / RAG Guardrails (Implemented on `feature/agent_harness`)
+
+- Goal: IG/ISO/OG/OBS guardrails around the LangGraph agent; hardened system prompt; metrics + agent feedback; Knowledge UI → `/agent/query`.
+- **Status:** Implemented on `feature/agent_harness` (off `feature/agent_mcp_langgraph`).
+- Spec: `memory-bank/references/agentic_engineering/agent_harness_guardrails_specs.md`
+- Plan: `memory-bank/references/agentic_engineering/agent_harness_guardrails_IMPLEMENTATION_PLAN.md`
+- **Delivered:**
+  - `app/domains/agent/harness/` + `prompts/system.py`; graph nodes IG/ISO/OG/OBS
+  - `GET /agent/guardrails/metrics`, `POST /agent/feedback`, interaction recording
+  - Knowledge UI repointed to agent; tool attribution for MCP sources
+  - MCP client list-payload parse fix for langchain-mcp-adapters
+  - Injection suite `tests/pipelines/test_guardrails_injection.py`
+- **Verified (offline):** guardrails + agent + feedback + evals — **30 passed, 1 skipped**
+- **Next:** PR → `feature/agent_mcp_langgraph`
+
+### Agent Memory (In progress on `feature/agent_memory`)
+
+- Goal: consent-gated, PHI-safe long-term memory (Redis SoT + Qdrant `agent_memory`) for the support agent.
+- **Status:** Implemented on `feature/agent_memory` (off `feature/agent_harness`); commit pending push/PR.
+- Spec: `memory-bank/references/agentic_engineering/agent_memory_specs.md`
+- Plan: `memory-bank/references/agentic_engineering/agent_memory_IMPLEMENTATION_PLAN.md`
+- **Delivered:**
+  - `app/domains/agent/memory/` store, PHI, audit, proposal, consent, consolidate, graph nodes
+  - Redis Compose service + settings; TinyDB `clinic_id` + demo seed users
+  - Endpoints: query `memory_proposal`, decision, list, DELETE; Knowledge UI buttons + panel
+  - Tests: `test_agent_memory.py`, `test_memory_consent.py`; Cycles A/B in memory README
+  - Latency pass: propose/read fastpath heuristics; Redis-first recall (no request-path reindex); defer consolidate LLM to script
+  - Guardrail fixes: clock-time ≠ age PHI; Tom Callahan not a leak canary; ephemeral “today” delays not proposed
+- **Next:** PR → `feature/agent_harness`
+
+### Milestone 9 Part 1: RFP Intake (Implemented on `feature/rfp-intake`)
+
+- Goal: authenticated PDF upload → Ticket + LangGraph intake under `data/pipelines/rfp_intake/` (convert → PHI → metadata → readability → classify → orchestrate → workers → synthesize) with Supabase persistence and backoffice UI.
+- **Status:** Implemented and committed on `feature/rfp-intake` (`c192f2f`).
+- Spec: `memory-bank/references/multi_agents/SPEC-rfp-intake-phase1.md`
+- Context: `memory-bank/references/multi_agents/CONTEXT-multi_agent.md`
+- Plan: `memory-bank/references/multi_agents/IMPLEMENTATION_PLAN-rfp-intake-phase1.md`
+- **Delivered:**
+  - `services/api/app/domains/rfp_intake/` — models, upload/list/detail/rerun API (JWT), SHA-256 idempotency
+  - `JobRun` extended with `target_key` + `checkpoint`; BackgroundTasks enqueue
+  - `data/pipelines/rfp_intake/` LangGraph (separate from CX agent); markitdown + readability deps
+  - `uis/backoffice/rfp-intake/` aliased into landing `/rfp-intake` + hub nav card
+  - Golden markdown fixtures; PHI detect/redact; classifier confidence &lt; 0.5 → human review
+  - Tests: `tests/pipelines/test_rfp_intake_pipeline.py`, `services/api/tests/test_rfp_intake.py` (21 passed); `npm run verify` landing includes `/rfp-intake`
+- **Next:** Parts 2–3
+
+### Milestone 9 Part 2: RFP Response Generation (Implemented on `feature/rfp-response-generation`)
+
+- Goal: sales-triggered generator↔evaluator loops per department → evaluated drafts with iteration limit + PHI hard stop.
+- **Status:** Implemented on `feature/rfp-response-generation` (off committed `feature/rfp-intake`).
+- Spec: `memory-bank/references/multi_agents/SPEC-rfp-intake-phase2.md`
+- Plan: `memory-bank/references/multi_agents/IMPLEMENTATION_PLAN-rfp-intake-phase2.md`
+- **Delivered:**
+  - `EvaluationResult` table + section `status`/`iteration`/`latest_evaluation_id`; DDL helper for ALTER
+  - Generator + parallel readability/relevance/compliance evaluators + aggregate single-writer
+  - `drafting_graph` / `drafting_runner` (`job_name=rfp_drafting`); concurrent section loops
+  - `POST .../start-drafting` (soft-idempotent) + `POST .../redraft` (needs_human_review only)
+  - Backoffice Start drafting button, section panels, Compliance PHI banner, re-draft action
+  - Settings: `RFP_MAX_DRAFT_ITERATIONS=3`, `RFP_READABILITY_MAX_GRADE=12`, optional model overrides
+  - Tests: `tests/pipelines/test_rfp_drafting.py` + extended API tests; `npm run verify` landing passes
+- **Next:** Part 3
+
+### Milestone 9 Part 3: Approvals, Arbitration & Final Document (Implemented on `feature/rfp-approval-completion`)
+
+- Goal: per-dept human approval interrupts, deterministic arbitration, final markdown+PDF → `done`.
+- **Status:** Implemented on `feature/rfp-approval-completion` (off `feature/rfp-response-generation`); local commits, PR pending.
+- Spec: `memory-bank/references/multi_agents/SPEC-rfp-intake-phase3.md`
+- Plan: `memory-bank/references/multi_agents/IMPLEMENTATION_PLAN-rfp-intake-phase3.md`
+- **Delivered:**
+  - Postgres checkpointer (`langgraph-checkpoint-postgres` + `psycopg`); `thread_id = ticket_id`; `prepare_threshold=None` for Supabase/PgBouncer
+  - `approval_graph` / `approval_runner` — arbitration → interrupt gates → revision → final document
+  - Deterministic triggers: `phi-detected` (incl. `phi_was_redacted`), `baa-dpa-mismatch`, `capacity-vs-population`
+  - `FinalDocument` + execution log + arbitration records; markdown + PDF (`fpdf2`, formatted not raw MD)
+  - APIs: `POST /run-all` (PDF→P1→P2→P3 auto), `send-for-approval`, `decision`, final-document downloads, `DELETE` ticket, `continue_to_approval`
+  - Run-all auto-starts Phase 3 when all sections `passed` (incl. after Re-draft); re-run intake clears Phase 2/3 + stale job locks
+  - UI: Run all phases, Run Phase 3, Approve/Reject, delete ticket, action status feedback, concurrent per-dept re-draft, hub toolbar + logo
+  - Non-RFP discard (run-all halt); re-run intake restores step-by-step buttons; action messages reset per click
+  - Re-draft keeps last draft+feedback; LLM TLS verify off by default (`LLM_SSL_VERIFY`) for expired LiteLLM cert
+  - Tests: `test_rfp_approval.py`, `test_rfp_approval_graph.py`, extended API tests (incl. delete)
+  - Spec §9.11 three-phase continuity: `tests/pipelines/test_rfp_three_phase_consistency.py` runs the Meridian US formal fixture through real P1→P2→P3 runners (mocked LLM, simulated owners); asserts legal status path, `key_aspects`→`draft_content`→`approval_status`→`FinalDocument`, execution log, USD, and no PHI leak
+  - Checkpointer fail-loud: empty `DATABASE_URL` or Postgres setup/connect failure raises (`CheckpointerError`); `MemorySaver` only via `use_memory=True`. Typo fix: PHI-redacted sections message in `final_document.py`
+- **Next:** Remaining Phase 3 test gaps (thread isolation, node-logging PHI); then PR into `feature/rfp-response-generation`
 
 ## Future Feature Additions
 
@@ -233,3 +352,25 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
 - Integrate `apps/src` validators into `/enquiry-form` when milestone 2 wiring is scheduled.
 - Legacy portal retirement and redirect strategy after stakeholder cutover approval.
 - Optional: extract shared operations registry from `apps/src/main.ts` and `uis/backoffice/backoffice_functions/lib/operations-registry.ts` to reduce drift.
+
+### Sales Forecast (Nixtla revenue prediction) — In progress on `feature/sales_forecast`
+
+- Goal: predict monthly consolidated revenue well enough to justify an executive dashboard (Sandra).
+- **Implemented:** `data/forecast/` package; `scripts/train_revenue_forecast.py`; two-stage visits→revenue MLForecast (RF/XGB/ElasticNet) + univariate ablation; StatsForecast SARIMA/AutoARIMA/AutoETS/AutoTheta (+ AutoCES attempted); metrics incl. MASE/PSI/Gini/K2; plots; `data/eval/revenue_forecast/report.md`; leakage/split/validation/pattern tests.
+- **Artifacts:** committed path `data/process/models/*.pkl` + `data/eval/revenue_forecast/` (CSV remains gitignored under `data/raw/`).
+- **Deps:** root `pyproject.toml` `[dependency-groups] forecast`; local-only (no Docker).
+- **Folded in:** `origin/feature/eval_metrics` (temporal CV / fit diagnosis) — see below.
+- Plan: `memory-bank/references/sales_forecast_ai_plan/healthcore_sales_regression_IMPLEMENTATION_PLAN.md`.
+
+### CV & Fit Diagnosis — folded into `feature/sales_forecast`
+
+- Goal: raise MLForecast selection CV to ≥5 folds; diagnose fit of uni ML winner + AutoETS with temporal CV, learning curves, and chronological-order tests.
+- **Merged from `feature/eval_metrics` into `feature/sales_forecast`:**
+  - Selection CV defaults `n_windows=5, h=6, step_size=6` in `models_mlforecast.py` (back-compatible).
+  - `data/forecast/diagnostics.py` — date-aligned 5×6mo CV (RF→`TimeSeriesSplit` recursive; AutoETS→`classical_backtest`), learning curves, fit classification, report writer.
+  - `scripts/run_diagnostics.py` + train-script Phase 9 hook.
+  - Artifacts: `data/eval/revenue_forecast/diagnostics/*`, `cv_fit_diagnosis_report.md`.
+  - `tests/pipelines/test_temporal_cv_order.py` — chronological CV integrity.
+  - Verdicts (follow numbers): **MLForecast_uni(rf) overfitting**; **AutoETS well-fitted**. Shipped report keeps univariate regression recommendation (`MLForecast_uni`); ablation narrative prefers visits-free path.
+- Plans: `healthcore_cv_diagnosis_specs.md`, `healthcore_cv_diagnosis_IMPLEMENTATION_PLAN.md`, `healthcore_cv_diagnosis_eval_criteria.md`.
+- **Next:** push `feature/sales_forecast` / open or retarget PR vs `main`; close obsolete `eval_metrics` PR once landed.

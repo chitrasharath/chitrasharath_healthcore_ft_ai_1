@@ -23,6 +23,8 @@
       "@backoffice/inventory/*": ["../inventory/*"],
       "@backoffice/incident-manager/*": ["../incident-manager/*"],
       "@backoffice/reporting/*": ["../reporting/*"],
+      "@backoffice/knowledge/*": ["../knowledge/*"],
+      "@backoffice/rfp-intake/*": ["../rfp-intake/*"],
       "@backoffice/shared/*": ["../shared/*"],
       "@repo/shared/*": ["../../../packages/shared/*"],
       "@healthcore/src/*": ["../../../apps/src/*"]

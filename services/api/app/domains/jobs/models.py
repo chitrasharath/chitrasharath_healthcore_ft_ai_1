@@ -16,6 +16,8 @@ class JobRun(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     job_name: str
     target_date: date
+    target_key: str | None = Field(default=None, index=True)
+    checkpoint: str | None = None
     status: str = Field(default="pending", index=True)
     started_at: datetime | None = Field(
         default=None,

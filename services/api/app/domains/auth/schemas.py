@@ -16,6 +16,7 @@ class User(BaseModel):
     email: EmailStr
     hashed_password: str
     name: str = ""
+    clinic_id: str | None = None
     is_active: bool = True
     created_at: datetime
 
@@ -24,17 +25,27 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     name: str = ""
+    clinic_id: str | None = None
 
     @field_validator("password")
     @classmethod
     def password_min_length(cls, v: str) -> str:
         return _validate_password_min_length(v)
 
+    @field_validator("clinic_id")
+    @classmethod
+    def normalize_clinic_id(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        cleaned = v.strip().lower()
+        return cleaned or None
+
 
 class UserUpdate(BaseModel):
     email: EmailStr | None = None
     password: str | None = None
     name: str | None = None
+    clinic_id: str | None = None
     is_active: bool | None = None
 
     @field_validator("password")
@@ -43,6 +54,14 @@ class UserUpdate(BaseModel):
         if v is None:
             return v
         return _validate_password_min_length(v)
+
+    @field_validator("clinic_id")
+    @classmethod
+    def normalize_clinic_id(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        cleaned = v.strip().lower()
+        return cleaned or None
 
 
 class UserLogin(BaseModel):
@@ -59,6 +78,7 @@ class UserResponse(BaseModel):
     id: int
     email: str
     name: str
+    clinic_id: str | None = None
     is_active: bool
     created_at: datetime
 

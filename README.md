@@ -150,7 +150,7 @@ npm install
 npm run dev
 ```
 
-Hub: http://localhost:3001 — routes include `/incident-analyzer`, `/supplier-directory`, `/inventory`, `/talent-tracker`, `/backoffice-functions`, `/incident-manager/*`, `/reporting`, `/account/*`. Full route table: [uis/backoffice/README.md](./uis/backoffice/README.md).
+Hub: http://localhost:3001 — routes include `/incident-analyzer`, `/supplier-directory`, `/inventory`, `/talent-tracker`, `/backoffice-functions`, `/incident-manager/*`, `/reporting`, `/knowledge`, `/account/*`. Full route table: [uis/backoffice/README.md](./uis/backoffice/README.md).
 
 ### 3. Public website — port 3000
 
@@ -342,6 +342,74 @@ curl -s "http://localhost:8000/api/v1/telemetry/report?start_date=2026-07-01T00:
 **Note:** If KPI arrays are empty, the DB likely lacks `supply_consumption_created`, `supply_consumption_failed`, or login events in the selected window — list views and filters alone do not populate consumption metrics.
 
 Further detail: [`memory-bank/references/telemetry_ai_plan/`](./memory-bank/references/telemetry_ai_plan/).
+
+---
+
+## Forecast (monthly revenue)
+
+Local Nixtla pipeline (**MLForecast** + **StatsForecast**) for consolidated monthly revenue. Work lands on **`feature/sales_forecast`** (includes temporal CV / fit diagnosis folded from **`feature/eval_metrics`**).
+
+Requires the sales CSV at `data/raw/healthcore_sales.csv` (gitignored — local only).
+
+### Run
+
+```bash
+uv sync --group forecast
+uv run python scripts/train_revenue_forecast.py   # train, metrics, figures, forecast report (+ diagnostics hook)
+uv run python scripts/run_diagnostics.py         # CV folds, learning curves, fit-diagnosis report (standalone)
+uv run pytest tests/pipelines/test_temporal_cv_order.py -v
+uv run pytest tests/pipelines/ -v                # full forecast/pipeline suite
+```
+
+### Where the reports and artifacts are
+
+| Path | Contents |
+|------|----------|
+| [`data/eval/revenue_forecast/report.md`](./data/eval/revenue_forecast/report.md) | Main forecast report (model comparison, ablation, plots, recommendation) |
+| [`data/eval/revenue_forecast/metrics.json`](./data/eval/revenue_forecast/metrics.json) | Holdout metrics, CV scores, recommendation payload |
+| [`data/eval/revenue_forecast/figures/`](./data/eval/revenue_forecast/figures/) | PNGs: per-model vs actual, prediction intervals, residuals, visits forecast |
+| [`data/eval/revenue_forecast/cv_fit_diagnosis_report.md`](./data/eval/revenue_forecast/cv_fit_diagnosis_report.md) | **Temporal CV + fit diagnosis report** (start here for over/under-fit) |
+| [`data/eval/revenue_forecast/diagnostics/`](./data/eval/revenue_forecast/diagnostics/) | Machine-readable CV / learning-curve outputs (see below) |
+| [`data/process/models/`](./data/process/models/) | Fitted model pickles (`.pkl`) written by the train script |
+
+#### Diagnostics folder (`data/eval/revenue_forecast/diagnostics/`)
+
+| File | Contents |
+|------|----------|
+| `cv_folds.json` | Per-fold train/val MAE+RMSE, mean±std, fold date windows, gap ablation |
+| `learning_curve.json` | Train vs val MAE/RMSE for prefixes `{36, 48, 60, 72, 84}` |
+| `learning_curve_mlforecast_uni2.png` | Learning curve for `MLForecast_uni2` |
+| `learning_curve_autoets2.png` | Learning curve for `AutoETS2` |
+| `learning_curve_elasticnet.png` | ElasticNet side curve (when ML path looks overfit) |
+| `fold_rmse_strip.png` | Per-fold validation RMSE strip plot |
+| `fit_classification.json` | Fit verdicts + corrective-action text |
+
+### Temporal CV and fit diagnosis
+
+Validates that CV respects time order, reports **RMSE as mean ± std** across folds, builds **learning curves**, and classifies each in-scope model as **well-fitted / underfitting / overfitting** (with matching corrective actions).
+
+| Topic | What we do |
+|-------|------------|
+| **Models** | `MLForecast_uni2` (univariate RF via sklearn `TimeSeriesSplit`) and `AutoETS2` (StatsForecast `AutoETS` via `classical_backtest`) |
+| **Folds** | **5 × 6-month** non-overlapping blocks on the **training window only** (**2021-07…2023-12**), date-aligned across engines. Fold 0 is thinner after differencing/`lag_12` — mean±std is a small-sample estimate |
+| **Selection CV** | MLForecast learner-selection defaults raised to `n_windows=5`, `h=6` (was 3×12) |
+| **ML correctness** | Causal lag features, fold-local `Differences([12])`, **recursive** 6-month prediction inside each fold (no one-shot block peek) |
+| **Learning curve** | Expanding train prefixes ending before a **fixed 2023** validation year; prefix **84** ends **2022-12** so 2022 is not skipped |
+| **Business metric** | **RMSE** (√MSE in USD), also as % of mean monthly revenue; MAE reported alongside |
+| **Tests** | [`tests/pipelines/test_temporal_cv_order.py`](./tests/pipelines/test_temporal_cv_order.py) — chronology, alignment, determinism, no shuffling splitters |
+
+Authoritative write-up: [`cv_fit_diagnosis_report.md`](./data/eval/revenue_forecast/cv_fit_diagnosis_report.md). Specs/plans: [`memory-bank/references/sales_forecast_ai_plan/`](./memory-bank/references/sales_forecast_ai_plan/) (`healthcore_cv_diagnosis_*`).
+
+### Code and plans
+
+| Path | Role |
+|------|------|
+| `data/forecast/` | Clean, features, MLForecast, StatsForecast, metrics, plotting, **`diagnostics.py`** |
+| `scripts/train_revenue_forecast.py` | End-to-end train + evaluate + diagnostics hook |
+| `scripts/run_diagnostics.py` | Standalone temporal CV / learning-curve / report entrypoint |
+| `tests/pipelines/test_revenue_*.py` | Split / leakage / validation / pattern tests |
+| `tests/pipelines/test_temporal_cv_order.py` | Chronological CV integrity for both engines |
+| [`memory-bank/references/sales_forecast_ai_plan/`](./memory-bank/references/sales_forecast_ai_plan/) | Forecast + CV diagnosis specs, implementation plan, eval criteria |
 
 ---
 
@@ -544,6 +612,145 @@ Plans: [`memory-bank/references/data_pipelines_ai_plan/`](./memory-bank/referenc
 
 ---
 
+## RAG Knowledge Base (Milestone 7)
+
+JWT-protected knowledge assistant for patient coordinators. Indexes four English policy docs into **local on-disk Qdrant**, retrieves top-k chunks (dense vectors + `RAG_MIN_SCORE`), and generates grounded answers via the 4Geeks LiteLLM proxy. Backoffice UI at `/knowledge` shows the answer, sources, and thumbs feedback.
+
+Design: [`docs/rag-design.md`](./docs/rag-design.md). Spec / plan: [`memory-bank/references/rag/`](./memory-bank/references/rag/).
+
+### What it delivers
+
+| Area | Path / detail |
+|------|----------------|
+| **Sources** | `docs/company-knowledge-base/*.en.md` (appointment, insurance, referral, new-patient) |
+| **Chunk + embed + store** | `data/process/rag.py` — semantic chunker, `embed`, local Qdrant |
+| **Retrieve + generate** | `data/pipelines/rag.py` — `normalize_query`, `retrieve`, `query` |
+| **API** | `POST /api/v1/knowledge/query`, `POST /api/v1/knowledge/feedback` (Bearer JWT) |
+| **UI** | `uis/backoffice/knowledge/` → http://localhost:3001/knowledge |
+| **Feedback** | Append-only JSONL at `FEEDBACK_PATH` (default `data/eval/feedback.jsonl`) |
+| **Eval** | `data/eval/test-queries.json` + `data/eval/run_eval.py` |
+
+### Env (API)
+
+Set in `services/api/.env` (manual) or root `.env` (Docker), from `.example.env`:
+
+| Variable | Purpose |
+|----------|---------|
+| `LLM_BASE_URL` | Proxy base (default `https://llm.4geeks.ai`) |
+| `LLM_API_KEY` | Required for embed / generate / seed |
+| `EMBEDDING_MODEL` / `GENERATION_MODEL` | Proxy model ids |
+| `QDRANT_PATH` / `QDRANT_COLLECTION` | Local vector store |
+| `RAG_TOP_K` / `RAG_MIN_SCORE` | Retrieval knobs (default `3` / `0.30`) |
+| `FEEDBACK_PATH` | Interaction + thumbs JSONL |
+
+### Seed the knowledge base
+
+Primary path is the CLI (avoids Qdrant local file-lock fights with a running API):
+
+```bash
+# From repo root — requires LLM_API_KEY
+uv run python scripts/seed_knowledge_base.py
+```
+
+API startup seeds once only if the collection is empty and `LLM_API_KEY` is set; if already populated it no-ops.
+
+### Smoke test
+
+1. API on `:8000` with `LLM_API_KEY` and a seeded collection; backoffice on `:3001`.
+2. Log in → open http://localhost:3001/knowledge.
+3. Ask e.g. “Is Medicaid accepted at Georgia clinics?” — expect a grounded answer and `insurance-coverage` in sources.
+4. Or via API: `POST /api/v1/knowledge/query` with Bearer token and `{"question":"…"}`.
+
+### Tests / eval
+
+```bash
+uv run pytest tests/pipelines/test_rag.py services/api/tests/test_knowledge.py -q
+LLM_API_KEY=… uv run python data/eval/run_eval.py
+```
+
+---
+
+## LangGraph support agent (`feature/agent_tools_langgraph`)
+
+Multi-source support agent: a **compiled LangGraph** graph with intent classification, RAG retrieval, and live **incident** / **inventory** HTTP tools. Extends Part 1 (`feature/agent_rag_langgraph`). Coexists with the RAG endpoint — **does not change** `POST /api/v1/knowledge/query`. Same route: `POST /api/v1/agent/query` (no new endpoint, no frontend).
+
+Spec / plan: [`memory-bank/references/agentic_engineering/`](./memory-bank/references/agentic_engineering/).
+
+### What it delivers
+
+| Area | Detail |
+|------|--------|
+| **Package** | `services/api/app/domains/agent/` — state, nodes, routing, graph, tracing, service, router |
+| **Tools** | `app/domains/agent/tools/` — typed incident + inventory clients (`httpx`, timeouts, retry-once on 5xx/timeout; never raise into the graph) |
+| **Reuse** | `normalize_query`, `retrieve`, `generate_answer` / `build_assembled_prompt` from `data/pipelines/rag.py` |
+| **Graph** | `receive_question` → `classify` → fan-out `{retrieve, incident_tool, inventory_tool}` → `gather` → `compose` **or** `honest_fallback` |
+| **Endpoint** | `POST /api/v1/agent/query` (Bearer JWT) → `{ answer, trace_id, sources, sources_used }` |
+| **Auth forwarding** | Caller JWT is threaded into graph state and sent on tool HTTP calls (required for incidents) |
+| **Fallbacks** | Empty → `Please enter a question.`; RAG-only no hits → `I don't have information about that.`; tool fail/empty → verbatim `I could not confirm the ticket's status.` / `…inventory item's status.` |
+| **Deps** | `langgraph`, `langsmith`, `httpx` (already present) |
+| **Evals** | `tests/pipelines/test_agent_evals.py` (RAG / tool / both / failure + plural name-match) |
+| **HTTP tests** | `services/api/tests/test_agent.py` |
+
+### Env
+
+| Variable | Purpose |
+|----------|---------|
+| `LLM_API_KEY` | Required for classify, compose, and RAG |
+| `INTERNAL_API_BASE_URL` | Base URL tools call (default `http://localhost:8000`) |
+| `TOOL_HTTP_TIMEOUT_SECONDS` | Per-call tool timeout (default `5.0`) |
+| `LANGCHAIN_TRACING_V2` | `true` to enable LangSmith remote traces |
+| `LANGCHAIN_API_KEY` | LangSmith key — unset disables tracing; graph still runs |
+| `LANGCHAIN_PROJECT` | Default `healthcore-agent` |
+| `LANGCHAIN_ENDPOINT` | Default `https://api.smith.langchain.com` |
+
+Documented in `services/api/.example.env`. Requires a seeded knowledge base for RAG; `DATABASE_URL` + incident/inventory seed for live tool answers.
+
+### Smoke test
+
+```bash
+# After login, TOKEN=…  (API on :8000 with LLM_API_KEY)
+ask() {
+  curl -s -X POST http://localhost:8000/api/v1/agent/query \
+    -H "Authorization: Bearer $TOKEN" \
+    -H 'Content-Type: application/json' \
+    -d "{\"question\": \"$1\"}" | python -m json.tool
+}
+
+ask "Do you take Medicaid?"                          # sources_used: ["rag"]
+ask "What is the status of incident 1?"              # ["incident_tool"]
+ask "How many surgical masks do we have in stock?"   # ["inventory_tool"]
+ask "What's our mask policy and do we have any in stock?"  # rag + inventory_tool
+ask "   "                                            # Please enter a question.
+ask "What is the capital of Mars?"                   # I don't have information about that.
+```
+
+Check `answer`, `sources`, `sources_used`, and `trace_id` on each response.
+
+### Tests
+
+```bash
+uv run pytest tests/pipelines/test_rag.py services/api/tests/test_knowledge.py -q
+uv run pytest tests/pipelines/test_agent_evals.py services/api/tests/test_agent.py -q
+# Optional live grounding:
+LLM_API_KEY=… uv run pytest tests/pipelines/test_agent_evals.py -q
+```
+
+No frontend for the agent curl path — use Swagger or the backoffice **Knowledge** UI (`/knowledge`), which is wired to the **guarded** `/agent/query` + `/agent/feedback` endpoints.
+
+### Agent harness / guardrails (`feature/agent_harness`)
+
+Input/output guardrails (IG/ISO/OG/OBS) wrap the LangGraph agent: jailbreak refusal, personal-use block, casual redirect, PHI controls (HIPAA/UK GDPR), untrusted wrapping of RAG + **MCP** tool JSON, and `GET /api/v1/agent/guardrails/metrics`.
+
+**Knowledge UI + agent tools are read-only for ops data:** inventory = stock lookup only; incidents = get-by-id only. MCP can create/update incidents, but the agent does not. Create/write questions in `/knowledge` will not mutate data. Details: [`services/api/README.md`](./services/api/README.md) → *Agent + Knowledge UI — tool capabilities (read-only)*.
+
+**Manual test matrix (2–3 questions per type):** see [`services/api/README.md`](./services/api/README.md) → *Manual guardrail testing*.
+
+```bash
+uv run pytest tests/pipelines/test_guardrails_injection.py -q
+```
+
+---
+
 ## Milestones (course roadmap)
 
 | Milestone | Focus | Typical deliverables | Status |
@@ -555,12 +762,12 @@ Plans: [`memory-bank/references/data_pipelines_ai_plan/`](./memory-bank/referenc
 | 4 | Next.js | Portals, loyalty app, operations UI | **Implementation complete** |
 | 5 | Backend | Central API (locations, menus, sales, etc.) | **Implementation complete** |
 | 6 | Telemetry | Data pipeline, dashboards | **In progress** (Build 1–2 on `feature/data_pipeline`: ETL + `/reporting`) |
-| 7 | RAG & Memory | Semantic knowledge base, search | Not started |
-| 8 | Agents | Support, onboarding, training agents | Not started |
+| 7 | RAG & Memory | Semantic knowledge base, search | **Implementation complete** (`feature/rag`) |
+| 8 | Agents | Support, onboarding, training agents | **In progress** (`feature/agent_tools_langgraph` — LangGraph + incident/inventory tools) |
 | 9 | Workflows | n8n automations | Not started |
 | 10 | Real-time | Live dashboards, alerts, streaming | Not started |
 
-**HealthCore mapping (M0–M6):** M1/M4 → `uis/website`; M2 → `apps/src` + `/backoffice-functions`; M3 → `/talent-tracker`; M5 → `services/api` + backoffice platform; **M6** → telemetry + Prefect ETL (`data/pipelines/`) + Reporting UI (`/reporting`) — see [Telemetry](#telemetry) and [Data pipeline (Build 2)](#data-pipeline-milestone-6--build-2). Detail: [memory-bank/progress.md](./memory-bank/progress.md).
+**HealthCore mapping (M0–M8):** M1/M4 → `uis/website`; M2 → `apps/src` + `/backoffice-functions`; M3 → `/talent-tracker`; M5 → `services/api` + backoffice platform; **M6** → telemetry + Prefect ETL (`data/pipelines/`) + Reporting UI (`/reporting`) — see [Telemetry](#telemetry) and [Data pipeline (Build 2)](#data-pipeline-milestone-6--build-2); **M7** → RAG knowledge assistant (`/knowledge`, `POST /api/v1/knowledge/query`) — see [RAG Knowledge Base (Milestone 7)](#rag-knowledge-base-milestone-7); **M8 (partial)** → LangGraph support agent with tools (`POST /api/v1/agent/query`) — see [LangGraph support agent](#langgraph-support-agent-featureagent_tools_langgraph). Detail: [memory-bank/progress.md](./memory-bank/progress.md).
 
 ---
 
@@ -573,8 +780,17 @@ healthcore-monorepo/
 ├── AGENTS.md                  # Agent workflow policy
 ├── .example.env               # Docker env template → copy to .env
 ├── docker-compose.yml
-├── data/pipelines/            # Prefect KPI ETL (Milestone 6)
-├── services/api/              # FastAPI backend
+├── data/
+│   ├── pipelines/             # Prefect KPI ETL (M6) + RAG query pipeline (M7) + RFP intake
+│   ├── process/               # RAG chunk/embed/store (M7) + forecast models
+│   ├── forecast/              # Monthly revenue forecast (Nixtla; local)
+│   └── eval/                  # RAG eval + revenue_forecast reports/figures/diagnostics
+├── docs/
+│   ├── company-knowledge-base/  # Policy markdown sources for RAG
+│   ├── rag-design.md
+│   ├── telemetry/               # Telemetry design
+│   └── data_pipelines/          # KPI ETL design
+├── services/api/              # FastAPI backend (incl. knowledge domain)
 ├── uis/
 │   ├── website/               # Public portal (port 3000)
 │   └── backoffice/
@@ -582,13 +798,13 @@ healthcore-monorepo/
 │       ├── inventory/
 │       ├── incident-manager/
 │       ├── reporting/         # KPI dashboard → /reporting
+│       ├── knowledge/         # RAG assistant → /knowledge
 │       └── talent-tracker/
 ├── apps/                      # Legacy M1 portal, M2 utils, frozen M3 copy
 ├── packages/shared/           # Shared TypeScript and Python types/validation
 ├── memory-bank/               # Agent bootstrap and milestone records
-├── docs/                      # Architecture, telemetry, data pipeline design
-├── scripts/
-├── tests/pipelines/           # ETL unit tests
+├── scripts/                   # Incl. seed_knowledge_base.py
+├── tests/pipelines/           # ETL + RAG unit tests
 └── TESTING.md
 ```
 
@@ -604,7 +820,11 @@ healthcore-monorepo/
 | [TESTING.md](./TESTING.md) | pytest, Jest, pre-commit guardrails, Docker test commands |
 | [docs/telemetry/telemetry-plan.md](./docs/telemetry/telemetry-plan.md) | Telemetry design, KPIs, event catalog |
 | [docs/data_pipelines/pipeline-design.md](./docs/data_pipelines/pipeline-design.md) | KPI ETL design, run command, Reporting UI (§12.1) |
+| [docs/rag-design.md](./docs/rag-design.md) | RAG architecture, retrieval, eval notes |
 | [data/pipelines/README.md](./data/pipelines/README.md) | Pipeline package layout and CLI entry |
+| [data/eval/revenue_forecast/report.md](./data/eval/revenue_forecast/report.md) | Monthly revenue forecast report |
+| [data/eval/revenue_forecast/cv_fit_diagnosis_report.md](./data/eval/revenue_forecast/cv_fit_diagnosis_report.md) | CV / fit diagnosis report (`feature/eval_metrics`) |
+| [memory-bank/references/sales_forecast_ai_plan/](./memory-bank/references/sales_forecast_ai_plan/) | Forecast + CV diagnosis specs and plans |
 | [memory-bank/](./memory-bank/) | Project brief, tech context, progress, decisions, conventions |
 | [AGENTS.md](./AGENTS.md) | Mandatory agent bootstrap and commit workflow |
 

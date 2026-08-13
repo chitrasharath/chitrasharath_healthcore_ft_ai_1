@@ -346,3 +346,200 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 
 - Decision (DEV-55 manual testing): Prefer `docker compose up redis api worker flower` (omit `ui`) on disk-constrained Codespaces.
 - Why: UI image `npm ci` is the largest disk consumer; queue demos do not need the Next.js container.
+
+## Sales Forecast (Nixtla)
+
+- Decision: Local **MLForecast + StatsForecast** only (no TimeGPT / Prophet / statsmodels SARIMA); forecast deps live in root `pyproject.toml` `[dependency-groups] forecast`.
+- Why: Spec stack; keep data on-box; do not touch `services/api`.
+
+- Decision: Two-stage exogenous design — Stage-1 StatsForecast visits forecast → `X_df` for revenue MLForecast; univariate ablation always trained; dashboard may prefer either if lift is weak (≥1 regression required).
+- Why: Avoid using actual future visits (leakage); quantify whether visits earn their keep.
+
+- Decision: Commit fitted models under `data/process/models/` plus `data/eval/revenue_forecast/` report/figures/metrics; do not commit raw CSV.
+- Why: Stakeholder request for reusable model artifacts; raw data stays gitignored.
+
+- Decision: Include AutoTheta; attempt AutoCES with skip-on-numba-failure; include ElasticNet alongside RF/XGB; MASE vs SeasonalNaive required; log/Box-Cox off by default.
+- Why: Locked plan recommendations during clarifying Q&A.
+
+## CV & Fit Diagnosis (`feature/eval_metrics` → `feature/sales_forecast`)
+
+- Decision: Cut diagnosis work onto `feature/eval_metrics`, then fold that branch back into `feature/sales_forecast` before opening vs `main`.
+- Why: Specs §15; isolate CV/fit work until forecast branch is ready, then ship as one forecast stack.
+
+- Decision: Diagnostic CV is **5 folds × 6-month** blocks, date-defined first, aligned across sklearn `TimeSeriesSplit` (ML uni winner) and `StatsForecast.cross_validation` via `classical_backtest` (AutoETS).
+- Why: Specs §5.1; comparable per-fold RMSE; 5×12 does not fit after differencing + lag_12.
+
+- Decision: ML path uses causal feature matrix, fold-local `Differences([12])`, and **recursive** within-fold prediction; selection CV stays MLForecast-native at `n_windows=5, h=6`.
+- Why: Avoid within-block lag leakage and keep engines faithful to each ecosystem.
+
+- Decision: Pin prior 3-fold shipped uni selection in the report; diagnose the 5-fold uni winner as **`MLForecast_uni2`** (and classical as **`AutoETS2`**); corrective actions are report-only (no hyperparameter retune beyond CV defaults).
+- Why: Stakeholder clarifying Q&A; diagnosis honesty without silently mutating the shipped model.
+
+- Decision: Diagnostic 5×6 validation windows stay on the **training window only** (**2021-07…2023-12**). A brief experiment shifted into 2024-H1 to thicken fold 0; that was reverted because it mixed holdout months into diagnostic mean±std. Thin fold 0 is documented instead.
+- Why: Specs require training-window CV; mean±std must not silently include test-period folds.
+
+## LangGraph Support Agent
+
+- Decision: Package at `services/api/app/domains/agent/`; mount `POST /api/v1/agent/query` as JWT-protected sibling of knowledge router.
+- Why: Repo domain convention; coexist with RAG endpoint without changing it.
+
+- Decision: Agent no-context string is `I don't have information about that.` — distinct from RAG `FALLBACK_ANSWER`.
+- Why: Spec/task-required exact string for the `no_context` node.
+
+- Decision: Grounding eval uses recorded fixture for CI plus optional live path when `LLM_API_KEY` is set.
+- Why: Required acceptance gate without secrets in CI; live path catches proxy/model drift.
+
+- Decision: No frontend and no feedback JSONL wiring in this milestone; single commit only after build + manual smoke.
+- Why: Locked planning Q&A; feedback depends on future UI.
+
+## Company Tools MCP + Agent Migration
+
+- Decision: Branch `feature/agent_mcp_langgraph` off `feature/agent_tools_langgraph`; MCP server lives under `mcps/company-tools/` (not `services/`).
+- Why: Spec/reference layout — MCP servers are reusable company gateways, separate from the FastAPI monolith.
+
+- Decision: Use **`mcpauth`** (not FastMCP built-in auth) + **Streamable HTTP**; serve RFC 9728 PRM ourselves because installed `mcpauth` 0.1.1 still uses AuthServerConfig / AS metadata mode.
+- Why: Spec requires mcpauth + PRM behavior; pin and adapt to published SDK.
+
+- Decision: **Split identity** — Keycloak JWT authenticates MCP; caller FastAPI HS256 JWT forwarded via `X-Downstream-Authorization` for `/api/v1/incidents*` (and optional inventory).
+- Why: FastAPI login stays untouched; live incident calls still need API-accepted tokens.
+
+- Decision: Agent obtains MCP token via Keycloak **`client_credentials`** (`agent-support`); password grant only for Inspector/Playground.
+- Why: Non-interactive agent runtime; interactive users for manual validation.
+
+- Decision: Compose adds **Keycloak only**; MCP runs via `uv run company-tools` on `:9000`. Hard-delete direct agent tool modules (no feature flag).
+- Why: Locked planning scope; single path to operational data through MCP.
+
+## Agent Tools: Incident + Inventory
+
+- Decision: Branch `feature/agent_tools_langgraph` off `feature/agent_rag_langgraph`; extend existing `/agent/query` — no new endpoint or frontend.
+- Why: Spec Part 2 continuation; keep RAG and tool answers behind one authenticated contract.
+
+- Decision: Tools call this API over **httpx** (`INTERNAL_API_BASE_URL`) with explicit timeouts and **retry-once** on 5xx/timeout; typed results never raise into the graph.
+- Why: Recovery contract; matches RAG `_generate` retry spirit without new dependencies.
+
+- Decision: LLM `classify` node emits multi-label intent; fan-out to RAG/incident/inventory; `gather` barrier then `compose` or `honest_fallback`.
+- Why: Spec routing + explicit recovery; supports “both” questions.
+
+- Decision: Fold Part 1 `no_context` into `honest_fallback`; verbatim tool fallbacks joined with newline; `RagConfigError`/`GenerationError` stay in `compose` error mapping (not honest_fallback).
+- Why: Locked planning Q&A — recovery is for empty/failed sources; infra errors keep Part 1 HTTP mapping.
+
+- Decision: Forward caller JWT into graph state for incident tool auth; never log the token; add optional `sources_used` on response.
+- Why: Incidents require auth; inventory list is public but token forwarded harmlessly; trace visibility for callers/evals.
+
+- Decision: Classifier extracts only `incident_id` + `product_hint` this milestone; list filters stay typed but unused.
+- Why: Avoid classifier complexity; by-id / name-hint covers acceptance scenarios.
+
+- Decision: Keep current proxy generation models; no Docker Compose changes for tool base URL.
+- Why: Locked planning Q&A.
+
+## Agent Memory
+
+- Decision: Branch `feature/agent_memory` off `feature/agent_harness`; Redis (SoT + pending + audit TTL) + Qdrant `agent_memory` recall; no Mem0/LangMem.
+- Why: Spec-selected architecture; native TTL; compliance control over PHI validation.
+
+- Decision: Scope filter on both `clinic_id` + `staff_id` (no clinic-shared semantic in MVP); TinyDB `clinic_id` as inventory catalog string ids `"1"`…`"9"`; demo seed users create-if-missing.
+- Why: Locked planning Q&A; aligns with inventory CLINICS catalog.
+
+- Decision: Pending consent in Redis `mem:pending:{staff_id}` (30m TTL); approve/reject turns confirm-only; free-text corrected wording = edit; `DELETE /agent/memory/{id}` for panel + GDPR erasure.
+- Why: Spec turn model + frontend scope.
+
+- Decision: Consolidation on hard-cap + `uv run` script (not DEV-53 jobs); keep `deepseek-v4-flash`; fakeredis for pytest.
+- Why: Locked planning Q&A; keep PR self-contained.
+
+- Decision: Landing-aliased UI at `uis/backoffice/knowledge/` on port 3001 (not a standalone Next app); hub nav card tagged New.
+- Why: Match inventory / incident-manager / reporting pattern; single AuthGuard.
+
+## RFP Intake (Milestone 9 Part 1)
+
+- Decision: Branch `feature/rfp-intake` off `feature/agent_memory`; pipeline/graph under `data/pipelines/rfp_intake/`; HTTP domain under existing `services/api` (no new API process); do not touch CX agent graph.
+- Why: CONTEXT §2.4 + SPEC layout; Parts 2–3 reuse Ticket/DepartmentSection.
+
+- Decision: Scrubbed markdown in `RfpMetadata.markdown_text` DB column; PDF only under `data/raw/{ticket_id}.pdf`; `sales_summary` JSON on `RfpMetadata`.
+- Why: Least PHI-adjacent disk footprint; avoid new summary table in Part 1.
+
+- Decision: Extend `JobRun` with nullable `target_key` + `checkpoint`; per-ticket processing lock; FastAPI BackgroundTasks; mid-way re-run is from-scratch idempotent upsert.
+- Why: Reuse job lifecycle without coupling to nightly `target_date` semantics; simpler than checkpoint resume.
+
+- Decision: PHI mid-intake continues on redacted text to `intake_complete` with `contains_phi` banner; classifier confidence &lt; 0.5 → `analyzing` + human review (not discard); department extracts via keyword heuristics first.
+- Why: Locked planning Q&A; Part 3 owns hard-stop arbitration.
+
+- Decision: `covered_population` verbatim string + nullable `covered_population_n`; never invent when string absent.
+- Why: CONTEXT never-invent rule; numeric hook for later capacity checks.
+
+- Decision: Auth = existing `get_current_user` only; UI at landing `/rfp-intake`.
+- Why: Match knowledge/agent routers; no Revenue Cycle RBAC yet.
+
+## RFP Response Generation (Milestone 9 Part 2)
+
+- Decision: Branch `feature/rfp-response-generation` off committed `feature/rfp-intake`; extend `data/pipelines/rfp_intake/` with drafting graph (do not touch CX agent).
+- Why: SPEC Phase 2 layout; Parts 1–3 share Ticket/DepartmentSection.
+
+- Decision: Dedicated `EvaluationResult` table (`rfp_evaluation_results`) plus section JSON sync for latest; section statuses `drafting` | `under_evaluation` | `passed` | `needs_human_review`.
+- Why: Iteration history + KPI querying; `passed`/`needs_human_review` are section-level Phase-2 extensions not in CONTEXT §2.3 ticket vocabulary.
+
+- Decision: `start-drafting` soft-idempotent (`202` current state if already `drafting`/`under_evaluation`); `409` for other wrong states. Ticket → `under_evaluation` as soon as any section enters evaluation; remains `under_evaluation` at Phase 2 complete (`phase2_complete` derived).
+- Why: Double-click safety; Part 3 owns `waiting_for_approval`/`done`.
+
+- Decision: PHI hard stop → redacted draft, `needs_human_review`, Compliance (Claire Whitfield) UI banner via `contains_phi` — no regenerate loop; no assignment table.
+- Why: Locked planning; Part 3 owns owner routing.
+
+- Decision: Concurrent independent section loops; evaluators run in parallel via ThreadPoolExecutor inside evaluate node; aggregate is sole Supabase writer per iteration. Max iterations 3; FK grade ≤12; relevance strict.
+- Why: SPEC defaults + LangGraph join safety.
+
+- Decision: `redraft` only for `needs_human_review` sections; reset that section’s loop (`iteration=0`), keep EvaluationResult history; other sections untouched.
+- Why: Locked planning.
+
+- Decision: Models via `generation_model` with optional `RFP_GENERATOR_MODEL` / `RFP_EVALUATOR_MODEL` env overrides.
+- Why: Follow environment variables without new SDKs.
+
+- Decision (revised): PHI in a draft is **auto-redacted**; if the scrubbed draft is PHI-free, evaluation continues and the section may `passed` for Phase 3. Residual PHI after scrub still → `needs_human_review`. UI **Redact PHI & release** releases already-stuck sections the same way. Diagnosis scrub is span-scoped (not whole-line) so BAA/currency clauses survive.
+- Why: Manual-test / Phase 3 readiness — raw PHI must never ship, but a clean redacted draft should not permanently block the ticket.
+
+## RFP Approvals / Final Document (Milestone 9 Part 3)
+
+- Decision: Branch `feature/rfp-approval-completion` off `feature/rfp-response-generation`; durable **Postgres checkpointer** (`langgraph-checkpoint-postgres`) with `thread_id = ticket_id`; MemorySaver for unit tests.
+- Why: SPEC Phase 3; interrupts survive API restarts; concurrent tickets isolated.
+
+- Decision: **Run all phases** starts from **RFP PDF** (`POST /run-all` multipart) chaining P1→P2→P3 in one `rfp_run_all` JobRun; mid-pipeline `start-drafting?continue_to_approval=true`; stepwise **Run Phase 3** via `send-for-approval` when all sections `passed`.
+- Why: Locked planning Q&A.
+
+- Decision: Approver identity = **name-string** vs fixed owners (Tom / Marcus / Claire); RBAC deferred.
+- Why: Locked planning; matches current JWT-only auth.
+
+- Decision: Final document = **markdown + PDF** (`fpdf2`); on `done` UI auto-downloads once + persistent re-download button.
+- Why: Locked planning.
+
+- Decision: Arbitration is **deterministic code** (PHI > BAA/DPA > capacity); `phi_was_redacted` still routes to Compliance until approved; missing capacity/population numbers never invent a false capacity conflict.
+- Why: CONTEXT §7 + locked planning.
+
+- Decision: Single interrupt collector node returns after each decision so approvals persist in checkpoint; re-enters until all approved (B can approve while A pending).
+- Why: LangGraph mid-node interrupt does not checkpoint local loop state.
+
+- Decision: Approve/reject is **DB-first** (persist immediately; graph resume best-effort in a daemon thread). Run-all auto-starts Phase 3 when Phase 2 is fully `passed`; re-run intake clears Phase 2/3 rows and stale `rfp_approval`/`rfp_drafting` locks.
+- Why: Manual-test hardening — hung LangGraph resume and leftover processing locks made UI appear stuck.
+
+- Decision: Classifier **discards all non-RFPs** (`is_rfp=false`); human review is only for uncertain *true* RFPs. Run-all drafts only after `intake_complete`. Re-run intake supersedes `rfp_run_all` so step-by-step Start drafting / Run Phase 3 return.
+- Why: Manual-test: vendor PDFs continued past intake; re-run after Run all hid later-phase buttons.
+
+- Decision: Re-draft **keeps the last `draft_content` + `feedback_for_generator`** and resets the iteration counter. Generator revises in place (especially readability). RFP LLM httpx uses **`LLM_SSL_VERIFY` default false** (retry once without verify on cert errors).
+- Why: Wiping the draft forced many Re-draft clicks; Codespaces against `llm.4geeks.ai` hit expired-certificate ConnectErrors.
+
+- Decision: Spec §9.11 full three-phase run is a **real runner integration test** (`test_rfp_three_phase_consistency.py`): Meridian fixture → `run_intake` → `run_drafting` → `start_approval` / `resume_approval` with Tom / Dr. Marcus Reid / Claire Whitfield simulated approvals. LLM is denied (`LlmConfigError` + `respx` network block); SQLite stands in for Supabase; approval checkpoints share one `MemorySaver` so start/resume stay on `thread_id = ticket_id`.
+- Why: SPEC §9 requires mocked LLM, simulated approvals, no live network, no real PHI — while still driving the actual P1→P2→P3 graphs and asserting §5.9 consistency (no status jump, dropped field, or PHI leak).
+
+- Decision: Approval checkpointer **fails loud** when `DATABASE_URL` is empty or PostgresSaver setup/connect fails. `MemorySaver` is only for `use_memory=True` (pytest). No process-wide in-memory fallback.
+- Why: Silent MemorySaver after a Postgres blip pins the process to RAM checkpoints; interrupts then vanish on restart (and disagree across workers). Spec §7.1 requires durable Postgres so an interrupt survives an API restart. Approve/reject remains DB-first as a separate safety net.
+
+## RAG / Knowledge (earlier)
+
+- Decision: CLI `scripts/seed_knowledge_base.py` is primary indexer; API startup no-ops if collection populated, seeds once if empty + `LLM_API_KEY` set.
+- Why: Local Qdrant file lock — only one process may open the store.
+
+- Decision: Feedback/interactions append-only JSONL (`FEEDBACK_PATH`); no Supabase table; `session_id` / `parent_query_id` nullable in schema, UI wiring deferred.
+- Why: Zero new infra; preference-pair seam preserved without expanding UI DoD.
+
+- Decision: Shared light/dark theme toggle in `@backoffice/shared`, wired into landing toolbar + root `dark` class (Tailwind `dark` variant).
+- Why: Spec UX; no prior backoffice theme control existed.
+
+- Decision: HTTP to LiteLLM via `httpx` (runtime dep); models/URLs/keys only via Settings/env; vector dim probed at setup.
+- Why: Spec recommendation; avoid openai SDK weight; safe model swaps.

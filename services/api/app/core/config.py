@@ -15,9 +15,69 @@ class Settings(BaseSettings):
     telemetry_endpoint: str = ""
     redis_url: str = "redis://redis:6379/0"
 
+    llm_base_url: str = "https://llm.4geeks.ai"
+    llm_api_key: str = ""
+    # 4Geeks LiteLLM proxy cert is often expired in Codespaces; set true when the chain is valid
+    llm_ssl_verify: bool = False
+    embedding_model: str = (
+        "downtown-miami/openrouter/perplexity/pplx-embed-v1-0.6b"
+    )
+    generation_model: str = (
+        "downtown-miami/openrouter/deepseek/deepseek-v4-flash"
+    )
+    qdrant_path: str = "./data/qdrant"
+    qdrant_collection: str = "company_knowledge_base"
+    rag_top_k: int = 3
+    rag_min_score: float = 0.30
+    feedback_path: str = "./data/eval/feedback.jsonl"
+    rag_generation_temperature: float = 0.15
+    rag_question_max_length: int = 1000
+
+    # Agent → company-tools MCP (Keycloak client_credentials)
+    mcp_company_tools_url: str = "http://localhost:9000/mcp"
+    keycloak_token_url: str = (
+        "http://localhost:8080/realms/healthcore/protocol/openid-connect/token"
+    )
+    keycloak_client_id: str = "agent-support"
+    keycloak_client_secret: str = "agent-support-dev-secret"
+
+    # Agent harness / guardrails (in-process; kill-switch disables IG/ISO/OG/OBS)
+    guardrails_enabled: bool = True
+    guardrail_classifier_enabled: bool = True
+    guardrail_phi_detection_enabled: bool = True
+    guardrail_preview_max_chars: int = 80
+
+    # Agent long-term memory (Redis SoT + Qdrant recall; kill-switch disables nodes)
+    memory_enabled: bool = True
+    redis_url: str = "redis://localhost:6379/0"
+    memory_qdrant_collection: str = "agent_memory"
+    memory_recall_k: int = 5
+    memory_entry_ttl_days: int = 90
+    memory_pending_ttl_minutes: int = 30
+    memory_max_entries_per_scope: int = 50
+    memory_dedupe_threshold: float = 0.92
+    memory_low_relevance_days: int = 30
+    memory_summarize_min_cluster: int = 3
+
+    # RFP drafting (Phase 2) — empty overrides fall back to generation_model
+    rfp_max_draft_iterations: int = 3
+    rfp_readability_max_grade: float = 12.0
+    rfp_generator_model: str = ""
+    rfp_evaluator_model: str = ""
+    # RFP approval (Phase 3)
+    rfp_max_approval_iterations: int = 3
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def effective_rfp_generator_model(self) -> str:
+        return self.rfp_generator_model.strip() or self.generation_model
+
+    @property
+    def effective_rfp_evaluator_model(self) -> str:
+        return self.rfp_evaluator_model.strip() or self.generation_model
 
 
 settings = Settings()
