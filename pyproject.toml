@@ -27,6 +27,17 @@ dev = [
     "fakeredis>=2.37.0",
     "redis>=8.0.1",
 ]
+forecast = [
+    "numpy>=1.26",
+    "scikit-learn>=1.4",
+    "xgboost>=2.0",
+    "mlforecast>=0.13",
+    "statsforecast>=1.7",
+    "utilsforecast>=0.2",
+    "matplotlib>=3.8",
+    "pyarrow>=15",
+    "scipy>=1.11",
+]
 
 [build-system]
 requires = ["hatchling"]

@@ -351,3 +351,25 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
 - Integrate `apps/src` validators into `/enquiry-form` when milestone 2 wiring is scheduled.
 - Legacy portal retirement and redirect strategy after stakeholder cutover approval.
 - Optional: extract shared operations registry from `apps/src/main.ts` and `uis/backoffice/backoffice_functions/lib/operations-registry.ts` to reduce drift.
+
+### Sales Forecast (Nixtla revenue prediction) — In progress on `feature/sales_forecast`
+
+- Goal: predict monthly consolidated revenue well enough to justify an executive dashboard (Sandra).
+- **Implemented:** `data/forecast/` package; `scripts/train_revenue_forecast.py`; two-stage visits→revenue MLForecast (RF/XGB/ElasticNet) + univariate ablation; StatsForecast SARIMA/AutoARIMA/AutoETS/AutoTheta (+ AutoCES attempted); metrics incl. MASE/PSI/Gini/K2; plots; `data/eval/revenue_forecast/report.md`; leakage/split/validation/pattern tests.
+- **Artifacts:** committed path `data/process/models/*.pkl` + `data/eval/revenue_forecast/` (CSV remains gitignored under `data/raw/`).
+- **Deps:** root `pyproject.toml` `[dependency-groups] forecast`; local-only (no Docker).
+- **Folded in:** `origin/feature/eval_metrics` (temporal CV / fit diagnosis) — see below.
+- Plan: `memory-bank/references/sales_forecast_ai_plan/healthcore_sales_regression_IMPLEMENTATION_PLAN.md`.
+
+### CV & Fit Diagnosis — folded into `feature/sales_forecast`
+
+- Goal: raise MLForecast selection CV to ≥5 folds; diagnose fit of uni ML winner + AutoETS with temporal CV, learning curves, and chronological-order tests.
+- **Merged from `feature/eval_metrics` into `feature/sales_forecast`:**
+  - Selection CV defaults `n_windows=5, h=6, step_size=6` in `models_mlforecast.py` (back-compatible).
+  - `data/forecast/diagnostics.py` — date-aligned 5×6mo CV (RF→`TimeSeriesSplit` recursive; AutoETS→`classical_backtest`), learning curves, fit classification, report writer.
+  - `scripts/run_diagnostics.py` + train-script Phase 9 hook.
+  - Artifacts: `data/eval/revenue_forecast/diagnostics/*`, `cv_fit_diagnosis_report.md`.
+  - `tests/pipelines/test_temporal_cv_order.py` — chronological CV integrity.
+  - Verdicts (follow numbers): **MLForecast_uni(rf) overfitting**; **AutoETS well-fitted**. Shipped report keeps univariate regression recommendation (`MLForecast_uni`); ablation narrative prefers visits-free path.
+- Plans: `healthcore_cv_diagnosis_specs.md`, `healthcore_cv_diagnosis_IMPLEMENTATION_PLAN.md`, `healthcore_cv_diagnosis_eval_criteria.md`.
+- **Next:** push `feature/sales_forecast` / open or retarget PR vs `main`; close obsolete `eval_metrics` PR once landed.
