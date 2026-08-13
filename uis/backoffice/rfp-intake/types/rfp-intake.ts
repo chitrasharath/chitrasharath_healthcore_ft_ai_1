@@ -13,6 +13,8 @@ export type SectionStatus =
   | "passed"
   | "needs_human_review";
 
+export type ApprovalStatus = "pending" | "approved" | "request_changes";
+
 export type TicketSummary = {
   ticket_id: string;
   rfp_id: string;
@@ -25,6 +27,7 @@ export type TicketSummary = {
   job_status?: string | null;
   sections_needing_review?: number;
   phase2_complete?: boolean;
+  phase2_all_passed?: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -51,6 +54,10 @@ export type DepartmentSection = {
   iteration?: number;
   latest_evaluation_id?: number | null;
   evaluation_history?: EvaluationResult[];
+  approval_status?: ApprovalStatus | string | null;
+  approver?: string | null;
+  approved_at?: string | null;
+  approval_iteration?: number;
 };
 
 export type RfpMetadata = {
@@ -81,14 +88,31 @@ export type TicketDetail = {
   job_error?: string | null;
   sections_needing_review?: number;
   phase2_complete?: boolean;
+  phase2_all_passed?: boolean;
+  approval_iterations_total?: number;
+  final_document_available?: boolean;
+  from_run_all?: boolean;
   created_at: string;
   updated_at: string;
   metadata: RfpMetadata | null;
   sections: DepartmentSection[];
+  arbitration_records?: {
+    trigger_id: string;
+    arbiter: string;
+    forced_action?: Record<string, unknown> | null;
+    resolved?: boolean;
+    created_at?: string | null;
+  }[];
 };
 
 export type UploadAccepted = {
   ticket_id: string;
   rfp_id: string;
   status: string;
+};
+
+export const DEPARTMENT_OWNERS: Record<string, string> = {
+  revenue: "Tom Callahan",
+  clinical: "Dr. Marcus Reid",
+  compliance: "Claire Whitfield",
 };

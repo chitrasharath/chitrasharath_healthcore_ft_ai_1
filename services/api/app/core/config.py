@@ -61,6 +61,8 @@ class Settings(BaseSettings):
     rfp_readability_max_grade: float = 12.0
     rfp_generator_model: str = ""
     rfp_evaluator_model: str = ""
+    # RFP approval (Phase 3)
+    rfp_max_approval_iterations: int = 3
 
     @property
     def cors_origin_list(self) -> list[str]:

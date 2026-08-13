@@ -455,6 +455,29 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision (revised): PHI in a draft is **auto-redacted**; if the scrubbed draft is PHI-free, evaluation continues and the section may `passed` for Phase 3. Residual PHI after scrub still → `needs_human_review`. UI **Redact PHI & release** releases already-stuck sections the same way. Diagnosis scrub is span-scoped (not whole-line) so BAA/currency clauses survive.
 - Why: Manual-test / Phase 3 readiness — raw PHI must never ship, but a clean redacted draft should not permanently block the ticket.
 
+## RFP Approvals / Final Document (Milestone 9 Part 3)
+
+- Decision: Branch `feature/rfp-approval-completion` off `feature/rfp-response-generation`; durable **Postgres checkpointer** (`langgraph-checkpoint-postgres`) with `thread_id = ticket_id`; MemorySaver for unit tests.
+- Why: SPEC Phase 3; interrupts survive API restarts; concurrent tickets isolated.
+
+- Decision: **Run all phases** starts from **RFP PDF** (`POST /run-all` multipart) chaining P1→P2→P3 in one `rfp_run_all` JobRun; mid-pipeline `start-drafting?continue_to_approval=true`; stepwise **Run Phase 3** via `send-for-approval` when all sections `passed`.
+- Why: Locked planning Q&A.
+
+- Decision: Approver identity = **name-string** vs fixed owners (Tom / Marcus / Claire); RBAC deferred.
+- Why: Locked planning; matches current JWT-only auth.
+
+- Decision: Final document = **markdown + PDF** (`fpdf2`); on `done` UI auto-downloads once + persistent re-download button.
+- Why: Locked planning.
+
+- Decision: Arbitration is **deterministic code** (PHI > BAA/DPA > capacity); `phi_was_redacted` still routes to Compliance until approved; missing capacity/population numbers never invent a false capacity conflict.
+- Why: CONTEXT §7 + locked planning.
+
+- Decision: Single interrupt collector node returns after each decision so approvals persist in checkpoint; re-enters until all approved (B can approve while A pending).
+- Why: LangGraph mid-node interrupt does not checkpoint local loop state.
+
+- Decision: Approve/reject is **DB-first** (persist immediately; graph resume best-effort in a daemon thread). Run-all auto-starts Phase 3 when Phase 2 is fully `passed`; re-run intake clears Phase 2/3 rows and stale `rfp_approval`/`rfp_drafting` locks.
+- Why: Manual-test hardening — hung LangGraph resume and leftover processing locks made UI appear stuck.
+
 ## RAG / Knowledge (earlier)
 
 - Decision: CLI `scripts/seed_knowledge_base.py` is primary indexer; API startup no-ops if collection populated, seeds once if empty + `LLM_API_KEY` set.

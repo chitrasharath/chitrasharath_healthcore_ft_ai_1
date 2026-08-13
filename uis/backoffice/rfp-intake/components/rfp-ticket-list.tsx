@@ -7,7 +7,9 @@ type Props = {
   selectedId: string | null;
   onSelect: (ticketId: string) => void;
   onStartDraft?: (ticketId: string) => void;
+  onDelete?: (ticketId: string) => void;
   draftingId?: string | null;
+  busy?: boolean;
 };
 
 export const RfpTicketList = ({
@@ -15,7 +17,9 @@ export const RfpTicketList = ({
   selectedId,
   onSelect,
   onStartDraft,
+  onDelete,
   draftingId,
+  busy,
 }: Props) => (
   <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
     {tickets.length === 0 ? (
@@ -42,16 +46,28 @@ export const RfpTicketList = ({
                 : ""}
             </span>
           </button>
-          {ticket.status === "intake_complete" && onStartDraft ? (
-            <button
-              type="button"
-              disabled={draftingId === ticket.ticket_id}
-              className="self-center whitespace-nowrap rounded bg-sky-700 px-2 py-1 text-xs text-white disabled:opacity-50"
-              onClick={() => onStartDraft(ticket.ticket_id)}
-            >
-              Start drafting
-            </button>
-          ) : null}
+          <div className="flex flex-col justify-center gap-1">
+            {ticket.status === "intake_complete" && onStartDraft ? (
+              <button
+                type="button"
+                disabled={draftingId === ticket.ticket_id}
+                className="whitespace-nowrap rounded bg-sky-700 px-2 py-1 text-xs text-white disabled:opacity-50"
+                onClick={() => onStartDraft(ticket.ticket_id)}
+              >
+                Start drafting
+              </button>
+            ) : null}
+            {onDelete ? (
+              <button
+                type="button"
+                disabled={busy}
+                className="whitespace-nowrap rounded border border-rose-300 px-2 py-1 text-xs text-rose-800 disabled:opacity-50"
+                onClick={() => onDelete(ticket.ticket_id)}
+              >
+                Delete
+              </button>
+            ) : null}
+          </div>
         </li>
       ))
     )}

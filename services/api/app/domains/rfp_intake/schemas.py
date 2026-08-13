@@ -34,6 +34,10 @@ class DepartmentSectionOut(BaseModel):
     iteration: int = 0
     latest_evaluation_id: int | None = None
     evaluation_history: list[EvaluationResultOut] = Field(default_factory=list)
+    approval_status: str | None = None
+    approver: str | None = None
+    approved_at: datetime | None = None
+    approval_iteration: int = 0
 
 
 class RfpMetadataOut(BaseModel):
@@ -68,6 +72,7 @@ class TicketSummary(BaseModel):
     job_status: str | None = None
     sections_needing_review: int = 0
     phase2_complete: bool = False
+    phase2_all_passed: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -83,10 +88,15 @@ class TicketDetail(BaseModel):
     job_error: str | None = None
     sections_needing_review: int = 0
     phase2_complete: bool = False
+    phase2_all_passed: bool = False
+    approval_iterations_total: int = 0
+    final_document_available: bool = False
+    from_run_all: bool = False
     created_at: datetime
     updated_at: datetime
     metadata: RfpMetadataOut | None = None
     sections: list[DepartmentSectionOut] = Field(default_factory=list)
+    arbitration_records: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class RerunAccepted(BaseModel):
@@ -114,3 +124,39 @@ class ReleaseRedactedAccepted(BaseModel):
     status: str
     phi_cleared: bool
     message: str = "PHI redacted"
+
+
+class ApprovalAccepted(BaseModel):
+    ticket_id: str
+    status: str
+    message: str = "approval enqueued"
+
+
+class DecisionAccepted(BaseModel):
+    ticket_id: str
+    department_id: str
+    decision: str
+    status: str
+    message: str = "decision applied"
+
+
+class RunAllAccepted(BaseModel):
+    ticket_id: str
+    rfp_id: str
+    status: str
+    message: str = "run-all enqueued"
+
+
+class FinalDocumentOut(BaseModel):
+    ticket_id: str
+    currency: str
+    generated_at: datetime
+    rendered_markdown: str | None = None
+    pdf_available: bool = False
+    sections: list[Any] | None = None
+
+
+class DepartmentDecisionBody(BaseModel):
+    decision: str
+    approver: str
+    reason: str | None = None

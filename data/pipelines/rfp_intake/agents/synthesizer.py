@@ -67,7 +67,7 @@ def synthesize(
     }
     try:
         data = chat_json(_SYSTEM, json.dumps(payload, ensure_ascii=True)[:10000])
-    except (LlmConfigError, LlmCallError):
+    except (LlmConfigError, LlmCallError, ValueError, TypeError, json.JSONDecodeError):
         data = _fallback_summary(metadata, worker_results, open_questions, conflict_flags)
 
     flags = data.get("conflict_flags") or []

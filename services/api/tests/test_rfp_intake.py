@@ -14,6 +14,9 @@ from app.domains.jobs.models import JobRun  # noqa: F401
 from app.domains.rfp_intake.models import (  # noqa: F401
     DepartmentSection,
     EvaluationResult,
+    FinalDocument,
+    RfpArbitrationRecord,
+    RfpExecutionLog,
     RfpMetadata,
     Ticket,
 )
@@ -244,3 +247,96 @@ def test_redraft_only_needs_human_review(rfp_client: TestClient):
         )
     assert ok.status_code == 202
     bg.assert_called_once()
+
+
+def test_send_for_approval_requires_all_passed(rfp_client: TestClient):
+    from sqlmodel import select
+
+    with patch("app.domains.rfp_intake.service._run_background"):
+        uploaded = rfp_client.post(
+            "/api/v1/rfp-intake/uploads",
+            files={"file": ("rfp.pdf", io.BytesIO(_tiny_pdf()), "application/pdf")},
+        )
+    ticket_id = uploaded.json()["ticket_id"]
+    _seed_intake_complete(ticket_id)
+    with Session(test_engine) as session:
+        ticket = session.get(Ticket, ticket_id)
+        assert ticket is not None
+        ticket.status = "under_evaluation"
+        session.add(ticket)
+        for section in session.exec(
+            select(DepartmentSection).where(DepartmentSection.ticket_id == ticket_id)
+        ).all():
+            section.status = "passed"
+            session.add(section)
+        session.commit()
+
+    with patch("app.domains.rfp_intake.service._run_approval_background") as bg:
+        response = rfp_client.post(
+            f"/api/v1/rfp-intake/tickets/{ticket_id}/send-for-approval"
+        )
+    assert response.status_code == 202
+    bg.assert_called_once()
+
+
+def test_run_all_from_pdf_enqueues(rfp_client: TestClient):
+    with patch("app.domains.rfp_intake.service._run_all_background") as bg:
+        response = rfp_client.post(
+            "/api/v1/rfp-intake/run-all",
+            files={"file": ("rfp.pdf", io.BytesIO(_tiny_pdf()), "application/pdf")},
+        )
+    assert response.status_code == 202
+    assert "ticket_id" in response.json()
+    bg.assert_called_once()
+
+
+def test_decision_validates_owner(rfp_client: TestClient):
+    from sqlmodel import select
+
+    with patch("app.domains.rfp_intake.service._run_background"):
+        uploaded = rfp_client.post(
+            "/api/v1/rfp-intake/uploads",
+            files={"file": ("rfp.pdf", io.BytesIO(_tiny_pdf()), "application/pdf")},
+        )
+    ticket_id = uploaded.json()["ticket_id"]
+    _seed_intake_complete(ticket_id)
+    with Session(test_engine) as session:
+        ticket = session.get(Ticket, ticket_id)
+        assert ticket is not None
+        ticket.status = "waiting_for_approval"
+        session.add(ticket)
+        for section in session.exec(
+            select(DepartmentSection).where(DepartmentSection.ticket_id == ticket_id)
+        ).all():
+            section.status = "passed"
+            section.approval_status = "pending"
+            session.add(section)
+        session.commit()
+
+    bad = rfp_client.post(
+        f"/api/v1/rfp-intake/tickets/{ticket_id}/departments/revenue/decision",
+        json={
+            "decision": "approve",
+            "approver": "Claire Whitfield",
+        },
+    )
+    assert bad.status_code == 400
+
+
+def test_delete_ticket(rfp_client: TestClient):
+    with patch("app.domains.rfp_intake.service._run_background"):
+        uploaded = rfp_client.post(
+            "/api/v1/rfp-intake/uploads",
+            files={"file": ("rfp.pdf", io.BytesIO(_tiny_pdf()), "application/pdf")},
+        )
+    ticket_id = uploaded.json()["ticket_id"]
+    _seed_intake_complete(ticket_id)
+
+    deleted = rfp_client.delete(f"/api/v1/rfp-intake/tickets/{ticket_id}")
+    assert deleted.status_code == 204
+
+    missing = rfp_client.get(f"/api/v1/rfp-intake/tickets/{ticket_id}")
+    assert missing.status_code == 404
+
+    again = rfp_client.delete(f"/api/v1/rfp-intake/tickets/{ticket_id}")
+    assert again.status_code == 404

@@ -102,6 +102,7 @@ class DepartmentSection(SQLModel, table=True):
         default=None,
         sa_column=Column(sa.DateTime(timezone=True), nullable=True),
     )
+    approval_iteration: int = Field(default=0)
 
 
 class EvaluationResult(SQLModel, table=True):
@@ -130,6 +131,63 @@ class EvaluationResult(SQLModel, table=True):
         default=None,
         sa_column=Column(sa.Text, nullable=True),
     )
+    created_at: datetime = Field(
+        sa_column=Column(sa.DateTime(timezone=True), nullable=False),
+    )
+
+
+class FinalDocument(SQLModel, table=True):
+    __tablename__ = "rfp_final_documents"
+
+    ticket_id: str = Field(primary_key=True, foreign_key="rfp_tickets.ticket_id")
+    sections: list[Any] | None = Field(
+        default=None,
+        sa_column=Column(sa.JSON, nullable=True),
+    )
+    currency: str = Field(default="USD")
+    generated_at: datetime = Field(
+        sa_column=Column(sa.DateTime(timezone=True), nullable=False),
+    )
+    rendered_markdown: str | None = Field(
+        default=None,
+        sa_column=Column(sa.Text, nullable=True),
+    )
+    pdf_path: str | None = None
+
+
+class RfpExecutionLog(SQLModel, table=True):
+    __tablename__ = "rfp_execution_logs"
+
+    id: int | None = Field(default=None, primary_key=True)
+    ticket_id: str = Field(foreign_key="rfp_tickets.ticket_id", index=True)
+    agent: str = Field(index=True)
+    input: dict[str, Any] | None = Field(
+        default=None,
+        sa_column=Column(sa.JSON, nullable=True),
+    )
+    output: dict[str, Any] | None = Field(
+        default=None,
+        sa_column=Column(sa.JSON, nullable=True),
+    )
+    timestamp: datetime = Field(
+        sa_column=Column(sa.DateTime(timezone=True), nullable=False),
+    )
+    department_id: str | None = Field(default=None, index=True)
+    trigger_id: str | None = None
+
+
+class RfpArbitrationRecord(SQLModel, table=True):
+    __tablename__ = "rfp_arbitration_records"
+
+    id: int | None = Field(default=None, primary_key=True)
+    ticket_id: str = Field(foreign_key="rfp_tickets.ticket_id", index=True)
+    trigger_id: str = Field(index=True)
+    arbiter: str
+    forced_action: dict[str, Any] | None = Field(
+        default=None,
+        sa_column=Column(sa.JSON, nullable=True),
+    )
+    resolved: bool = False
     created_at: datetime = Field(
         sa_column=Column(sa.DateTime(timezone=True), nullable=False),
     )

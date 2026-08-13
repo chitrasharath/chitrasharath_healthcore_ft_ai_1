@@ -102,13 +102,18 @@ def run_drafting(
         if run is None:
             from datetime import date
 
+            lock_key = f"{ticket_id}:{department_id}" if department_id else ticket_id
             job_runner.reclaim_stale_locks(session, JOB_NAME)
-            if job_runner.has_processing_lock_for_key(session, JOB_NAME, ticket_id):
+            if job_runner.has_processing_lock_for_key(session, JOB_NAME, lock_key):
+                raise RuntimeError(f"processing lock held for {lock_key}")
+            if department_id and job_runner.has_processing_lock_for_key(
+                session, JOB_NAME, ticket_id
+            ):
                 raise RuntimeError(f"processing lock held for ticket {ticket_id}")
             run = job_runner.create_pending_for_key(
                 session,
                 JOB_NAME,
-                ticket_id,
+                lock_key,
                 date.today(),
             )
             session.commit()

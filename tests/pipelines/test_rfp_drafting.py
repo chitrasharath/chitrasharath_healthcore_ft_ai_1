@@ -286,6 +286,6 @@ def test_rollup_non_blocking_logic():
         ),
         DepartmentSection(ticket_id="t", department_id="compliance", status="passed"),
     ]
-    needing, complete = phase2_rollup(sections)
+    needing, complete, _ = phase2_rollup(sections)
     assert needing == 1
     assert complete is True

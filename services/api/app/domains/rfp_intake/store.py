@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import Any
 
@@ -8,6 +9,9 @@ from sqlmodel import Session, select
 from app.domains.rfp_intake.models import (
     DepartmentSection,
     EvaluationResult,
+    FinalDocument,
+    RfpArbitrationRecord,
+    RfpExecutionLog,
     RfpMetadata,
     Ticket,
 )
@@ -18,6 +22,8 @@ from app.domains.rfp_intake.schemas import (
     TicketDetail,
     TicketSummary,
 )
+
+logger = logging.getLogger(__name__)
 
 PREVIEW_CHARS = 800
 TERMINAL_SECTION_STATUSES = frozenset({"passed", "needs_human_review"})
@@ -48,6 +54,53 @@ def list_tickets(session: Session) -> list[Ticket]:
 def list_sections(session: Session, ticket_id: str) -> list[DepartmentSection]:
     statement = select(DepartmentSection).where(DepartmentSection.ticket_id == ticket_id)
     return list(session.exec(statement).all())
+
+
+def delete_ticket(session: Session, ticket_id: str) -> Ticket | None:
+    """Delete a ticket and related RFP rows. Returns the removed ticket (for path cleanup)."""
+    ticket = get_ticket(session, ticket_id)
+    if ticket is None:
+        return None
+
+    # Clear FK from sections → evaluation results before deleting evaluations
+    for section in list_sections(session, ticket_id):
+        section.latest_evaluation_id = None
+        session.add(section)
+    session.flush()
+
+    for row in session.exec(
+        select(EvaluationResult).where(EvaluationResult.ticket_id == ticket_id)
+    ).all():
+        session.delete(row)
+    for row in list_sections(session, ticket_id):
+        session.delete(row)
+    for row in session.exec(
+        select(RfpExecutionLog).where(RfpExecutionLog.ticket_id == ticket_id)
+    ).all():
+        session.delete(row)
+    for row in session.exec(
+        select(RfpArbitrationRecord).where(RfpArbitrationRecord.ticket_id == ticket_id)
+    ).all():
+        session.delete(row)
+
+    final_doc = session.get(FinalDocument, ticket_id)
+    if final_doc is not None:
+        session.delete(final_doc)
+    meta = session.get(RfpMetadata, ticket_id)
+    if meta is not None:
+        session.delete(meta)
+
+    try:
+        from app.domains.jobs.models import JobRun
+
+        for run in session.exec(select(JobRun).where(JobRun.target_key == ticket_id)).all():
+            session.delete(run)
+    except Exception as exc:
+        logger.warning("job_runs cleanup skipped for %s: %s", ticket_id, exc)
+
+    session.delete(ticket)
+    session.flush()
+    return ticket
 
 
 def create_ticket(
@@ -162,12 +215,77 @@ def reset_section_for_redraft(
     return section
 
 
-def phase2_rollup(sections: list[DepartmentSection]) -> tuple[int, bool]:
+def clear_phase2_and_phase3_state(session: Session, ticket_id: str) -> None:
+    """Wipe drafting/approval artifacts so a re-run intake starts clean."""
+    from datetime import datetime, timezone
+
+    from app.domains.jobs.models import JobRun
+
+    for section in list_sections(session, ticket_id):
+        section.latest_evaluation_id = None
+        session.add(section)
+    session.flush()
+
+    for row in session.exec(
+        select(EvaluationResult).where(EvaluationResult.ticket_id == ticket_id)
+    ).all():
+        session.delete(row)
+
+    for section in list_sections(session, ticket_id):
+        section.key_aspects = None
+        section.draft_content = None
+        section.evaluation_results = None
+        section.status = None
+        section.iteration = 0
+        section.approval_status = None
+        section.approver = None
+        section.approved_at = None
+        section.approval_iteration = 0
+        session.add(section)
+
+    for row in session.exec(
+        select(RfpArbitrationRecord).where(RfpArbitrationRecord.ticket_id == ticket_id)
+    ).all():
+        session.delete(row)
+
+    final_doc = session.get(FinalDocument, ticket_id)
+    if final_doc is not None:
+        session.delete(final_doc)
+
+    meta = session.get(RfpMetadata, ticket_id)
+    if meta is not None:
+        meta.sales_summary = None
+        session.add(meta)
+
+    # Drop stale processing locks (esp. rfp_approval) left from a prior Phase 3 start
+    now = datetime.now(timezone.utc)
+    for run in session.exec(
+        select(JobRun).where(
+            JobRun.target_key.like(f"{ticket_id}%"),  # type: ignore[arg-type]
+            JobRun.status.in_(["pending", "processing"]),  # type: ignore[attr-defined]
+        )
+    ).all():
+        if run.job_name not in (
+            "rfp_drafting",
+            "rfp_approval",
+            "rfp_run_all",
+        ):
+            continue
+        run.status = "failed"
+        run.finished_at = now
+        run.error_message = "superseded by intake re-run"
+        session.add(run)
+
+    session.flush()
+
+
+def phase2_rollup(sections: list[DepartmentSection]) -> tuple[int, bool, bool]:
     needing = sum(1 for s in sections if s.status == "needs_human_review")
     if not sections:
-        return 0, False
+        return 0, False, False
     complete = all((s.status or "") in TERMINAL_SECTION_STATUSES for s in sections)
-    return needing, complete
+    all_passed = all((s.status or "") == "passed" for s in sections)
+    return needing, complete, all_passed
 
 
 def set_ticket_status(
@@ -178,11 +296,16 @@ def set_ticket_status(
     classifier_reason: str | None = None,
     needs_human_review: bool | None = None,
 ) -> None:
+    from data.pipelines.rfp_intake.transitions import assert_can_transition
+
+    assert_can_transition(ticket.status, status)
     ticket.status = status
     if classifier_reason is not None:
         ticket.classifier_reason = classifier_reason
     if needs_human_review is not None:
         ticket.needs_human_review = needs_human_review
+    elif status in ("waiting_for_approval", "done", "under_evaluation", "intake_complete"):
+        ticket.needs_human_review = False
     ticket.updated_at = _utcnow()
     session.add(ticket)
     session.flush()
@@ -195,7 +318,7 @@ def to_summary(
     job_status: str | None = None,
     sections: list[DepartmentSection] | None = None,
 ) -> TicketSummary:
-    needing, phase2_done = phase2_rollup(sections or [])
+    needing, phase2_done, all_passed = phase2_rollup(sections or [])
     return TicketSummary(
         ticket_id=ticket.ticket_id,
         rfp_id=ticket.rfp_id,
@@ -208,6 +331,7 @@ def to_summary(
         job_status=job_status,
         sections_needing_review=needing,
         phase2_complete=phase2_done,
+        phase2_all_passed=all_passed,
         created_at=ticket.created_at,
         updated_at=ticket.updated_at,
     )
@@ -259,7 +383,7 @@ def to_detail(
             classifier_result=meta.classifier_result,
             markdown_preview=preview,
         )
-    needing, phase2_done = phase2_rollup(sections)
+    needing, phase2_done, all_passed = phase2_rollup(sections)
     evals_by_dept: dict[str, list[EvaluationResultOut]] = {}
     for row in evaluations or []:
         evals_by_dept.setdefault(row.department_id, []).append(_eval_out(row))
@@ -281,8 +405,15 @@ def to_detail(
                 iteration=s.iteration or 0,
                 latest_evaluation_id=s.latest_evaluation_id,
                 evaluation_history=evals_by_dept.get(s.department_id, []),
+                approval_status=s.approval_status,
+                approver=s.approver,
+                approved_at=s.approved_at,
+                approval_iteration=getattr(s, "approval_iteration", 0) or 0,
             )
         )
+    approval_iterations_total = sum(
+        (getattr(s, "approval_iteration", 0) or 0) for s in sections
+    )
     return TicketDetail(
         ticket_id=ticket.ticket_id,
         rfp_id=ticket.rfp_id,
@@ -294,8 +425,11 @@ def to_detail(
         job_error=job_error,
         sections_needing_review=needing,
         phase2_complete=phase2_done,
+        phase2_all_passed=all_passed,
+        approval_iterations_total=approval_iterations_total,
         created_at=ticket.created_at,
         updated_at=ticket.updated_at,
         metadata=metadata_out,
         sections=section_outs,
+        final_document_available=False,
     )

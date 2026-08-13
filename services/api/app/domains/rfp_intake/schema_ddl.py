@@ -1,4 +1,4 @@
-"""Idempotent DDL for Phase 2 DepartmentSection columns."""
+"""Idempotent DDL for Phase 2/3 DepartmentSection columns."""
 
 from __future__ import annotations
 
@@ -12,11 +12,12 @@ _SECTION_COLS: tuple[tuple[str, str], ...] = (
     ("status", "VARCHAR"),
     ("iteration", "INTEGER DEFAULT 0"),
     ("latest_evaluation_id", "INTEGER"),
+    ("approval_iteration", "INTEGER DEFAULT 0"),
 )
 
 
 def ensure_rfp_phase2_columns(engine: Engine) -> None:
-    """Add Phase 2 section columns if missing (create_all does not ALTER)."""
+    """Add Phase 2/3 section columns if missing (create_all does not ALTER)."""
     with engine.begin() as conn:
         if engine.dialect.name == "sqlite":
             cols = {
@@ -50,4 +51,4 @@ def ensure_rfp_phase2_columns(engine: Engine) -> None:
                         "ON rfp_department_sections (status)"
                     )
                 )
-    logger.info("Ensured rfp_department_sections Phase 2 columns")
+    logger.info("Ensured rfp_department_sections Phase 2/3 columns")
