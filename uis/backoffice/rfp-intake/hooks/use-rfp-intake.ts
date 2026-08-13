@@ -29,7 +29,7 @@ const isActive = (status: string, jobStatus?: string | null, review?: boolean) =
 
 export function useRfpIntake() {
   const [tickets, setTickets] = useState<TicketSummary[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedIdState] = useState<string | null>(null);
   const [detail, setDetail] = useState<TicketDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -40,6 +40,51 @@ export function useRfpIntake() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const autoDownloaded = useRef<Set<string>>(new Set());
   const autoPhase3 = useRef<Set<string>>(new Set());
+  const statusClearTimer = useRef<number | null>(null);
+
+  const cancelStatusTimer = useCallback(() => {
+    if (statusClearTimer.current != null) {
+      window.clearTimeout(statusClearTimer.current);
+      statusClearTimer.current = null;
+    }
+  }, []);
+
+  /** Clear error + status board, then show the new action message. */
+  const beginAction = useCallback(
+    (message: string) => {
+      cancelStatusTimer();
+      setError(null);
+      setStatusMessage(message);
+    },
+    [cancelStatusTimer],
+  );
+
+  const clearBoard = useCallback(() => {
+    cancelStatusTimer();
+    setError(null);
+    setStatusMessage(null);
+  }, [cancelStatusTimer]);
+
+  const flashStatus = useCallback(
+    (message: string, clearAfterMs = 3000) => {
+      cancelStatusTimer();
+      setError(null);
+      setStatusMessage(message);
+      statusClearTimer.current = window.setTimeout(() => {
+        setStatusMessage(null);
+        statusClearTimer.current = null;
+      }, clearAfterMs);
+    },
+    [cancelStatusTimer],
+  );
+
+  const setSelectedId = useCallback(
+    (id: string | null) => {
+      clearBoard();
+      setSelectedIdState(id);
+    },
+    [clearBoard],
+  );
 
   const refreshList = useCallback(async () => {
     setTickets(await listTickets());
@@ -52,6 +97,12 @@ export function useRfpIntake() {
   useEffect(() => {
     void refreshList().catch((err: Error) => setError(err.message));
   }, [refreshList]);
+
+  useEffect(() => {
+    return () => {
+      cancelStatusTimer();
+    };
+  }, [cancelStatusTimer]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -95,7 +146,7 @@ export function useRfpIntake() {
     if (detail.status !== "under_evaluation" && detail.status !== "drafting") return;
     if (autoPhase3.current.has(detail.ticket_id)) return;
     autoPhase3.current.add(detail.ticket_id);
-    setStatusMessage("Phase 2 complete — starting Phase 3 approvals…");
+    beginAction("Phase 2 complete — starting Phase 3 approvals…");
     void (async () => {
       try {
         await sendForApproval(detail.ticket_id);
@@ -104,31 +155,35 @@ export function useRfpIntake() {
         setStatusMessage("Phase 3 started — waiting for department approvals.");
       } catch (err) {
         autoPhase3.current.delete(detail.ticket_id);
-        setError(err instanceof Error ? err.message : "Auto Phase 3 failed");
         setStatusMessage(null);
+        setError(err instanceof Error ? err.message : "Auto Phase 3 failed");
       }
     })();
-  }, [detail, refreshList, refreshDetail]);
+  }, [detail, refreshList, refreshDetail, beginAction]);
 
   const refreshAll = useCallback(async () => {
-    setError(null);
+    beginAction("Refreshing…");
     try {
       await refreshList();
       if (selectedId) await refreshDetail(selectedId);
+      flashStatus("Refreshed.");
     } catch (err) {
+      setStatusMessage(null);
       setError(err instanceof Error ? err.message : "Refresh failed");
     }
-  }, [refreshList, refreshDetail, selectedId]);
+  }, [refreshList, refreshDetail, selectedId, beginAction, flashStatus]);
 
   const upload = async (file: File) => {
     setUploading(true);
-    setError(null);
+    beginAction(`Uploading ${file.name} (Phase 1)…`);
     try {
       const accepted = await uploadRfpPdf(file);
-      setSelectedId(accepted.ticket_id);
+      setSelectedIdState(accepted.ticket_id);
       await refreshList();
       await refreshDetail(accepted.ticket_id);
+      setStatusMessage("Phase 1 intake started.");
     } catch (err) {
+      setStatusMessage(null);
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setUploading(false);
@@ -137,13 +192,15 @@ export function useRfpIntake() {
 
   const runAll = async (file: File) => {
     setUploading(true);
-    setError(null);
+    beginAction(`Run all started for ${file.name}…`);
     try {
       const accepted = await runAllFromPdf(file);
-      setSelectedId(accepted.ticket_id);
+      setSelectedIdState(accepted.ticket_id);
       await refreshList();
       await refreshDetail(accepted.ticket_id);
+      setStatusMessage("Run all queued — phases will advance automatically.");
     } catch (err) {
+      setStatusMessage(null);
       setError(err instanceof Error ? err.message : "Run all failed");
     } finally {
       setUploading(false);
@@ -153,11 +210,11 @@ export function useRfpIntake() {
   const rerun = async () => {
     if (!selectedId) return;
     setBusy(true);
-    setError(null);
-    setStatusMessage("Re-running intake…");
+    beginAction("Re-running intake…");
     try {
       await rerunTicket(selectedId);
-      await refreshAll();
+      await refreshList();
+      await refreshDetail(selectedId);
       setStatusMessage("Intake re-run queued.");
     } catch (err) {
       setStatusMessage(null);
@@ -171,12 +228,11 @@ export function useRfpIntake() {
     const id = ticketId || selectedId;
     if (!id) return;
     setDrafting(true);
-    setError(null);
-    setStatusMessage(
+    beginAction(
       continueToApproval ? "Drafting and sending for approval…" : "Starting drafting…",
     );
     try {
-      setSelectedId(id);
+      setSelectedIdState(id);
       await startDrafting(id, { continueToApproval });
       await refreshList();
       await refreshDetail(id);
@@ -194,11 +250,11 @@ export function useRfpIntake() {
   const runPhase3 = async () => {
     if (!selectedId) return;
     setBusy(true);
-    setError(null);
-    setStatusMessage("Starting Phase 3 approvals…");
+    beginAction("Starting Phase 3 approvals…");
     try {
       const result = await sendForApproval(selectedId);
-      await refreshAll();
+      await refreshList();
+      await refreshDetail(selectedId);
       setStatusMessage(
         result.message === "already in approval"
           ? "Already waiting for approvals."
@@ -221,15 +277,15 @@ export function useRfpIntake() {
     if (!selectedId) return;
     setBusy(true);
     setBusyDept(departmentId);
-    setError(null);
-    setStatusMessage(
+    beginAction(
       decision === "approve"
         ? `Approving ${departmentId}…`
         : `Rejecting ${departmentId}…`,
     );
     try {
       await submitDecision(selectedId, departmentId, { decision, approver, reason });
-      await refreshAll();
+      await refreshList();
+      await refreshDetail(selectedId);
       setStatusMessage(
         decision === "approve"
           ? `${departmentId} approved.`
@@ -247,19 +303,19 @@ export function useRfpIntake() {
   const redraft = async (departmentId: string) => {
     if (!selectedId) return;
     if (busyDepts.includes(departmentId)) {
-      setStatusMessage(`Already re-drafting ${departmentId}…`);
+      beginAction(`Already re-drafting ${departmentId}…`);
       return;
     }
     setBusyDepts((prev) => [...prev, departmentId]);
-    setError(null);
-    setStatusMessage(`Re-drafting ${departmentId}…`);
+    beginAction(`Re-drafting ${departmentId}…`);
     try {
       await redraftSection(selectedId, departmentId);
-      await refreshAll();
+      await refreshList();
+      await refreshDetail(selectedId);
       setStatusMessage(`Re-draft started for ${departmentId}.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Re-draft failed");
       setStatusMessage(null);
+      setError(err instanceof Error ? err.message : "Re-draft failed");
     } finally {
       setBusyDepts((prev) => prev.filter((d) => d !== departmentId));
     }
@@ -268,15 +324,15 @@ export function useRfpIntake() {
   const releaseRedacted = async (departmentId: string) => {
     if (!selectedId) return;
     if (busyDepts.includes(departmentId)) {
-      setStatusMessage(`${departmentId} is busy — try again in a moment.`);
+      beginAction(`${departmentId} is busy — try again in a moment.`);
       return;
     }
     setBusyDepts((prev) => [...prev, departmentId]);
-    setError(null);
-    setStatusMessage(`Redacting PHI for ${departmentId}…`);
+    beginAction(`Redacting PHI for ${departmentId}…`);
     try {
       await releaseRedactedSection(selectedId, departmentId);
-      await refreshAll();
+      await refreshList();
+      await refreshDetail(selectedId);
       setStatusMessage(`PHI redacted for ${departmentId}.`);
     } catch (err) {
       setStatusMessage(null);
@@ -289,11 +345,10 @@ export function useRfpIntake() {
   const downloadDocs = async () => {
     if (!selectedId) return;
     setBusy(true);
-    setError(null);
-    setStatusMessage("Downloading final documents…");
+    beginAction("Downloading final documents…");
     try {
       await downloadFinalArtifacts(selectedId);
-      setStatusMessage("Download started.");
+      flashStatus("Download started.");
     } catch (err) {
       setStatusMessage(null);
       setError(err instanceof Error ? err.message : "Download failed");
@@ -316,16 +371,15 @@ export function useRfpIntake() {
       return;
     }
     setBusy(true);
-    setError(null);
-    setStatusMessage("Deleting ticket…");
+    beginAction("Deleting ticket…");
     try {
       await deleteTicket(id);
       if (selectedId === id) {
-        setSelectedId(null);
+        setSelectedIdState(null);
         setDetail(null);
       }
       await refreshList();
-      setStatusMessage("Ticket deleted.");
+      flashStatus("Ticket deleted.");
     } catch (err) {
       setStatusMessage(null);
       setError(err instanceof Error ? err.message : "Delete failed");

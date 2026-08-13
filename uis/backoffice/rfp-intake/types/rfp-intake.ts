@@ -28,6 +28,7 @@ export type TicketSummary = {
   sections_needing_review?: number;
   phase2_complete?: boolean;
   phase2_all_passed?: boolean;
+  from_run_all?: boolean;
   created_at: string;
   updated_at: string;
 };

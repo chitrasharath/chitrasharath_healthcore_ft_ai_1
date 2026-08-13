@@ -95,6 +95,11 @@ def run_drafting(
         ticket = store.get_ticket(session, ticket_id)
         if ticket is None:
             raise ValueError(f"ticket not found: {ticket_id}")
+        if ticket.status in ("discarded", "analyzing"):
+            raise RuntimeError(
+                f"Cannot draft ticket in status={ticket.status} "
+                "(must be intake_complete or later)"
+            )
 
         run: JobRun | None = None
         if job_run_id:

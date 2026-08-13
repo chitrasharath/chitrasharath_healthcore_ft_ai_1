@@ -73,6 +73,7 @@ class TicketSummary(BaseModel):
     sections_needing_review: int = 0
     phase2_complete: bool = False
     phase2_all_passed: bool = False
+    from_run_all: bool = False
     created_at: datetime
     updated_at: datetime
 

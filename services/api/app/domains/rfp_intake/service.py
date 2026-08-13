@@ -96,7 +96,26 @@ def _run_drafting_background(
 
 
 def _ticket_has_run_all(session: Session, ticket_id: str) -> bool:
-    return _latest_job(session, ticket_id, RUN_ALL_JOB_NAME) is not None
+    run_all = _latest_job(session, ticket_id, RUN_ALL_JOB_NAME)
+    if run_all is None:
+        return False
+    if (run_all.error_message or "").startswith("superseded by intake re-run"):
+        return False
+    if run_all.status in ("pending", "processing"):
+        return True
+    # A newer intake after run-all finished is a step-by-step re-run
+    intake = _latest_job(session, ticket_id, JOB_NAME)
+    if intake is None or intake.created_at is None:
+        return True
+    run_all_end = run_all.finished_at or run_all.created_at
+    if run_all_end is None:
+        return True
+    try:
+        if intake.created_at > run_all_end:
+            return False
+    except TypeError:
+        return True
+    return True
 
 
 def _sections_all_passed(session: Session, ticket_id: str) -> bool:
@@ -207,6 +226,7 @@ def list_ticket_summaries(session: Session) -> list[TicketSummary]:
                 meta,
                 job_status=job.status if job else None,
                 sections=sections,
+                from_run_all=_ticket_has_run_all(session, ticket.ticket_id),
             )
         )
     return out

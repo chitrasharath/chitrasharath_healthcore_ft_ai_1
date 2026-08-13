@@ -478,6 +478,9 @@ The registry is a **transcription** of the manual-test wiring in `apps/src/main.
 - Decision: Approve/reject is **DB-first** (persist immediately; graph resume best-effort in a daemon thread). Run-all auto-starts Phase 3 when Phase 2 is fully `passed`; re-run intake clears Phase 2/3 rows and stale `rfp_approval`/`rfp_drafting` locks.
 - Why: Manual-test hardening — hung LangGraph resume and leftover processing locks made UI appear stuck.
 
+- Decision: Classifier **discards all non-RFPs** (`is_rfp=false`); human review is only for uncertain *true* RFPs. Run-all drafts only after `intake_complete`. Re-run intake supersedes `rfp_run_all` so step-by-step Start drafting / Run Phase 3 return.
+- Why: Manual-test: vendor PDFs continued past intake; re-run after Run all hid later-phase buttons.
+
 ## RAG / Knowledge (earlier)
 
 - Decision: CLI `scripts/seed_knowledge_base.py` is primary indexer; API startup no-ops if collection populated, seeds once if empty + `LLM_API_KEY` set.

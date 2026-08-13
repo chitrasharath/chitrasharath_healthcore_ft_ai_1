@@ -39,6 +39,7 @@ export const RfpTicketList = ({
             </span>
             <span className="text-slate-600">
               {ticket.status}
+              {ticket.status === "discarded" ? " · not an RFP" : ""}
               {ticket.job_status === "failed" ? " · job failed" : ""}
               {ticket.contains_phi ? " · PHI flagged" : ""}
               {(ticket.sections_needing_review ?? 0) > 0
@@ -47,7 +48,7 @@ export const RfpTicketList = ({
             </span>
           </button>
           <div className="flex flex-col justify-center gap-1">
-            {ticket.status === "intake_complete" && onStartDraft ? (
+            {ticket.status === "intake_complete" && !ticket.from_run_all && onStartDraft ? (
               <button
                 type="button"
                 disabled={draftingId === ticket.ticket_id}

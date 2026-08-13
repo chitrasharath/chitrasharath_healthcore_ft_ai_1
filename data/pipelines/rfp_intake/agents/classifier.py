@@ -63,10 +63,11 @@ def _heuristic_classify(markdown: str) -> dict[str, Any]:
 
 
 def classify_document(markdown: str) -> dict[str, Any]:
+    heuristic = _heuristic_classify(markdown)
     try:
         data = chat_json(_SYSTEM, markdown[:10000])
     except (LlmConfigError, LlmCallError):
-        return _heuristic_classify(markdown)
+        return heuristic
 
     confidence = data.get("confidence")
     try:
@@ -76,7 +77,17 @@ def classify_document(markdown: str) -> dict[str, Any]:
 
     is_rfp = bool(data.get("is_rfp"))
     reason = str(data.get("reason") or "")
-    needs_human_review = confidence_f < CONFIDENCE_THRESHOLD
+
+    # Clear vendor / non-RFP heuristic overrides a soft LLM miss
+    if heuristic.get("is_rfp") is False and not heuristic.get("needs_human_review"):
+        is_rfp = False
+        if confidence_f < CONFIDENCE_THRESHOLD:
+            confidence_f = float(heuristic.get("confidence") or 0.7)
+            reason = str(heuristic.get("reason") or reason)
+
+    # Low confidence only holds *candidate* RFPs for human review — never blocks
+    # a confident (or heuristic) non-RFP discard.
+    needs_human_review = bool(is_rfp) and confidence_f < CONFIDENCE_THRESHOLD
     return {
         "is_rfp": is_rfp,
         "confidence": confidence_f,

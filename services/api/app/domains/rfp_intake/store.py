@@ -276,6 +276,18 @@ def clear_phase2_and_phase3_state(session: Session, ticket_id: str) -> None:
         run.error_message = "superseded by intake re-run"
         session.add(run)
 
+    # Completed run-all jobs must also be superseded so step-by-step buttons return
+    for run in session.exec(
+        select(JobRun).where(
+            JobRun.job_name == "rfp_run_all",
+            JobRun.target_key == ticket_id,
+        )
+    ).all():
+        if (run.error_message or "").startswith("superseded by intake re-run"):
+            continue
+        run.error_message = "superseded by intake re-run"
+        session.add(run)
+
     session.flush()
 
 
@@ -317,6 +329,7 @@ def to_summary(
     *,
     job_status: str | None = None,
     sections: list[DepartmentSection] | None = None,
+    from_run_all: bool = False,
 ) -> TicketSummary:
     needing, phase2_done, all_passed = phase2_rollup(sections or [])
     return TicketSummary(
@@ -332,6 +345,7 @@ def to_summary(
         sections_needing_review=needing,
         phase2_complete=phase2_done,
         phase2_all_passed=all_passed,
+        from_run_all=from_run_all,
         created_at=ticket.created_at,
         updated_at=ticket.updated_at,
     )

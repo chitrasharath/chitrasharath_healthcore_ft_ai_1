@@ -92,12 +92,14 @@ def node_classify(state: RfpIntakeState) -> dict[str, Any]:
     needs_review = bool(result.get("needs_human_review"))
     is_rfp = bool(result.get("is_rfp"))
 
-    if needs_review:
-        status = "analyzing"
-        stop = "human_review"
-    elif not is_rfp:
+    # Discard non-RFPs first; only hold true-but-uncertain RFPs for human review
+    if not is_rfp:
         status = "discarded"
         stop = "discarded"
+        needs_review = False
+    elif needs_review:
+        status = "analyzing"
+        stop = "human_review"
     else:
         status = "analyzing"
         stop = ""
@@ -106,7 +108,7 @@ def node_classify(state: RfpIntakeState) -> dict[str, Any]:
         repo.persist_classifier(
             session,
             state["ticket_id"],
-            result,
+            {**result, "needs_human_review": needs_review},
             status=status,
             needs_human_review=needs_review,
         )
@@ -114,7 +116,7 @@ def node_classify(state: RfpIntakeState) -> dict[str, Any]:
         session.commit()
 
     out: dict[str, Any] = {
-        "classifier": result,
+        "classifier": {**result, "needs_human_review": needs_review},
         "checkpoint": "classified",
     }
     if stop:

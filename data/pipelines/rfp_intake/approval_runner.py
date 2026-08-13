@@ -394,9 +394,22 @@ def run_all_phases(
                 ticket = store.get_ticket(session, ticket_id)
                 if ticket is None:
                     raise ValueError("ticket missing after intake")
-                if ticket.status == "discarded" or (
-                    ticket.status == "analyzing" and ticket.needs_human_review
-                ):
+                if ticket.status == "discarded":
+                    run = session.get(JobRun, UUID(job_uuid))
+                    if run:
+                        run.checkpoint = json.dumps(
+                            {"stage": "halted_discarded", "at": "intake"}
+                        )
+                        job_runner.mark_completed(session, run)
+                        session.commit()
+                    return {
+                        "ticket_id": ticket_id,
+                        "halted": True,
+                        "stage": "intake",
+                        "status": "discarded",
+                        "message": "Not a HealthCore institutional RFP — discarded",
+                    }
+                if ticket.status == "analyzing" and ticket.needs_human_review:
                     run = session.get(JobRun, UUID(job_uuid))
                     if run:
                         run.checkpoint = json.dumps(
@@ -410,8 +423,13 @@ def run_all_phases(
                         "stage": "intake",
                         "status": ticket.status,
                     }
+                if ticket.status != "intake_complete":
+                    raise RuntimeError(
+                        f"Intake did not complete (status={ticket.status}); "
+                        "refusing to start drafting"
+                    )
 
-        # Drafting
+        # Drafting — only after a successful intake_complete
         with Session(engine) as session:
             run = session.get(JobRun, UUID(job_uuid))
             if run:
@@ -419,9 +437,10 @@ def run_all_phases(
                 session.add(run)
                 session.commit()
             ticket = store.get_ticket(session, ticket_id)
-            if ticket and ticket.status == "intake_complete":
-                store.set_ticket_status(session, ticket, "drafting")
-                session.commit()
+            if ticket is None or ticket.status != "intake_complete":
+                raise RuntimeError("Ticket must be intake_complete before drafting")
+            store.set_ticket_status(session, ticket, "drafting")
+            session.commit()
 
         from data.pipelines.rfp_intake.drafting_runner import run_drafting
 

@@ -2,7 +2,7 @@
 
 ## Current Status Summary
 
-The project is organized into milestone-based delivery (M1–M5 **delivered**; **M6 Data Pipeline in progress** — Design/Build on `feature/data_pipeline`; **DEV-53 Background Processing** on `feature/background-processing`; **M7 RAG Knowledge Base implemented on `feature/rag`** — pending live eval with `LLM_API_KEY` + PR; **LangGraph Support Agent delivered on `feature/agent_rag_langgraph`**; **Agent Tools delivered on `feature/agent_tools_langgraph`**; **Company Tools MCP delivered on `feature/agent_mcp_langgraph`**; **Agent Harness / guardrails implemented on `feature/agent_harness`**; **Agent Memory implemented on `feature/agent_memory`**; **M9 Part 1 RFP Intake committed on `feature/rfp-intake`**; **M9 Part 2 RFP Response Generation on `feature/rfp-response-generation`**; **M9 Part 3 Approvals / Final Document implemented on `feature/rfp-approval-completion`** — pending commit/PR).
+The project is organized into milestone-based delivery (M1–M5 **delivered**; **M6 Data Pipeline in progress** — Design/Build on `feature/data_pipeline`; **DEV-53 Background Processing** on `feature/background-processing`; **M7 RAG Knowledge Base implemented on `feature/rag`** — pending live eval with `LLM_API_KEY` + PR; **LangGraph Support Agent delivered on `feature/agent_rag_langgraph`**; **Agent Tools delivered on `feature/agent_tools_langgraph`**; **Company Tools MCP delivered on `feature/agent_mcp_langgraph`**; **Agent Harness / guardrails implemented on `feature/agent_harness`**; **Agent Memory implemented on `feature/agent_memory`**; **M9 Part 1 RFP Intake committed on `feature/rfp-intake`**; **M9 Part 2 RFP Response Generation on `feature/rfp-response-generation`**; **M9 Part 3 Approvals / Final Document on `feature/rfp-approval-completion`** — local commits, PR pending).
 Milestone 4 public portal migration is **delivered** at `uis/website`. Milestone 5 backend and internal ops platform is **delivered** (`services/api`, backoffice landing on :3001, Docker Compose). Legacy `apps/healthcore_web_portal/` and `apps/src` remain unchanged.
 
 ## Major Milestones
@@ -324,7 +324,7 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
 ### Milestone 9 Part 3: Approvals, Arbitration & Final Document (Implemented on `feature/rfp-approval-completion`)
 
 - Goal: per-dept human approval interrupts, deterministic arbitration, final markdown+PDF → `done`.
-- **Status:** Implemented on `feature/rfp-approval-completion` (off `feature/rfp-response-generation`); commit pending.
+- **Status:** Implemented on `feature/rfp-approval-completion` (off `feature/rfp-response-generation`); local commits, PR pending.
 - Spec: `memory-bank/references/multi_agents/SPEC-rfp-intake-phase3.md`
 - Plan: `memory-bank/references/multi_agents/IMPLEMENTATION_PLAN-rfp-intake-phase3.md`
 - **Delivered:**
@@ -334,7 +334,8 @@ FastAPI monolith, JWT auth, internal tool consolidation, inventory, incident man
   - `FinalDocument` + execution log + arbitration records; markdown + PDF (`fpdf2`, formatted not raw MD)
   - APIs: `POST /run-all` (PDF→P1→P2→P3 auto), `send-for-approval`, `decision`, final-document downloads, `DELETE` ticket, `continue_to_approval`
   - Run-all auto-starts Phase 3 when all sections `passed` (incl. after Re-draft); re-run intake clears Phase 2/3 + stale job locks
-  - UI: Run all phases, Run Phase 3, Approve/Reject, delete ticket, action status feedback, concurrent per-dept re-draft
+  - UI: Run all phases, Run Phase 3, Approve/Reject, delete ticket, action status feedback, concurrent per-dept re-draft, hub toolbar + logo
+  - Non-RFP discard (run-all halt); re-run intake restores step-by-step buttons; action messages reset per click
   - Tests: `test_rfp_approval.py`, `test_rfp_approval_graph.py`, extended API tests (incl. delete)
 - **Next:** PR into `feature/rfp-response-generation`
 

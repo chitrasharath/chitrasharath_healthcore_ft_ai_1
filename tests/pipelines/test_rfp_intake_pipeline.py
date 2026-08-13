@@ -113,6 +113,19 @@ def test_classifier_ehr_invalid(mock_chat: MagicMock):
 
 
 @patch("data.pipelines.rfp_intake.agents.classifier.chat_json")
+def test_classifier_non_rfp_low_confidence_still_discards(mock_chat: MagicMock):
+    """is_rfp=false must discard even when confidence is below threshold."""
+    mock_chat.return_value = {
+        "is_rfp": False,
+        "confidence": CONFIDENCE_THRESHOLD - 0.2,
+        "reason": "vendor pitch, uncertain",
+    }
+    result = classify_document(_md("ehr_vendor_pitch.md"))
+    assert result["is_rfp"] is False
+    assert result["needs_human_review"] is False
+
+
+@patch("data.pipelines.rfp_intake.agents.classifier.chat_json")
 def test_classifier_low_confidence_human_review(mock_chat: MagicMock):
     mock_chat.return_value = {
         "is_rfp": True,

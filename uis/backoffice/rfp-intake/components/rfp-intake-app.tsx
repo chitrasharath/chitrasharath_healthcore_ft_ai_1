@@ -1,5 +1,6 @@
 "use client";
 
+import { RfpIntakeHero } from "./rfp-intake-hero";
 import { RfpTicketDetail } from "./rfp-ticket-detail";
 import { RfpTicketList } from "./rfp-ticket-list";
 import { RfpUploadForm } from "./rfp-upload-form";
@@ -33,12 +34,7 @@ export const RfpIntakeApp = () => {
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold text-slate-900">RFP Intake</h1>
-        <p className="text-sm text-slate-600">
-          Upload RFPs, draft sections, run Phase 3 approvals, and download the final proposal.
-        </p>
-      </header>
+      <RfpIntakeHero />
       <RfpUploadForm
         uploading={uploading}
         onUpload={(file) => void upload(file)}

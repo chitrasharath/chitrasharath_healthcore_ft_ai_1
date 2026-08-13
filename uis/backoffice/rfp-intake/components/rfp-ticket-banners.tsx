@@ -8,8 +8,6 @@ export const RfpTicketBanners = ({ detail }: Props) => {
   const needing = detail.sections_needing_review ?? 0;
   const inPhase2 =
     detail.status === "drafting" || detail.status === "under_evaluation";
-  const pastDrafting =
-    detail.status === "waiting_for_approval" || detail.status === "done";
   const sectionPhi =
     inPhase2 &&
     detail.sections.some(
@@ -25,9 +23,15 @@ export const RfpTicketBanners = ({ detail }: Props) => {
           {detail.job_error ? ` ${detail.job_error}` : ""}
         </div>
       ) : null}
-      {detail.status === "analyzing" ? (
+      {detail.status === "analyzing" && !detail.needs_human_review ? (
         <div className="rounded border border-sky-300 bg-sky-50 px-3 py-2 text-sky-950">
           Phase 1 — intake running…
+        </div>
+      ) : null}
+      {detail.status === "discarded" ? (
+        <div className="rounded border border-slate-400 bg-slate-100 px-3 py-2 text-slate-900">
+          Discarded — not a HealthCore institutional RFP.{" "}
+          {detail.classifier_reason || "No proposal request for HealthCore services."}
         </div>
       ) : null}
       {inPhase2 && (detail.metadata?.contains_phi || sectionPhi) ? (
@@ -58,20 +62,13 @@ export const RfpTicketBanners = ({ detail }: Props) => {
           Complete — final proposal is ready to download.
         </div>
       ) : null}
-      {!pastDrafting &&
-      !inPhase2 &&
-      !detail.phase2_complete &&
+      {detail.status !== "discarded" &&
       detail.needs_human_review &&
       needing === 0 &&
       (detail.status === "analyzing" ||
         (detail.classifier_reason || "").toLowerCase().startsWith("job failed")) ? (
         <div className="rounded border border-sky-300 bg-sky-50 px-3 py-2 text-sky-950">
           Human review needed: {detail.classifier_reason || "Review required."}
-        </div>
-      ) : null}
-      {detail.status === "discarded" ? (
-        <div className="rounded border border-slate-300 bg-slate-50 px-3 py-2">
-          Discarded: {detail.classifier_reason || "Not a HealthCore institutional RFP."}
         </div>
       ) : null}
     </>

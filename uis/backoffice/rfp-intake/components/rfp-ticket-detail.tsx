@@ -41,7 +41,8 @@ export const RfpTicketDetail = ({
   busyDepts,
 }: Props) => {
   const meta = detail.metadata;
-  const canDraft = detail.status === "intake_complete" && onStartDraft;
+  const canDraft =
+    detail.status === "intake_complete" && !detail.from_run_all && onStartDraft;
   const canPhase3 =
     Boolean(detail.phase2_all_passed) &&
     detail.status === "under_evaluation" &&
