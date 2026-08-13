@@ -69,7 +69,7 @@ Two families were trained with the same lag/calendar machinery:
 - **Univariate ablation:** Groups A+B only (calendar + revenue lags/rolling + trend). No visits.
 
 Learners compared inside one MLForecast object: RandomForest, XGBoost, ElasticNet.
-Selection uses rolling-origin CV on the **training** window only (`n_windows=3`, `h=12`); the test set is scored once.
+Selection uses rolling-origin CV on the **training** window only (`n_windows=5`, `h=6`); the test set is scored once.
 
 #### CV RMSE by learner (train only — used for model selection)
 
