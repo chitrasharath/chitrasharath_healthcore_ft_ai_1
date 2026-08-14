@@ -12,7 +12,11 @@ from app.domains.agent.memory.fastpath import (
     should_consider_proposing,
 )
 from app.domains.agent.memory.schemas import MemoryEntry, MemoryProposal, MemoryScope
-from app.domains.agent.memory.store import RedisQdrantMemoryStore
+from app.domains.agent.memory.store import (
+    RedisQdrantMemoryStore,
+    get_memory_store,
+    reset_memory_store_for_tests,
+)
 
 
 def test_propose_fastpath_gates():
@@ -24,12 +28,19 @@ def test_propose_fastpath_gates():
     assert should_consider_proposing(
         "FYI — for this clinic, always show inventory as units not cases."
     )
+    assert should_consider_proposing(
+        "FYI - currently we don't have a mask policy"
+    )
+    assert should_consider_proposing(
+        "FYI — for this clinic, there is no mask policy"
+    )
     assert not should_consider_proposing("appointments are delayed today")
     assert not should_consider_proposing(
         "Heads up — appointments are delayed today"
     )
     assert not should_consider_proposing("What is the fee for a referral?")
     assert not should_consider_proposing("What are clinic hours?")
+    assert not should_consider_proposing("What's our mask policy?")
     assert not should_consider_proposing("Any known issues with referrals?")
     assert should_attempt_recall("Any known issues with referrals?")
     assert should_attempt_recall("What are clinic hours?")
@@ -184,3 +195,28 @@ def test_delete_removes_vector(store):
     store.delete(scope, "m-1")
     assert "m-1" not in store._qdrant.points
     assert store.list(scope) == []
+
+
+def test_get_memory_store_warns_once_when_redis_down(monkeypatch, caplog):
+    import logging
+
+    import redis as redis_lib
+
+    reset_memory_store_for_tests()
+    monkeypatch.setattr(
+        "app.core.config.settings.memory_enabled", True, raising=False
+    )
+
+    def _boom(*_args, **_kwargs):
+        raise redis_lib.ConnectionError("Error 111 connecting to localhost:6379.")
+
+    monkeypatch.setattr(redis_lib.Redis, "from_url", staticmethod(_boom))
+    with caplog.at_level(logging.WARNING, logger="app.domains.agent.memory.store"):
+        assert get_memory_store() is None
+        assert get_memory_store() is None
+    warnings = [
+        r for r in caplog.records if "Memory store unavailable" in r.getMessage()
+    ]
+    assert len(warnings) == 1
+    assert warnings[0].levelno == logging.WARNING
+    reset_memory_store_for_tests()

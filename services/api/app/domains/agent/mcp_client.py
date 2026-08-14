@@ -194,8 +194,8 @@ def run_incident_via_mcp(
             "error": None,
             "empty": empty,
         }
-    except Exception:
-        logger.warning("Incident MCP call failed", exc_info=True)
+    except Exception as exc:
+        logger.warning("Incident MCP call failed (%s)", exc)
         return {
             "source": "incident_tool",
             "ok": False,
@@ -244,8 +244,8 @@ def run_inventory_via_mcp(
             "error": None,
             "empty": empty,
         }
-    except Exception:
-        logger.warning("Inventory MCP call failed", exc_info=True)
+    except Exception as exc:
+        logger.warning("Inventory MCP call failed (%s)", exc)
         return {
             "source": "inventory_tool",
             "ok": False,

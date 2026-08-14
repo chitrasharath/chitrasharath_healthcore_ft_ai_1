@@ -4,7 +4,17 @@ from __future__ import annotations
 
 import re
 
-# Signals the user is volunteering durable ops knowledge.
+# Explicit "please remember this" cues — these beat lookup keywords like "policy".
+_VOLUNTEER_CUES = re.compile(
+    r"\b("
+    r"heads\s+up|fyi|remember|always|from\s+now\s+on|prefer|preference|"
+    r"note\s+that|keep\s+in\s+mind|tell\s+(people|staff|them)|"
+    r"locally|for\s+this\s+clinic|our\s+clinic"
+    r")\b",
+    re.I,
+)
+
+# Signals the user is volunteering durable ops knowledge (cues + content).
 _PROPOSE_HINTS = re.compile(
     r"\b("
     r"heads\s+up|fyi|remember|always|from\s+now\s+on|prefer|preference|"
@@ -22,10 +32,12 @@ _PROPOSE_HINTS = re.compile(
 )
 
 # Same-day / temporary status — not durable memory.
+# Avoid "currently" / "right now" / "at the moment": staff often use those for
+# standing clinic facts ("currently we don't have a mask policy").
 _EPHEMERAL = re.compile(
     r"\b("
     r"today|tonight|this\s+(morning|afternoon|evening|week)|"
-    r"right\s+now|currently|at\s+the\s+moment|just\s+now|"
+    r"just\s+now|"
     r"running\s+late|delayed|behind\s+schedule"
     r")\b",
     re.I,
@@ -71,8 +83,11 @@ def should_consider_proposing(question: str, answer: str = "") -> bool:
     q = (question or "").strip()
     if len(q) < 12:
         return False
+    volunteering = bool(_VOLUNTEER_CUES.search(q))
     # Lookups win first so "What are clinic hours?" does not propose.
-    if _LOOKUP_OR_CHAT.search(q):
+    # Explicit volunteering (FYI / heads up / remember) beats lookup keywords
+    # like "policy" so "FYI — we don't have a mask policy" can still propose.
+    if _LOOKUP_OR_CHAT.search(q) and not volunteering:
         return False
     # "appointments are delayed today" — temporary, not memory-worthy.
     if _EPHEMERAL.search(q) and not _DURABLE_OVERRIDE.search(q):

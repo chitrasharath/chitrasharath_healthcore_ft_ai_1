@@ -67,6 +67,13 @@ _SITE_ID_RE = re.compile(
     r"\b(?:clinic|site|branch|location)\s*#?\s*\d+\b",
     re.I,
 )
+_CLEAR_HEALTHCORE_DOMAIN_RE = re.compile(
+    r"\b(?:healthcore|insurance|coverage|medicaid|medicare|appointment|"
+    r"cancel(?:lation)?|no[-\s]?show|fees?|referrals?|new\s+patients?|"
+    r"clinic\s+hours?|incident|ticket|inventory|stock|supplies?|"
+    r"masks?|gloves?|syringes?|ppe)\b",
+    re.I,
+)
 
 
 def _text_for_age_detection(text: str) -> str:
@@ -335,6 +342,12 @@ def run_input_guards(user_message: str) -> GuardDecision:
                 message=text,
             ),
         )
+
+    # Clear HealthCore requests have already passed deterministic security,
+    # PHI, personal-use, and casual checks. Avoid an extra scope-classifier
+    # LLM call; ambiguous messages still use the fuzzy classifier below.
+    if _CLEAR_HEALTHCORE_DOMAIN_RE.search(text):
+        return GuardDecision(action="pass")
 
     # Fuzzy LLM layer only when deterministic did not match
     label = scope_classifier_fn(text)

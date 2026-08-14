@@ -423,18 +423,23 @@ class RedisQdrantMemoryStore:
 
 _store: RedisQdrantMemoryStore | None = None
 _store_failed = False
+_store_failed_at = 0.0
+_REDIS_RETRY_SECONDS = 15.0
 
 
 def get_memory_store() -> RedisQdrantMemoryStore | None:
     """Lazy singleton. Returns None when memory disabled or Redis unreachable."""
-    global _store, _store_failed
+    global _store, _store_failed, _store_failed_at
     from app.core.config import settings
 
     if not settings.memory_enabled:
         return None
     if _store is not None:
         return _store
-    if _store_failed:
+    if (
+        _store_failed
+        and (time.monotonic() - _store_failed_at) < _REDIS_RETRY_SECONDS
+    ):
         return None
     try:
         import redis as redis_lib
@@ -442,7 +447,10 @@ def get_memory_store() -> RedisQdrantMemoryStore | None:
         from data.process.rag import get_qdrant_client
 
         client = redis_lib.Redis.from_url(
-            settings.redis_url, decode_responses=True
+            settings.redis_url,
+            decode_responses=True,
+            socket_connect_timeout=1,
+            socket_timeout=1,
         )
         client.ping()
         _store = RedisQdrantMemoryStore(
@@ -450,16 +458,22 @@ def get_memory_store() -> RedisQdrantMemoryStore | None:
             qdrant_client=get_qdrant_client(),
             collection=settings.memory_qdrant_collection,
         )
+        _store_failed = False
         return _store
-    except Exception:
+    except Exception as exc:
+        first_failure = not _store_failed
         _store_failed = True
-        logger.exception(
-            "Memory store unavailable — disabling memory for this process"
-        )
+        _store_failed_at = time.monotonic()
+        if first_failure:
+            logger.warning(
+                "Memory store unavailable — disabling until Redis is reachable (%s)",
+                exc,
+            )
         return None
 
 
 def reset_memory_store_for_tests() -> None:
-    global _store, _store_failed
+    global _store, _store_failed, _store_failed_at
     _store = None
     _store_failed = False
+    _store_failed_at = 0.0

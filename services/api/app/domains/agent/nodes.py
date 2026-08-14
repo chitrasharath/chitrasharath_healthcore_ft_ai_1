@@ -40,6 +40,28 @@ _DEFAULT_INTENT: dict[str, Any] = {
     "reasoning": "safe default to RAG",
 }
 
+_INCIDENT_ID_RE = re.compile(
+    r"\b(?:incident|ticket)\s*(?:#|number|id)?\s*[-:]?\s*(\d+)\b",
+    re.I,
+)
+_INVENTORY_RE = re.compile(
+    r"\b(?:inventory|stock|in\s+stock|supply|supplies|"
+    r"masks?|gloves?|syringes?|needles?|bandages?|gauze|ppe)\b",
+    re.I,
+)
+_POLICY_RE = re.compile(
+    r"\b(?:policy|insurance|coverage|cover|accept(?:ed|s)?|medicaid|medicare|"
+    r"appointment|cancel(?:lation)?|no[-\s]?show|fees?|referrals?|"
+    r"new\s+patients?|checklist|procedures?|clinic\s+hours?|"
+    r"weekdays?|opening|clos(?:e|ed|ing))\b",
+    re.I,
+)
+_PRODUCT_HINT_RE = re.compile(
+    r"\b(?:surgical\s+)?(?:masks?|gloves?|syringes?|needles?|"
+    r"bandages?|gauze|ppe)\b",
+    re.I,
+)
+
 _CLASSIFIER_SYSTEM = CLASSIFIER_SYSTEM
 COMPOSE_SYSTEM = AGENT_SYSTEM_PROMPT
 
@@ -299,7 +321,29 @@ def _normalize_intent(raw: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _fast_classify_intent(question: str) -> dict[str, Any] | None:
+    """Route clear, common requests without a classifier LLM round trip."""
+    incident_match = _INCIDENT_ID_RE.search(question)
+    use_inventory = bool(_INVENTORY_RE.search(question))
+    use_rag = bool(_POLICY_RE.search(question))
+    if not (incident_match or use_inventory or use_rag):
+        return None
+
+    product_match = _PRODUCT_HINT_RE.search(question) if use_inventory else None
+    return {
+        "use_rag": use_rag,
+        "use_incident": incident_match is not None,
+        "use_inventory": use_inventory,
+        "incident_id": int(incident_match.group(1)) if incident_match else None,
+        "product_hint": product_match.group(0) if product_match else None,
+        "reasoning": "deterministic fast route",
+    }
+
+
 def default_classifier_fn(question: str) -> dict[str, Any]:
+    fast_intent = _fast_classify_intent(question)
+    if fast_intent is not None:
+        return fast_intent
     try:
         return _normalize_intent(_call_classifier_llm(question))
     except Exception:
